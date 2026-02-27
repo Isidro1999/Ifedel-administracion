@@ -1,0 +1,213 @@
+[
+  {
+    "sku": "PROD-001",
+    "title": "Laptop Dell XPS 15",
+    "brand": "Dell",
+    "category": "Computadoras",
+    "short": "Laptop profesional de alto rendimiento",
+    "description": "Laptop Dell XPS 15 con procesador Intel Core i7, 16GB RAM, SSD 512GB, pantalla 15.6 pulgadas Full HD. Ideal para profesionales y estudiantes.",
+    "isActive": true,
+    "isFeatured": true,
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800",
+        "isPrimary": true,
+        "sortOrder": 0
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?w=800",
+        "isPrimary": false,
+        "sortOrder": 1
+      }
+    ],
+    "specs": [
+      {
+        "label": "Procesador",
+        "value": "Intel Core i7-12700H",
+        "sortOrder": 0
+      },
+      {
+        "label": "RAM",
+        "value": "16GB DDR4",
+        "sortOrder": 1
+      },
+      {
+        "label": "Almacenamiento",
+        "value": "512GB SSD NVMe",
+        "sortOrder": 2
+      },
+      {
+        "label": "Pantalla",
+        "value": "15.6\" Full HD IPS",
+        "sortOrder": 3
+      },
+      {
+        "label": "Sistema Operativo",
+        "value": "Windows 11 Pro",
+        "sortOrder": 4
+      }
+    ],
+    "prices": [
+      {
+        "priceList": "minorista",
+        "currency": "ARS",
+        "netPrice": 450000,
+        "taxRate": 21,
+        "validFrom": "2024-01-01T00:00:00Z",
+        "validTo": null
+      },
+      {
+        "priceList": "mayorista",
+        "currency": "ARS",
+        "netPrice": 405000,
+        "taxRate": 21,
+        "validFrom": "2024-01-01T00:00:00Z",
+        "validTo": null
+      },
+      {
+        "priceList": "minorista",
+        "currency": "USD",
+        "netPrice": 1200,
+        "taxRate": 0,
+        "validFrom": "2024-01-01T00:00:00Z",
+        "validTo": null
+      }
+    ],
+    "files": [
+      {
+        "type": "manual",
+        "url": "https://example.com/manuals/dell-xps-15.pdf"
+      },
+      {
+        "type": "ficha",
+        "url": "https://example.com/specs/dell-xps-15.pdf"
+      }
+    ]
+  },
+  {
+    "sku": "PROD-002",
+    "title": "Mouse Logitech MX Master 3",
+    "brand": "Logitech",
+    "category": "Periféricos",
+    "short": "Mouse inalámbrico ergonómico",
+    "description": "Mouse inalámbrico Logitech MX Master 3 con sensor de alta precisión, batería recargable y diseño ergonómico. Compatible con múltiples dispositivos.",
+    "isActive": true,
+    "isFeatured": false,
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1527814050087-3793815479db?w=800",
+        "isPrimary": true,
+        "sortOrder": 0
+      }
+    ],
+    "specs": [
+      {
+        "label": "Tipo",
+        "value": "Inalámbrico",
+        "sortOrder": 0
+      },
+      {
+        "label": "DPI",
+        "value": "4000 DPI",
+        "sortOrder": 1
+      },
+      {
+        "label": "Batería",
+        "value": "Recargable, hasta 70 días",
+        "sortOrder": 2
+      },
+      {
+        "label": "Conectividad",
+        "value": "Bluetooth y receptor USB",
+        "sortOrder": 3
+      }
+    ],
+    "prices": [
+      {
+        "priceList": "minorista",
+        "currency": "ARS",
+        "netPrice": 35000,
+        "taxRate": 21,
+        "validFrom": "2024-01-01T00:00:00Z",
+        "validTo": null
+      },
+      {
+        "priceList": "mayorista",
+        "currency": "ARS",
+        "netPrice": 31500,
+        "taxRate": 21,
+        "validFrom": "2024-01-01T00:00:00Z",
+        "validTo": null
+      }
+    ],
+    "files": [
+      {
+        "type": "manual",
+        "url": "https://example.com/manuals/logitech-mx-master-3.pdf"
+      }
+    ]
+  },
+  {
+    "sku": "PROD-003",
+    "title": "Monitor Samsung 27\" 4K",
+    "brand": "Samsung",
+    "category": "Monitores",
+    "short": "Monitor 4K UHD de 27 pulgadas",
+    "description": "Monitor Samsung de 27 pulgadas con resolución 4K UHD, panel IPS, HDR10 y múltiples puertos de conexión.",
+    "isActive": true,
+    "isFeatured": true,
+    "images": [
+      {
+        "url": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800",
+        "isPrimary": true,
+        "sortOrder": 0
+      }
+    ],
+    "specs": [
+      {
+        "label": "Tamaño",
+        "value": "27 pulgadas",
+        "sortOrder": 0
+      },
+      {
+        "label": "Resolución",
+        "value": "3840 x 2160 (4K UHD)",
+        "sortOrder": 1
+      },
+      {
+        "label": "Panel",
+        "value": "IPS",
+        "sortOrder": 2
+      },
+      {
+        "label": "HDR",
+        "value": "HDR10",
+        "sortOrder": 3
+      },
+      {
+        "label": "Puertos",
+        "value": "HDMI, DisplayPort, USB-C",
+        "sortOrder": 4
+      }
+    ],
+    "prices": [
+      {
+        "priceList": "minorista",
+        "currency": "ARS",
+        "netPrice": 280000,
+        "taxRate": 21,
+        "validFrom": "2024-01-01T00:00:00Z",
+        "validTo": null
+      },
+      {
+        "priceList": "mayorista",
+        "currency": "ARS",
+        "netPrice": 252000,
+        "taxRate": 21,
+        "validFrom": "2024-01-01T00:00:00Z",
+        "validTo": null
+      }
+    ],
+    "files": []
+  }
+]
