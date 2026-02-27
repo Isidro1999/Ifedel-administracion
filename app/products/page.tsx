@@ -12,7 +12,7 @@ interface Product {
   brand: { name: string }
   category: { name: string }
   images: Array<{ url: string; isPrimary: boolean }>
-  prices: Array<{ netPrice: number; currency: string; priceList: string }>
+  prices: Array<{ netPrice: number; currency: string; priceList: string; taxRate: number }>
 }
 
 interface Facets {
@@ -41,6 +41,10 @@ export default function ProductsPage() {
     totalPages: 0,
   })
   const [loading, setLoading] = useState(true)
+  const [exchangeRate, setExchangeRate] = useState<{
+    usdArsRate: number | null
+    updatedAt: string | null
+  } | null>(null)
   const [filters, setFilters] = useState({
     q: '',
     brand: '',
@@ -76,9 +80,24 @@ export default function ProductsPage() {
     }
   }
 
+  const fetchExchangeRate = async () => {
+    try {
+      const res = await fetch('/api/settings/exchange-rate')
+      if (!res.ok) return
+      const data = (await res.json()) as { usdArsRate: number | null; updatedAt: string | null }
+      setExchangeRate(data)
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error)
+    }
+  }
+
   useEffect(() => {
     fetchProducts()
   }, [filters, pagination.page])
+
+  useEffect(() => {
+    fetchExchangeRate()
+  }, [])
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
@@ -201,6 +220,18 @@ export default function ProductsPage() {
                     <div className="text-lg font-bold text-blue-600">
                       {getDisplayPrice(product) || 'Sin precio'}
                     </div>
+                    {exchangeRate?.usdArsRate &&
+                      product.prices.length > 0 &&
+                      product.prices[0].currency === 'USD' && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {(() => {
+                            const p = product.prices[0]
+                            const totalUsd = p.netPrice * (1 + p.taxRate / 100)
+                            const totalArs = totalUsd * exchangeRate.usdArsRate!
+                            return `≈ ${formatCurrency(totalArs, 'ARS')} (al tipo de cambio ${exchangeRate.usdArsRate} ARS/USD)`
+                          })()}
+                        </div>
+                      )}
                     <div className="text-xs text-gray-400 mt-1">SKU: {product.sku}</div>
                   </div>
                 </Link>

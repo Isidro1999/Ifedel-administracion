@@ -114,3 +114,11 @@ model ProductFile {
 
   @@map("product_files")
 }
+
+model Settings {
+  id         Int      @id @default(1)
+  usdArsRate Float
+  updatedAt  DateTime @updatedAt
+
+  @@map("settings")
+}

@@ -369,6 +369,7 @@ curl -X POST http://localhost:3000/api/admin/import \
 - `/products`: Catálogo de productos con filtros, búsqueda y paginación
 - `/products/[id]`: Detalle completo de un producto
 - `/admin/import`: Página de importación masiva
+- `/admin/settings`: Configuración de tipo de cambio USD → ARS
 
 ### Características de la UI
 
@@ -392,6 +393,94 @@ curl -X POST http://localhost:3000/api/admin/import \
   - Preview de resultados
   - Reporte de errores detallado
   - Estadísticas de importación
+
+- **Settings:**
+  - Configuración de tipo de cambio USD → ARS
+  - Visualización de última actualización
+
+## 💱 Tipo de cambio USD → ARS
+
+El sistema permite definir un tipo de cambio USD → ARS para mostrar precios aproximados en pesos cuando los precios están en USD.
+
+### Tabla `settings`
+
+Se agregó una tabla `settings` (singleton) con:
+
+- `id` (Int, fijo en 1)
+- `usdArsRate` (Float): tipo de cambio (ARS por 1 USD)
+- `updatedAt` (DateTime): fecha de última actualización
+
+### Endpoints
+
+#### GET `/api/settings/exchange-rate`
+
+Endpoint público que devuelve el tipo de cambio actual:
+
+```json
+{
+  "usdArsRate": 1085.5,
+  "updatedAt": "2026-02-27T19:15:00.000Z"
+}
+```
+
+Si aún no se configuró, devuelve:
+
+```json
+{
+  "usdArsRate": null,
+  "updatedAt": null
+}
+```
+
+#### PUT `/api/admin/settings/exchange-rate`
+
+Endpoint admin protegido con `x-admin-key` para actualizar el tipo de cambio.
+
+**Headers:**
+
+```
+x-admin-key: tu-clave-admin
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+  "usdArsRate": 1085.5
+}
+```
+
+**Ejemplo:**
+
+```bash
+curl -X PUT http://localhost:3000/api/admin/settings/exchange-rate \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: tu-clave-admin" \
+  -d '{"usdArsRate":1085.5}'
+```
+
+### UI de Settings
+
+En `/admin/settings`:
+
+- Campo numérico para `usdArsRate` (ej: 1085.50).
+- Muestra el último valor guardado y la fecha/hora de actualización.
+- Usa el endpoint admin para guardar.
+
+### Cálculo de precios en ARS
+
+En el catálogo `/products`, si el producto tiene un precio en USD, se muestra:
+
+- **netPrice**: precio sin IVA
+- **ivaAmount**: `netPrice * (taxRate / 100)`
+- **totalUsd**: `netPrice + ivaAmount`
+- **totalArs**: `totalUsd * usdArsRate`
+
+En la UI se ve, por ejemplo:
+
+- Línea principal: precio final en USD (según `netPrice` + IVA)
+- Debajo: `≈ $ XXXX,XX (al tipo de cambio NNNN.NN ARS/USD)` cuando hay tipo de cambio configurado.
 
 ## 🔒 Seguridad
 
