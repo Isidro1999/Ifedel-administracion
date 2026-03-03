@@ -5,6 +5,13 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ImportProduct } from '@/lib/import-schemas'
 
+interface ProductImage {
+  id: number
+  url: string
+  isPrimary: boolean
+  sortOrder: number
+}
+
 interface ProductFromApi {
   id: number
   sku: string
@@ -17,7 +24,7 @@ interface ProductFromApi {
   isFeatured: boolean
   brand: { name: string }
   category: { name: string }
-  images: Array<{ url: string; isPrimary: boolean; sortOrder: number }>
+  images: ProductImage[]
   specs: Array<{ label: string; value: string; sortOrder: number }>
   prices: Array<{
     priceList: string
@@ -31,6 +38,8 @@ interface ProductFromApi {
 }
 
 function productToForm(product: ProductFromApi): ImportProduct {
+  // Las imágenes se gestionan por separado vía Cloudinary y endpoints dedicados.
+  // Aquí solo mapeamos los campos del producto y relaciones que siguen el flujo ImportProduct.
   return {
     sku: product.sku,
     title: product.title,
@@ -42,11 +51,7 @@ function productToForm(product: ProductFromApi): ImportProduct {
     costCurrency: product.costCurrency ?? undefined,
     isActive: product.isActive,
     isFeatured: product.isFeatured,
-    images: product.images.map((img) => ({
-      url: img.url,
-      isPrimary: img.isPrimary,
-      sortOrder: img.sortOrder,
-    })),
+    images: [],
     specs: product.specs.map((s) => ({
       label: s.label,
       value: s.value,
@@ -73,6 +78,9 @@ export default function EditProductPage() {
   const [error, setError] = useState('')
   const [adminKey, setAdminKey] = useState('')
   const [form, setForm] = useState<ImportProduct | null>(null)
+   const [images, setImages] = useState<ProductImage[]>([])
+   const [uploadingImage, setUploadingImage] = useState(false)
+   const [imageError, setImageError] = useState('')
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -85,6 +93,13 @@ export default function EditProductPage() {
         }
         const data: ProductFromApi = await res.json()
         setForm(productToForm(data))
+        setImages(
+          data.images.slice().sort((a, b) => {
+            if (a.isPrimary && !b.isPrimary) return -1
+            if (!a.isPrimary && b.isPrimary) return 1
+            return a.sortOrder - b.sortOrder
+          })
+        )
       } catch {
         setError('Error al cargar el producto')
       } finally {
@@ -279,69 +294,277 @@ export default function EditProductPage() {
 
           <div className="bg-white rounded-lg border p-4">
             <h2 className="text-lg font-semibold mb-3">Imágenes</h2>
-            {form.images.map((img, idx) => (
-              <div key={idx} className="flex gap-2 mb-2 items-start flex-wrap">
-                <input
-                  type="url"
-                  value={img.url}
-                  onChange={(e) => {
-                    const next = [...form.images]
-                    next[idx] = { ...next[idx], url: e.target.value }
-                    update({ images: next })
-                  }}
-                  className="flex-1 min-w-[200px] px-3 py-2 border rounded-md text-sm"
-                  placeholder="URL"
-                />
-                <label className="flex items-center gap-1 shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={img.isPrimary}
-                    onChange={() => {
-                      const next = form.images.map((i, iidx) =>
-                        iidx === idx ? { ...i, isPrimary: true } : { ...i, isPrimary: false }
-                      )
-                      update({ images: next })
-                    }}
-                  />
-                  <span className="text-xs">Principal</span>
-                </label>
-                <input
-                  type="number"
-                  value={img.sortOrder}
-                  onChange={(e) => {
-                    const next = [...form.images]
-                    next[idx] = { ...next[idx], sortOrder: Number(e.target.value) }
-                    update({ images: next })
-                  }}
-                  className="w-14 px-2 py-2 border rounded-md text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => update({ images: form.images.filter((_, i) => i !== idx) })}
-                  className="px-2 py-1 text-red-600 text-sm hover:underline"
-                >
-                  Quitar
-                </button>
+            <p className="text-xs text-gray-500 mb-3">
+              Las imágenes se suben a Cloudinary y se gestionan de forma independiente al resto de
+              los campos del producto.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  if (!adminKey.trim()) {
+                    setImageError('Ingresá la clave de administrador para subir imágenes')
+                    e.target.value = ''
+                    return
+                  }
+                  setImageError('')
+                  setUploadingImage(true)
+                  try {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    const res = await fetch(`/api/admin/products/${id}/images`, {
+                      method: 'POST',
+                      headers: { 'x-admin-key': adminKey },
+                      body: formData,
+                    })
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}))
+                      throw new Error(data.error || 'Error al subir imagen')
+                    }
+                    const newImage: ProductImage = await res.json()
+                    setImages((prev) =>
+                      [...prev, newImage].sort((a, b) => {
+                        if (a.isPrimary && !b.isPrimary) return -1
+                        if (!a.isPrimary && b.isPrimary) return 1
+                        return a.sortOrder - b.sortOrder
+                      })
+                    )
+                    e.target.value = ''
+                  } catch (err) {
+                    setImageError(
+                      err instanceof Error ? err.message : 'Error al subir la imagen'
+                    )
+                  } finally {
+                    setUploadingImage(false)
+                  }
+                }}
+                className="text-sm"
+                disabled={uploadingImage}
+              />
+              {uploadingImage && (
+                <span className="text-xs text-gray-500">Subiendo imagen...</span>
+              )}
+            </div>
+
+            {images.length === 0 ? (
+              <p className="text-sm text-gray-500">Este producto no tiene imágenes.</p>
+            ) : (
+              <div className="space-y-3">
+                {images.map((img, idx) => (
+                  <div
+                    key={img.id}
+                    className="flex items-center gap-3 border rounded-md p-2 bg-gray-50"
+                  >
+                    <div className="w-16 h-16 rounded bg-white overflow-hidden border">
+                      <img
+                        src={img.url}
+                        alt={form.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-[150px]">
+                      <div className="text-xs text-gray-600 break-all line-clamp-2">
+                        {img.url}
+                      </div>
+                      {img.isPrimary && (
+                        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                          Principal
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <button
+                        type="button"
+                        className="px-2 py-1 text-xs border rounded hover:bg-white"
+                        disabled={img.isPrimary}
+                        onClick={async () => {
+                          if (!adminKey.trim()) {
+                            setImageError('Ingresá la clave de administrador')
+                            return
+                          }
+                          setImageError('')
+                          try {
+                            const res = await fetch(
+                              `/api/admin/products/${id}/images/${img.id}`,
+                              {
+                                method: 'PATCH',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'x-admin-key': adminKey,
+                                },
+                                body: JSON.stringify({ isPrimary: true }),
+                              }
+                            )
+                            if (!res.ok) {
+                              const data = await res.json().catch(() => ({}))
+                              throw new Error(data.error || 'Error al actualizar imagen')
+                            }
+                            setImages((prev) =>
+                              prev.map((i) => ({
+                                ...i,
+                                isPrimary: i.id === img.id,
+                              }))
+                            )
+                          } catch (err) {
+                            setImageError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Error al establecer imagen principal'
+                            )
+                          }
+                        }}
+                      >
+                        Principal
+                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="px-1 text-xs border rounded hover:bg-white"
+                          disabled={idx === 0}
+                          onClick={async () => {
+                            const newOrder = [...images]
+                            ;[newOrder[idx - 1], newOrder[idx]] = [
+                              newOrder[idx],
+                              newOrder[idx - 1],
+                            ]
+                            // recalcular sortOrder 0..n y enviar PATCH
+                            const withOrder = newOrder.map((img, index) => ({
+                              ...img,
+                              sortOrder: index,
+                            }))
+                            setImages(withOrder)
+                            if (!adminKey.trim()) {
+                              setImageError('Ingresá la clave de administrador')
+                              return
+                            }
+                            try {
+                              await Promise.all(
+                                withOrder.map((i) =>
+                                  fetch(
+                                    `/api/admin/products/${id}/images/${i.id}`,
+                                    {
+                                      method: 'PATCH',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-admin-key': adminKey,
+                                      },
+                                      body: JSON.stringify({ sortOrder: i.sortOrder }),
+                                    }
+                                  )
+                                )
+                              )
+                            } catch (err) {
+                              setImageError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Error al actualizar el orden de imágenes'
+                              )
+                            }
+                          }}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="px-1 text-xs border rounded hover:bg-white"
+                          disabled={idx === images.length - 1}
+                          onClick={async () => {
+                            const newOrder = [...images]
+                            ;[newOrder[idx + 1], newOrder[idx]] = [
+                              newOrder[idx],
+                              newOrder[idx + 1],
+                            ]
+                            const withOrder = newOrder.map((img, index) => ({
+                              ...img,
+                              sortOrder: index,
+                            }))
+                            setImages(withOrder)
+                            if (!adminKey.trim()) {
+                              setImageError('Ingresá la clave de administrador')
+                              return
+                            }
+                            try {
+                              await Promise.all(
+                                withOrder.map((i) =>
+                                  fetch(
+                                    `/api/admin/products/${id}/images/${i.id}`,
+                                    {
+                                      method: 'PATCH',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-admin-key': adminKey,
+                                      },
+                                      body: JSON.stringify({ sortOrder: i.sortOrder }),
+                                    }
+                                  )
+                                )
+                              )
+                            } catch (err) {
+                              setImageError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Error al actualizar el orden de imágenes'
+                              )
+                            }
+                          }}
+                        >
+                          ↓
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="px-2 py-1 text-xs text-red-600 hover:underline"
+                        onClick={async () => {
+                          if (!adminKey.trim()) {
+                            setImageError('Ingresá la clave de administrador')
+                            return
+                          }
+                          if (
+                            !confirm(
+                              '¿Eliminar esta imagen? Se eliminará también de Cloudinary.'
+                            )
+                          ) {
+                            return
+                          }
+                          setImageError('')
+                          try {
+                            const res = await fetch(
+                              `/api/admin/products/${id}/images/${img.id}`,
+                              {
+                                method: 'DELETE',
+                                headers: { 'x-admin-key': adminKey },
+                              }
+                            )
+                            if (!res.ok) {
+                              const data = await res.json().catch(() => ({}))
+                              throw new Error(data.error || 'Error al eliminar imagen')
+                            }
+                            setImages((prev) => prev.filter((i) => i.id !== img.id))
+                          } catch (err) {
+                            setImageError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Error al eliminar la imagen'
+                            )
+                          }
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                update({
-                  images: [
-                    ...form.images,
-                    {
-                      url: '',
-                      isPrimary: form.images.length === 0,
-                      sortOrder: form.images.length,
-                    },
-                  ],
-                })
-              }
-              className="text-sm text-blue-600 hover:underline"
-            >
-              + Agregar imagen
-            </button>
+            )}
+
+            {imageError && (
+              <div className="mt-2 p-2 rounded bg-red-50 border border-red-200 text-xs text-red-700">
+                {imageError}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-lg border p-4">

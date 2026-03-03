@@ -64,8 +64,8 @@ export async function PUT(
       })
     }
 
-    // Actualizar producto (eliminar relaciones existentes y recrear)
-    await prisma.productImage.deleteMany({ where: { productId: id } })
+    // Actualizar producto (especificaciones, precios, archivos, pero no imágenes:
+    // las imágenes se gestionan por endpoints dedicados con Cloudinary)
     await prisma.productSpec.deleteMany({ where: { productId: id } })
     await prisma.productPrice.deleteMany({ where: { productId: id } })
     await prisma.productFile.deleteMany({ where: { productId: id } })
@@ -83,13 +83,6 @@ export async function PUT(
         isFeatured: data.isFeatured,
         brandId: brand.id,
         categoryId: category.id,
-        images: {
-          create: data.images.map((img) => ({
-            url: img.url,
-            isPrimary: img.isPrimary,
-            sortOrder: img.sortOrder,
-          })),
-        },
         specs: {
           create: data.specs.map((spec) => ({
             label: spec.label,
@@ -117,7 +110,9 @@ export async function PUT(
       include: {
         brand: true,
         category: true,
-        images: true,
+        images: {
+          orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+        },
         specs: true,
         prices: true,
         files: true,

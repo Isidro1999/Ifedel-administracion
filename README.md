@@ -247,6 +247,47 @@ curl -X DELETE http://localhost:3000/api/admin/products/1 \
   -H "x-admin-key: tu-clave-admin"
 ```
 
+#### POST `/api/admin/products/[id]/images`
+
+Sube una imagen a Cloudinary y la asocia al producto.
+
+**Headers:**
+
+```
+x-admin-key: tu-clave-admin
+```
+
+**Body (FormData):**
+- `file`: archivo de imagen (máx 8MB)
+
+Guarda en `product_images`:
+- `url`: `secure_url` de Cloudinary
+- `publicId`: `public_id` de Cloudinary
+- `isPrimary`: `true` si es la primera imagen del producto
+- `sortOrder`: correlativo (`0,1,2,...`)
+
+#### PATCH `/api/admin/products/[id]/images/[imageId]`
+
+Actualiza metadatos de una imagen:
+
+Body (JSON, todos opcionales):
+
+```json
+{
+  "isPrimary": true,
+  "sortOrder": 1
+}
+```
+
+- `isPrimary: true`: marca esa imagen como principal y desmarca el resto.
+- `sortOrder`: actualiza el orden de la imagen.
+
+#### DELETE `/api/admin/products/[id]/images/[imageId]`
+
+Elimina una imagen:
+- Borra en Cloudinary usando `publicId` (si existe).
+- Borra el registro de `product_images`.
+
 #### POST `/api/admin/import`
 
 Importa productos masivamente desde JSON o CSV.
