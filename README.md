@@ -44,6 +44,13 @@ ADMIN_KEY="tu-clave-secreta-aqui"
 
 **Importante:** Cambia `ADMIN_KEY` por una clave segura en producción.
 
+**Autenticación (Auth.js / NextAuth v5):**
+
+- `AUTH_SECRET`: secreto para firmar cookies/sesiones (generar con `openssl rand -base64 32`).
+- `AUTH_GOOGLE_ID` y `AUTH_GOOGLE_SECRET`: credenciales de Google OAuth (consola de Google Cloud).
+
+Solo usuarios con estado **APPROVED** pueden usar la app; los **PENDING** ven `/pending`. El usuario con email `isidroballestrin@gmail.com` se crea como **ADMIN** y **APPROVED** automáticamente.
+
 4. **Generar el cliente de Prisma:**
 
 ```bash
@@ -110,6 +117,19 @@ El schema incluye las siguientes tablas:
 - **product_specs**: Especificaciones técnicas
 - **product_prices**: Precios (soporta múltiples listas y monedas)
 - **product_files**: Archivos asociados (manuales, fichas, etc.)
+
+El schema también incluye tablas para **Auth.js (NextAuth v5)** y aprobación manual:
+
+- **users**: Usuarios (Google); campos `role` (USER/ADMIN), `status` (PENDING/APPROVED/REJECTED), `approvedAt`, `approvedById`.
+- **accounts**, **sessions**, **verification_tokens**: Uso interno de Auth.js.
+
+### Autenticación y acceso
+
+- **Login:** Google OAuth. Sin sesión se redirige a la pantalla de inicio de sesión de Auth.js.
+- **Pendientes:** Usuarios nuevos tienen `status = PENDING` y solo pueden ver `/pending` hasta ser aprobados.
+- **Aprobados:** Solo usuarios con `status = APPROVED` acceden al resto de la app.
+- **Admin:** El usuario con email `isidroballestrin@gmail.com` se crea/actualiza como `role = ADMIN` y `status = APPROVED`. Solo **ADMIN** puede entrar a `/admin/*` (import, settings, users).
+- **Panel de usuarios:** `/admin/users` permite ver usuarios PENDING, aprobar o rechazar, y listar APPROVED.
 
 ### Migraciones
 

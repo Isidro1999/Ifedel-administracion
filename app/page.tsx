@@ -1,6 +1,10 @@
 import Link from 'next/link'
+import { auth } from '@/auth'
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth()
+  const isAdmin = session?.user?.role === 'ADMIN'
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
@@ -13,20 +17,31 @@ export default function Home() {
             <h2 className="text-2xl font-semibold mb-2">Catálogo de Productos</h2>
             <p className="text-gray-600">Ver todos los productos disponibles</p>
           </Link>
-          <Link
-            href="/admin/import"
-            className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition"
-          >
-            <h2 className="text-2xl font-semibold mb-2">Importar Productos</h2>
-            <p className="text-gray-600">Importar productos desde JSON o CSV</p>
-          </Link>
-          <Link
-            href="/admin/settings"
-            className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition"
-          >
-            <h2 className="text-2xl font-semibold mb-2">Settings</h2>
-            <p className="text-gray-600">Configurar tipo de cambio USD → ARS</p>
-          </Link>
+          {isAdmin && (
+            <>
+              <Link
+                href="/admin/import"
+                className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition"
+              >
+                <h2 className="text-2xl font-semibold mb-2">Importar Productos</h2>
+                <p className="text-gray-600">Importar productos desde JSON o CSV</p>
+              </Link>
+              <Link
+                href="/admin/settings"
+                className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition"
+              >
+                <h2 className="text-2xl font-semibold mb-2">Settings</h2>
+                <p className="text-gray-600">Configurar tipo de cambio USD → ARS</p>
+              </Link>
+              <Link
+                href="/admin/users"
+                className="p-6 bg-white rounded-lg shadow hover:shadow-lg transition"
+              >
+                <h2 className="text-2xl font-semibold mb-2">Usuarios</h2>
+                <p className="text-gray-600">Aprobar o rechazar usuarios</p>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>
