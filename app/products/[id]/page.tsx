@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
+import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 
 interface Product {
   id: number
@@ -144,7 +145,10 @@ export default function ProductDetailPage() {
                 <>
                   <div className="aspect-square bg-gray-100 rounded-lg mb-4 overflow-hidden">
                     <img
-                      src={sortedImages[selectedImageIndex]?.url || sortedImages[0].url}
+                      src={getOptimizedImageUrl(
+                        sortedImages[selectedImageIndex]?.url || sortedImages[0]?.url,
+                        1200
+                      )}
                       alt={product.title}
                       className="w-full h-full object-cover"
                     />
@@ -160,7 +164,7 @@ export default function ProductDetailPage() {
                           }`}
                         >
                           <img
-                            src={img.url}
+                            src={getOptimizedImageUrl(img.url, 400)}
                             alt={`${product.title} ${idx + 1}`}
                             className="w-full h-full object-cover"
                           />

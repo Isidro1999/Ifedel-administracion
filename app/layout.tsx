@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AppHeader } from "@/components/AppHeader";
 
 export const metadata: Metadata = {
   title: "Base de Productos - IFEDEL",
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <AppHeader />
+        <main>{children}</main>
+      </body>
     </html>
   );
 }

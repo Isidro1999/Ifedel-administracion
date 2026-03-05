@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
+import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import { useQuoteStore } from '@/lib/quote-store'
 
 interface Product {
   id: number
@@ -110,8 +112,15 @@ export default function ProductsPage() {
     return formatCurrency(price.netPrice * (1 + price.taxRate / 100), price.currency)
   }
 
+  const { items, addItem, updateQty, removeItem } = useQuoteStore()
+
+  const getQtyForProduct = (productId: number) =>
+    items.find((i) => i.productId === productId)?.qty ?? 0
+
+  const totalItems = items.reduce((acc, item) => acc + item.qty, 0)
+
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-8 relative">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <Link href="/" className="text-blue-600 hover:underline mb-4 inline-block">
@@ -192,50 +201,142 @@ export default function ProductsPage() {
               Mostrando {products.length} de {pagination.total} productos
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <Link
-                  key={product.id}
-                  href={`/products/${product.id}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
-                >
-                  {product.images.length > 0 && (
-                    <div className="aspect-square bg-gray-100">
-                      <img
-                        src={product.images[0].url}
-                        alt={product.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <div className="p-4">
-                    <div className="text-sm text-gray-500 mb-1">
-                      {product.brand.name} • {product.category.name}
-                    </div>
-                    <h3 className="font-semibold mb-2 line-clamp-2">{product.title}</h3>
-                    {product.short && (
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {product.short}
-                      </p>
-                    )}
-                    <div className="text-lg font-bold text-blue-600">
-                      {getDisplayPrice(product) || 'Sin precio'}
-                    </div>
-                    {exchangeRate?.usdArsRate &&
-                      product.prices.length > 0 &&
-                      product.prices[0].currency === 'USD' && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {(() => {
-                            const p = product.prices[0]
-                            const totalUsd = p.netPrice * (1 + p.taxRate / 100)
-                            const totalArs = totalUsd * exchangeRate.usdArsRate!
-                            return `≈ ${formatCurrency(totalArs, 'ARS')} (al tipo de cambio ${exchangeRate.usdArsRate} ARS/USD)`
-                          })()}
+              {products.map((product) => {
+                const hasPrice = product.prices.length > 0
+                const mainPrice = hasPrice ? product.prices[0] : null
+                const qty = getQtyForProduct(product.id)
+
+                const handleAddToQuote = () => {
+                  if (!hasPrice || !mainPrice) return
+                  addItem(
+                    {
+                      productId: product.id,
+                      sku: product.sku,
+                      title: product.title,
+                      unitPriceUSD: mainPrice.netPrice,
+                      taxRate: mainPrice.taxRate,
+                      imageUrl: product.images[0]?.url,
+                    },
+                    qty > 0 ? qty : 1
+                  )
+                }
+
+                const handleQtyChange = (newQty: number) => {
+                  if (newQty <= 0) {
+                    removeItem(product.id)
+                  } else if (qty === 0 && hasPrice && mainPrice) {
+                    addItem(
+                      {
+                        productId: product.id,
+                        sku: product.sku,
+                        title: product.title,
+                        unitPriceUSD: mainPrice.netPrice,
+                        taxRate: mainPrice.taxRate,
+                        imageUrl: product.images[0]?.url,
+                      },
+                      newQty
+                    )
+                  } else {
+                    updateQty(product.id, newQty)
+                  }
+                }
+
+                return (
+                  <div
+                    key={product.id}
+                    className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden flex flex-col"
+                  >
+                    <Link href={`/products/${product.id}`} className="block">
+                      {product.images.length > 0 && (
+                        <div className="aspect-square bg-gray-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={getOptimizedImageUrl(product.images[0]?.url, 400)}
+                            alt={product.title}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       )}
-                    <div className="text-xs text-gray-400 mt-1">SKU: {product.sku}</div>
+                    </Link>
+                    <div className="p-4 flex flex-col gap-2 flex-1">
+                      <div className="text-sm text-gray-500">
+                        {product.brand.name} • {product.category.name}
+                      </div>
+                      <Link href={`/products/${product.id}`} className="block">
+                        <h3 className="font-semibold mb-1 line-clamp-2">
+                          {product.title}
+                        </h3>
+                      </Link>
+                      {product.short && (
+                        <p className="text-sm text-gray-600 mb-1 line-clamp-2">
+                          {product.short}
+                        </p>
+                      )}
+                      <div className="text-lg font-bold text-blue-600">
+                        {getDisplayPrice(product) || 'Sin precio'}
+                      </div>
+                      {exchangeRate?.usdArsRate &&
+                        hasPrice &&
+                        mainPrice?.currency === 'USD' && (
+                          <div className="text-xs text-gray-500">
+                            {(() => {
+                              const p = mainPrice
+                              const totalUsd = p.netPrice * (1 + p.taxRate / 100)
+                              const totalArs = totalUsd * exchangeRate.usdArsRate!
+                              return `≈ ${formatCurrency(
+                                totalArs,
+                                'ARS'
+                              )} (al tipo de cambio ${
+                                exchangeRate.usdArsRate
+                              } ARS/USD)`
+                            })()}
+                          </div>
+                        )}
+                      <div className="text-xs text-gray-400">SKU: {product.sku}</div>
+
+                      {/* Controles de cotización */}
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleQtyChange(qty - 1)}
+                            className="w-7 h-7 border rounded text-sm flex items-center justify-center disabled:opacity-50"
+                            disabled={qty <= 0}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            value={qty}
+                            onChange={(e) =>
+                              handleQtyChange(
+                                Math.max(0, parseInt(e.target.value || '0', 10))
+                              )
+                            }
+                            className="w-12 text-center border rounded text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleQtyChange(qty + 1 || 1)}
+                            className="w-7 h-7 border rounded text-sm flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddToQuote}
+                          disabled={!hasPrice}
+                          className="flex-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {qty > 0 ? 'Actualizar cotización' : 'Agregar a cotización'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </Link>
-              ))}
+                )
+              })}
             </div>
 
             {/* Paginación */}
@@ -261,6 +362,14 @@ export default function ProductsPage() {
               </div>
             )}
           </>
+        )}
+        {totalItems > 0 && (
+          <Link
+            href="/quotes/new"
+            className="fixed bottom-6 right-6 px-4 py-3 rounded-full shadow-lg bg-blue-600 text-white text-sm md:text-base flex items-center gap-2 hover:bg-blue-700"
+          >
+            Ver cotización ({totalItems})
+          </Link>
         )}
       </div>
     </div>

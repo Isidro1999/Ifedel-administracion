@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ImportProduct } from '@/lib/import-schemas'
+import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 
 interface ProductImage {
   id: number
@@ -360,7 +361,7 @@ export default function EditProductPage() {
                   >
                     <div className="w-16 h-16 rounded bg-white overflow-hidden border">
                       <img
-                        src={img.url}
+                        src={getOptimizedImageUrl(img.url, 400)}
                         alt={form.title}
                         className="w-full h-full object-cover"
                       />
