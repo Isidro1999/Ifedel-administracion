@@ -17,6 +17,15 @@ export default async function Home() {
             <h2 className="text-2xl font-semibold mb-2 text-ifedel-black">Catálogo de Productos</h2>
             <p className="text-ifedel-brown">Ver todos los productos disponibles</p>
           </Link>
+          <Link
+            href="/quotes"
+            className="p-6 bg-white rounded-lg shadow border-2 border-transparent hover:border-ifedel-primary hover:shadow-lg transition"
+          >
+            <h2 className="text-2xl font-semibold mb-2 text-ifedel-black">Cotizaciones guardadas</h2>
+            <p className="text-ifedel-brown">
+              Ver y gestionar las cotizaciones persistidas.
+            </p>
+          </Link>
           {isAdmin && (
             <>
               <Link

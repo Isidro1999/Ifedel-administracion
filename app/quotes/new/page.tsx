@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useQuoteStore } from '@/lib/quote-store'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
@@ -57,6 +57,62 @@ export default function NewQuotePage() {
 
   const today = new Date()
   const dateLabel = today.toISOString().slice(0, 10)
+
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  const handleSaveQuote = async () => {
+    if (items.length === 0) return
+    setIsSaving(true)
+    setSaveMessage(null)
+    setSaveError(null)
+
+    try {
+      const response = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items,
+          client,
+          meta,
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setSaveError(
+            'Tenés que iniciar sesión para guardar la cotización.'
+          )
+        } else if (response.status === 400) {
+          setSaveError(
+            data?.error ||
+              'El contenido de la cotización no es válido. Revisá los campos.'
+          )
+        } else {
+          setSaveError(
+            data?.error || 'Ocurrió un error al guardar la cotización.'
+          )
+        }
+        return
+      }
+
+      if (data?.success && data?.quoteNumber) {
+        setSaveMessage(`Cotización guardada como ${data.quoteNumber}.`)
+      } else {
+        setSaveMessage('Cotización guardada correctamente.')
+      }
+    } catch (err) {
+      console.error('Error al llamar a /api/quotes', err)
+      setSaveError('No se pudo comunicar con el servidor para guardar.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const handleCopyWhatsApp = async () => {
     if (items.length === 0) return
@@ -364,6 +420,14 @@ export default function NewQuotePage() {
         {/* Acciones */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSaveQuote}
+              disabled={isSaving}
+              className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSaving ? 'Guardando…' : 'Guardar cotización'}
+            </button>
             <DownloadQuotePdfButton
               items={items}
               client={client}
@@ -400,6 +464,16 @@ export default function NewQuotePage() {
               Volver al catálogo
             </Link>
           </div>
+          {(saveMessage || saveError) && (
+            <div className="w-full text-sm">
+              {saveMessage && (
+                <p className="text-emerald-700">{saveMessage}</p>
+              )}
+              {saveError && (
+                <p className="text-red-600">{saveError}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
