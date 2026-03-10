@@ -109,7 +109,7 @@ export default function NewQuotePage() {
           </p>
           <Link
             href="/products"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 font-medium"
           >
             Ir al catálogo
           </Link>
@@ -120,7 +120,7 @@ export default function NewQuotePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-[900px] mx-auto bg-white shadow-md rounded-lg p-6 md:p-8">
+      <div className="max-w-[900px] mx-auto bg-white shadow-md rounded-lg border-2 border-ifedel-primary/20 p-6 md:p-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>
@@ -376,7 +376,7 @@ export default function NewQuotePage() {
             <button
               type="button"
               onClick={handleCopyWhatsApp}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm"
+              className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 text-sm font-medium"
             >
               Copiar resumen para WhatsApp
             </button>
@@ -395,7 +395,7 @@ export default function NewQuotePage() {
             </button>
             <Link
               href="/products"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+              className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 text-sm font-medium"
             >
               Volver al catálogo
             </Link>

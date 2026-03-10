@@ -76,7 +76,7 @@ export default function ProductDetailPage() {
       <div className="min-h-screen p-8">
         <div className="max-w-6xl mx-auto text-center py-12">
           <p className="text-gray-500 mb-4">Producto no encontrado</p>
-          <Link href="/products" className="text-blue-600 hover:underline">
+          <Link href="/products" className="text-ifedel-primary hover:underline font-medium">
             Volver al catálogo
           </Link>
         </div>
@@ -126,7 +126,7 @@ export default function ProductDetailPage() {
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-4 mb-4">
-          <Link href="/products" className="text-blue-600 hover:underline">
+          <Link href="/products" className="text-ifedel-primary hover:underline font-medium">
             ← Volver al catálogo
           </Link>
           <Link
@@ -160,7 +160,7 @@ export default function ProductDetailPage() {
                           key={img.id}
                           onClick={() => setSelectedImageIndex(idx)}
                           className={`aspect-square bg-gray-100 rounded overflow-hidden border-2 ${
-                            selectedImageIndex === idx ? 'border-blue-500' : 'border-transparent'
+                            selectedImageIndex === idx ? 'border-ifedel-primary' : 'border-transparent'
                           }`}
                         >
                           <img

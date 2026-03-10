@@ -28,7 +28,7 @@ export const DownloadQuotePdfButton: React.FC<DownloadQuotePdfButtonProps> = (
       {({ loading }) => (
         <button
           type="button"
-          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+          className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 disabled:opacity-50 font-medium"
           disabled={loading}
         >
           {loading ? 'Generando PDF...' : 'Generar PDF'}

@@ -91,7 +91,7 @@ export default function AdminSettingsPage() {
     <div className="min-h-screen p-8">
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
-          <Link href="/" className="text-blue-600 hover:underline mb-4 inline-block">
+          <Link href="/" className="text-ifedel-primary hover:underline mb-4 inline-block font-medium">
             ← Volver al inicio
           </Link>
           <h1 className="text-3xl font-bold mb-2">Settings</h1>
@@ -143,7 +143,7 @@ export default function AdminSettingsPage() {
                 <button
                   type="submit"
                   disabled={loading || !adminKey}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 disabled:opacity-50 font-medium"
                 >
                   {loading ? 'Guardando...' : 'Guardar'}
                 </button>

@@ -39,7 +39,7 @@ export function UserActions({
         type="button"
         onClick={handleApprove}
         disabled={!!loading}
-        className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+        className="px-3 py-1.5 text-sm bg-ifedel-primary text-white rounded hover:opacity-90 disabled:opacity-50 font-medium"
       >
         {loading === 'approve' ? '...' : 'Aprobar'}
       </button>

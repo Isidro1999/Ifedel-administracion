@@ -76,7 +76,7 @@ export default function ImportPage() {
     <div className="min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <Link href="/" className="text-blue-600 hover:underline mb-4 inline-block">
+          <Link href="/" className="text-ifedel-primary hover:underline mb-4 inline-block font-medium">
             ← Volver al inicio
           </Link>
           <h1 className="text-4xl font-bold mb-4">Importar Productos</h1>
@@ -151,7 +151,7 @@ export default function ImportPage() {
             <button
               type="submit"
               disabled={loading || !file || !adminKey}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-ifedel-primary text-white py-2 px-4 rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? 'Importando...' : 'Importar Productos'}
             </button>
@@ -168,8 +168,8 @@ export default function ImportPage() {
                 <div className="text-sm text-green-700">Creados</div>
               </div>
               <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-                <div className="text-2xl font-bold text-blue-600">{result.updated}</div>
-                <div className="text-sm text-blue-700">Actualizados</div>
+                <div className="text-2xl font-bold text-ifedel-primary">{result.updated}</div>
+                <div className="text-sm text-ifedel-brown">Actualizados</div>
               </div>
               <div className="p-4 bg-red-50 border border-red-200 rounded">
                 <div className="text-2xl font-bold text-red-600">{result.failed}</div>
@@ -209,7 +209,7 @@ export default function ImportPage() {
           <h3 className="text-lg font-semibold mb-2">Formato de Archivo</h3>
           <p className="text-sm text-gray-600 mb-4">
             Consulta la documentación completa en{' '}
-            <Link href="/docs/import-format" className="text-blue-600 hover:underline">
+            <Link href="/docs/import-format" className="text-ifedel-primary hover:underline">
               /docs/import-format.md
             </Link>
           </p>

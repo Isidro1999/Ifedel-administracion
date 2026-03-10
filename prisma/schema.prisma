@@ -57,6 +57,10 @@ model Product {
   prices ProductPrice[]
   files  ProductFile[]
 
+  // Relaciones con documentos comerciales (trazabilidad)
+  quoteItems QuoteItem[]
+  saleItems  SaleItem[]
+
   @@map("products")
 }
 
@@ -125,6 +129,227 @@ model Settings {
   @@map("settings")
 }
 
+/// Clientes comerciales de IFEDEL
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  company   String?
+  email     String?
+  phone     String?
+
+  // Datos fiscales / ubicación (opcionales, simples)
+  vatCondition String?
+  province     String?
+
+  isActive Boolean @default(true)
+
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  quotes Quote[]
+  sales  Sale[]
+
+  @@map("customers")
+}
+
+/// Cotizaciones (cabecera)
+model Quote {
+  id          Int    @id @default(autoincrement())
+  quoteNumber String @unique
+
+  /// Status de negocio esperados:
+  /// - DRAFT: borrador en edición
+  /// - SAVED: guardada internamente, no enviada
+  /// - SENT: enviada al cliente
+  /// - APPROVED: aprobada por el cliente
+  /// - REJECTED: rechazada / descartada
+  /// - EXPIRED: venció la validez
+  status String @default("DRAFT")
+
+  // Cliente (FK opcional) + snapshot embebido
+  customerId      Int?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+
+  customerName    String?
+  customerCompany String?
+  customerEmail   String?
+  customerPhone   String?
+
+  // Tiempos
+  issuedAt  DateTime @default(now()) // fecha del documento
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime?
+
+  // Parámetros comerciales
+  currency        String  @default("USD")
+  exchangeRateARS Float?
+  validityDays    Int     @default(7)
+  discountPct     Float   @default(0)
+
+  // Totales genéricos (en currency)
+  subtotal          Float
+  taxAmount         Float
+  total             Float
+  discountAmount    Float
+  totalWithDiscount Float
+  totalARS          Float?
+
+  notes String?
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("QuoteCreatedBy", fields: [createdByUserId], references: [id])
+
+  // Relación 0..1 con Sale
+  sale Sale? @relation("QuoteSale")
+
+  // Líneas
+  items QuoteItem[]
+
+  @@map("quotes")
+  @@index([customerId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+/// Líneas de cotización
+model QuoteItem {
+  id Int @id @default(autoincrement())
+
+  quoteId Int
+  quote   Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  // Relación opcional con Product (trazabilidad)
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Snapshot de producto
+  sku         String
+  title       String
+  description String?
+  imageUrl    String?
+
+  // Precios y cantidades en moneda de la Quote
+  currency  String @default("USD")
+  unitPrice Float  // sin IVA
+  taxRate   Float  @default(0)
+  qty       Int    @default(1)
+
+  // Totales por ítem (en currency)
+  subtotal  Float
+  taxAmount Float
+  total     Float
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("quote_items")
+  @@index([quoteId])
+  @@index([productId])
+}
+
+/// Ventas (cabecera)
+model Sale {
+  id         Int    @id @default(autoincrement())
+  saleNumber String @unique
+
+  /// Status de negocio esperados:
+  /// - DRAFT: venta en borrador
+  /// - CONFIRMED: venta confirmada
+  /// - CANCELLED: anulada (sólo registro histórico)
+  status String @default("DRAFT")
+
+  // Relación opcional a la cotización origen
+  quoteId Int? @unique
+  quote   Quote? @relation("QuoteSale", fields: [quoteId], references: [id])
+
+  // Cliente (FK opcional) + snapshot embebido
+  customerId      Int?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+
+  customerName    String?
+  customerCompany String?
+  customerEmail   String?
+  customerPhone   String?
+
+  // Tiempos
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Parámetros comerciales
+  currency        String  @default("USD")
+  exchangeRateARS Float?
+  discountPct     Float   @default(0)
+
+  // Totales genéricos (en currency)
+  subtotal          Float
+  taxAmount         Float
+  total             Float
+  discountAmount    Float
+  totalWithDiscount Float
+  totalARS          Float?
+
+  notes String?
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("SaleCreatedBy", fields: [createdByUserId], references: [id])
+
+  // Líneas
+  items SaleItem[]
+
+  @@map("sales")
+  @@index([customerId])
+  @@index([quoteId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+/// Líneas de venta
+model SaleItem {
+  id Int @id @default(autoincrement())
+
+  saleId Int
+  sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  // Relación opcional con Product
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Snapshot de producto
+  sku         String
+  title       String
+  description String?
+  imageUrl    String?
+
+  // Precios/cantidades en moneda de la venta
+  currency  String @default("USD")
+  unitPrice Float  // sin IVA
+  taxRate   Float  @default(0)
+  qty       Int    @default(1)
+
+  // Totales por ítem
+  subtotal  Float
+  taxAmount Float
+  total     Float
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sale_items")
+  @@index([saleId])
+  @@index([productId])
+}
+
 // --- Auth.js (NextAuth v5) + aprobación manual ---
 // SQLite no soporta enums; usamos String. Valores: PENDING, APPROVED, REJECTED / USER, ADMIN
 model User {
@@ -144,6 +369,10 @@ model User {
   sessions Session[]
   approvedBy   User?   @relation("ApprovedBy", fields: [approvedById], references: [id])
   approvedUsers User[] @relation("ApprovedBy")
+
+  // Documentos comerciales creados por el usuario
+  quotesCreated Quote[] @relation("QuoteCreatedBy")
+  salesCreated  Sale[]  @relation("SaleCreatedBy")
 
   @@map("users")
 }

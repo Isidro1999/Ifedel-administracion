@@ -45,7 +45,7 @@ export function AuthGuard({ session, children }: AuthGuardProps) {
   if (!session?.user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Redirigiendo a inicio de sesión…</p>
+        <p className="text-ifedel-brown">Redirigiendo a inicio de sesión…</p>
       </div>
     )
   }
@@ -54,14 +54,14 @@ export function AuthGuard({ session, children }: AuthGuardProps) {
   if (status !== 'APPROVED') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Redirigiendo…</p>
+        <p className="text-ifedel-brown">Redirigiendo…</p>
       </div>
     )
   }
   if (pathname?.startsWith('/admin') && role !== 'ADMIN') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Redirigiendo…</p>
+        <p className="text-ifedel-brown">Redirigiendo…</p>
       </div>
     )
   }

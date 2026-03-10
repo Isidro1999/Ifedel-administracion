@@ -123,31 +123,31 @@ export default function ProductsPage() {
     <div className="min-h-screen p-8 relative">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <Link href="/" className="text-blue-600 hover:underline mb-4 inline-block">
+          <Link href="/" className="text-ifedel-primary hover:underline mb-4 inline-block font-medium">
             ← Volver al inicio
           </Link>
           <h1 className="text-4xl font-bold mb-4">Catálogo de Productos</h1>
         </div>
 
         {/* Filtros */}
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
+        <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Búsqueda</label>
+              <label className="block text-sm font-medium mb-1 text-ifedel-black">Búsqueda</label>
               <input
                 type="text"
                 value={filters.q}
                 onChange={(e) => handleFilterChange('q', e.target.value)}
                 placeholder="Buscar por nombre o SKU..."
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ifedel-primary focus:border-ifedel-primary"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Marca</label>
+              <label className="block text-sm font-medium mb-1 text-ifedel-black">Marca</label>
               <select
                 value={filters.brand}
                 onChange={(e) => handleFilterChange('brand', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ifedel-primary focus:border-ifedel-primary"
               >
                 <option value="">Todas</option>
                 {facets.brands.map((b) => (
@@ -158,11 +158,11 @@ export default function ProductsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Categoría</label>
+              <label className="block text-sm font-medium mb-1 text-ifedel-black">Categoría</label>
               <select
                 value={filters.category}
                 onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ifedel-primary focus:border-ifedel-primary"
               >
                 <option value="">Todas</option>
                 {facets.categories.map((c) => (
@@ -173,11 +173,11 @@ export default function ProductsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Ordenar</label>
+              <label className="block text-sm font-medium mb-1 text-ifedel-black">Ordenar</label>
               <select
                 value={filters.sort}
                 onChange={(e) => handleFilterChange('sort', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-ifedel-primary focus:border-ifedel-primary"
               >
                 <option value="name_asc">Nombre A-Z</option>
                 <option value="name_desc">Nombre Z-A</option>
@@ -244,7 +244,7 @@ export default function ProductsPage() {
                 return (
                   <div
                     key={product.id}
-                    className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden flex flex-col"
+                    className="bg-white rounded-lg shadow border border-gray-200 hover:border-ifedel-primary hover:shadow-lg transition overflow-hidden flex flex-col"
                   >
                     <Link href={`/products/${product.id}`} className="block">
                       {product.images.length > 0 && (
@@ -272,7 +272,7 @@ export default function ProductsPage() {
                           {product.short}
                         </p>
                       )}
-                      <div className="text-lg font-bold text-blue-600">
+                      <div className="text-lg font-bold text-ifedel-primary">
                         {getDisplayPrice(product) || 'Sin precio'}
                       </div>
                       {exchangeRate?.usdArsRate &&
@@ -328,7 +328,7 @@ export default function ProductsPage() {
                           type="button"
                           onClick={handleAddToQuote}
                           disabled={!hasPrice}
-                          className="flex-1 px-2 py-1 text-xs bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50"
+                          className="flex-1 px-2 py-1 text-xs bg-ifedel-primary text-white rounded-md hover:opacity-90 disabled:opacity-50 font-medium"
                         >
                           {qty > 0 ? 'Actualizar cotización' : 'Agregar a cotización'}
                         </button>
@@ -345,7 +345,7 @@ export default function ProductsPage() {
                 <button
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
                   disabled={pagination.page === 1}
-                  className="px-4 py-2 border rounded disabled:opacity-50"
+                  className="px-4 py-2 border border-ifedel-primary text-ifedel-primary rounded hover:bg-ifedel-primary hover:text-white disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-500 disabled:hover:bg-transparent transition"
                 >
                   Anterior
                 </button>
@@ -355,7 +355,7 @@ export default function ProductsPage() {
                 <button
                   onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
                   disabled={pagination.page >= pagination.totalPages}
-                  className="px-4 py-2 border rounded disabled:opacity-50"
+                  className="px-4 py-2 border border-ifedel-primary text-ifedel-primary rounded hover:bg-ifedel-primary hover:text-white disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-500 disabled:hover:bg-transparent transition"
                 >
                   Siguiente
                 </button>
@@ -366,7 +366,7 @@ export default function ProductsPage() {
         {totalItems > 0 && (
           <Link
             href="/quotes/new"
-            className="fixed bottom-6 right-6 px-4 py-3 rounded-full shadow-lg bg-blue-600 text-white text-sm md:text-base flex items-center gap-2 hover:bg-blue-700"
+            className="fixed bottom-6 right-6 px-4 py-3 rounded-full shadow-lg bg-ifedel-primary text-white text-sm md:text-base flex items-center gap-2 hover:opacity-90 font-medium"
           >
             Ver cotización ({totalItems})
           </Link>

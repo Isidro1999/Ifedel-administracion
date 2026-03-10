@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
+import { Raleway } from "next/font/google";
 import "./globals.css";
 import { AppHeader } from "@/components/AppHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { auth } from "@/auth";
+
+const raleway = Raleway({
+  subsets: ["latin"],
+  variable: "--font-raleway",
+  display: "swap",
+});
 
 export const dynamic = 'force-dynamic'
 
@@ -18,8 +25,8 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   return (
-    <html lang="es">
-      <body className="antialiased">
+    <html lang="es" className={raleway.variable}>
+      <body className="antialiased font-sans">
         <AuthGuard session={session}>
           <AppHeader />
           <main>{children}</main>

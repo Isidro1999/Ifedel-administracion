@@ -156,7 +156,7 @@ export default function EditProductPage() {
       <div className="min-h-screen p-8">
         <div className="max-w-3xl mx-auto text-center py-12">
           <p className="text-red-600 mb-4">{error}</p>
-          <Link href="/products" className="text-blue-600 hover:underline">
+          <Link href="/products" className="text-ifedel-primary hover:underline font-medium">
             Volver al catálogo
           </Link>
         </div>
@@ -169,7 +169,7 @@ export default function EditProductPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-3xl mx-auto">
-        <Link href={`/products/${id}`} className="text-blue-600 hover:underline mb-4 inline-block">
+        <Link href={`/products/${id}`} className="text-ifedel-primary hover:underline mb-4 inline-block font-medium">
           ← Volver al producto
         </Link>
         <h1 className="text-2xl font-bold mb-6">Editar producto</h1>
@@ -371,7 +371,7 @@ export default function EditProductPage() {
                         {img.url}
                       </div>
                       {img.isPrimary && (
-                        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                        <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-ifedel-primary/15 text-ifedel-brown">
                           Principal
                         </span>
                       )}
@@ -613,7 +613,7 @@ export default function EditProductPage() {
                   ],
                 })
               }
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-ifedel-primary hover:underline font-medium"
             >
               + Agregar especificación
             </button>
@@ -695,7 +695,7 @@ export default function EditProductPage() {
                   ],
                 })
               }
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-ifedel-primary hover:underline font-medium"
             >
               + Agregar precio
             </button>
@@ -741,7 +741,7 @@ export default function EditProductPage() {
               onClick={() =>
                 update({ files: [...form.files, { type: 'manual', url: '' }] })
               }
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-ifedel-primary hover:underline font-medium"
             >
               + Agregar archivo
             </button>
@@ -757,7 +757,7 @@ export default function EditProductPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 disabled:opacity-50 font-medium"
             >
               {saving ? 'Guardando...' : 'Guardar cambios'}
             </button>

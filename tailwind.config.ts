@@ -7,7 +7,18 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        ifedel: {
+          primary: "#8DC640", // Verde marca
+          brown: "#835029",   // Marrón secundario
+          black: "#000000",
+        },
+      },
+      fontFamily: {
+        sans: ["var(--font-raleway)", "system-ui", "sans-serif"],
+      },
+    },
   },
   plugins: [],
 };

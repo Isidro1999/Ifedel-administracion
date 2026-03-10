@@ -26,7 +26,7 @@ export default async function PendingPage() {
         <form action={handleSignOut}>
           <button
             type="submit"
-            className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+            className="px-4 py-2 text-sm font-medium text-white bg-ifedel-primary border border-ifedel-primary rounded-md hover:opacity-90 transition"
           >
             Cerrar sesión
           </button>
