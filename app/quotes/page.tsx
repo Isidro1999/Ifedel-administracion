@@ -108,9 +108,12 @@ export default async function QuotesListPage() {
                         {createdByLabel}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-gray-500">
-                        <span className="text-xs text-gray-400">
-                          Ver detalle (próximamente)
-                        </span>
+                        <Link
+                          href={`/quotes/${q.id}`}
+                          className="text-xs font-medium text-ifedel-primary hover:underline"
+                        >
+                          Ver detalle
+                        </Link>
                       </td>
                     </tr>
                   )
