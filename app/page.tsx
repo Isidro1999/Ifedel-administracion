@@ -44,6 +44,15 @@ export default async function Home() {
               Consultar saldos pendientes y vencimientos.
             </p>
           </Link>
+          <Link
+            href="/purchases"
+            className="p-6 bg-white rounded-lg shadow border-2 border-transparent hover:border-ifedel-primary hover:shadow-lg transition"
+          >
+            <h2 className="text-2xl font-semibold mb-2 text-ifedel-black">Compras</h2>
+            <p className="text-ifedel-brown">
+              Ver compras registradas y cuentas por pagar.
+            </p>
+          </Link>
           {isAdmin && (
             <>
               <Link

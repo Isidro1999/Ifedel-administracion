@@ -60,6 +60,7 @@ model Product {
   // Relaciones con documentos comerciales (trazabilidad)
   quoteItems QuoteItem[]
   saleItems  SaleItem[]
+  purchaseItems PurchaseItem[]
 
   @@map("products")
 }
@@ -127,6 +128,30 @@ model Settings {
   updatedAt  DateTime @updatedAt
 
   @@map("settings")
+}
+
+/// Proveedores comerciales de IFEDEL
+model Supplier {
+  id      Int    @id @default(autoincrement())
+  name    String?
+  company String?
+  email   String?
+  phone   String?
+
+  vatCondition String?
+  province     String?
+
+  isActive Boolean @default(true)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases Purchase[]
+  payables  Payable[]
+
+  @@map("suppliers")
 }
 
 /// Clientes comerciales de IFEDEL
@@ -461,6 +486,143 @@ model CashMovement {
   @@index([createdByUserId])
 }
 
+/// Compras a proveedores (cabecera)
+model Purchase {
+  id             Int    @id @default(autoincrement())
+  purchaseNumber String @unique
+
+  /// Status de negocio esperados:
+  /// - DRAFT: en borrador
+  /// - CONFIRMED: compra confirmada/registrada
+  /// - CANCELLED: anulada
+  status String @default("DRAFT")
+
+  // Proveedor (FK opcional) + snapshot embebido
+  supplierId      Int?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+
+  supplierName    String?
+  supplierCompany String?
+  supplierEmail   String?
+  supplierPhone   String?
+
+  // Tiempos
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Parámetros comerciales
+  currency        String  @default("USD")
+  exchangeRateARS Float?
+  discountPct     Float   @default(0)
+
+  // Totales en moneda de la compra
+  subtotal          Float
+  taxAmount         Float
+  total             Float
+  discountAmount    Float
+  totalWithDiscount Float
+  totalARS          Float?
+
+  notes String?
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id])
+
+  // Relación 0..1 con cuenta por pagar
+  payable Payable?
+
+  // Líneas
+  items PurchaseItem[]
+
+  @@map("purchases")
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+/// Líneas de compra
+model PurchaseItem {
+  id Int @id @default(autoincrement())
+
+  purchaseId Int
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  // Relación opcional con Product
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Snapshot de producto
+  sku         String
+  title       String
+  description String?
+  imageUrl    String?
+
+  // Precios/cantidades en moneda de la compra
+  currency String @default("USD")
+  unitCost Float  // sin IVA
+  taxRate  Float  @default(0)
+  qty      Int    @default(1)
+
+  // Totales por ítem (en currency)
+  subtotal  Float
+  taxAmount Float
+  total     Float
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("purchase_items")
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+/// Cuentas por pagar (deuda con proveedores) asociadas a una compra (1:1).
+/// OVERDUE no se persiste; se calcula cuando dueDate < hoy y status es PENDING o PARTIAL.
+model Payable {
+  id         Int @id @default(autoincrement())
+  purchaseId Int @unique
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  // Proveedor: FK + snapshot mínimo
+  supplierId      Int?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  supplierName    String?
+  supplierCompany String?
+
+  // Montos en moneda real de pago (ARS)
+  totalAmount Float
+  currency    String @default("ARS")
+  amountPaid  Float @default(0)
+  balance     Float
+
+  dueDate  DateTime
+  issuedAt DateTime @default(now())
+
+  /// Estados esperados:
+  /// - PENDING: sin pagos
+  /// - PARTIAL: pagos parciales
+  /// - PAID: totalmente pagada
+  /// - CANCELLED: anulada (no se esperan más pagos)
+  status String @default("PENDING")
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Futuro: pagos aplicados a esta cuenta por pagar
+  // payments PayablePayment[]
+
+  @@map("payables")
+  @@index([supplierId])
+  @@index([status])
+  @@index([dueDate])
+}
+
 // --- Auth.js (NextAuth v5) + aprobación manual ---
 // SQLite no soporta enums; usamos String. Valores: PENDING, APPROVED, REJECTED / USER, ADMIN
 model User {
@@ -486,6 +648,7 @@ model User {
   salesCreated               Sale[]              @relation("SaleCreatedBy")
   receivablePaymentsCreated  ReceivablePayment[] @relation("ReceivablePaymentCreatedBy")
   cashMovementsCreated       CashMovement[]      @relation("CashMovementCreatedBy")
+  purchasesCreated           Purchase[]          @relation("PurchaseCreatedBy")
 
   @@map("users")
 }
