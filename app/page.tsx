@@ -53,6 +53,15 @@ export default async function Home() {
               Ver compras registradas y cuentas por pagar.
             </p>
           </Link>
+          <Link
+            href="/finance"
+            className="p-6 bg-white rounded-lg shadow border-2 border-transparent hover:border-ifedel-primary hover:shadow-lg transition"
+          >
+            <h2 className="text-2xl font-semibold mb-2 text-ifedel-black">Finanzas</h2>
+            <p className="text-ifedel-brown">
+              Ver resumen ejecutivo de caja, cobranzas y pagos.
+            </p>
+          </Link>
           {isAdmin && (
             <>
               <Link
