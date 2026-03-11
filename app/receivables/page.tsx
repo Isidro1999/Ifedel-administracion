@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
-import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { fmtMoneyARS } from '@/lib/format-money'
 
 export default async function ReceivablesListPage() {
   const receivables = await prisma.receivable.findMany({
@@ -12,6 +12,33 @@ export default async function ReceivablesListPage() {
   })
 
   const today = new Date()
+
+  const totalPending = receivables
+    .filter((r) => r.status === 'PENDING' || r.status === 'PARTIAL')
+    .reduce((acc, r) => acc + (r.balance || 0), 0)
+
+  const totalOverdue = receivables
+    .filter((r) => {
+      const dueDate =
+        r.dueDate instanceof Date ? r.dueDate : new Date(r.dueDate as any)
+      return (
+        dueDate < today &&
+        (r.status === 'PENDING' || r.status === 'PARTIAL') &&
+        (r.balance || 0) > 0
+      )
+    })
+    .reduce((acc, r) => acc + (r.balance || 0), 0)
+
+  const totalCollected = receivables.reduce(
+    (acc, r) => acc + (r.amountPaid || 0),
+    0
+  )
+
+  const openCount = receivables.filter(
+    (r) => r.status === 'PENDING' || r.status === 'PARTIAL'
+  ).length
+
+  const paidCount = receivables.filter((r) => r.status === 'PAID').length
 
   return (
     <div className="min-h-screen p-8">
@@ -32,6 +59,71 @@ export default async function ReceivablesListPage() {
             Volver a ventas
           </Link>
         </div>
+
+        {receivables.length > 0 && (
+          <section className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Total pendiente
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
+                {fmtMoneyARS(totalPending)}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Suma de saldos de cuentas PENDING + PARTIAL.
+              </p>
+            </div>
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="text-xs uppercase tracking-wide text-red-700">
+                Total vencido
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-red-700">
+                {fmtMoneyARS(totalOverdue)}
+              </p>
+              <p className="mt-1 text-xs text-red-700">
+                Cuentas vencidas con saldo pendiente.
+              </p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Total cobrado
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
+                {fmtMoneyARS(totalCollected)}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Suma de cobros registrados en todas las cuentas.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {receivables.length > 0 && (
+          <section className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Cuentas abiertas
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
+                {openCount}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                En estado PENDING o PARTIAL.
+              </p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500">
+                Cuentas pagadas
+              </p>
+              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
+                {paidCount}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Con estado PAID y saldo en cero.
+              </p>
+            </div>
+          </section>
+        )}
 
         {receivables.length === 0 ? (
           <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">

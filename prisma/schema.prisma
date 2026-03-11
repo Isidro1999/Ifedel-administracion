@@ -413,9 +413,51 @@ model ReceivablePayment {
 
   createdAt DateTime @default(now())
 
+  cashMovement CashMovement?
+
   @@map("receivable_payments")
   @@index([receivableId])
   @@index([paidAt])
+  @@index([createdByUserId])
+}
+
+/// Movimientos de caja (ingresos/egresos) en ARS.
+/// Fuente de verdad para el flujo de caja simple.
+model CashMovement {
+  id Int @id @default(autoincrement())
+
+  /// IN: ingreso de caja | OUT: egreso de caja
+  type String
+
+  /// Monto positivo en ARS.
+  amount Float
+
+  /// Moneda de la caja. En v1 se usa siempre ARS.
+  currency String @default("ARS")
+
+  /// Fecha en que ocurrió el movimiento.
+  occurredAt DateTime
+
+  /// Concepto descriptivo del movimiento.
+  concept String
+
+  /// Categoría opcional para agrupación: \"COBRO_CLIENTE\", \"SUELDO\", etc.
+  category String?
+
+  /// Vínculo opcional al cobro de una cuenta por cobrar (1:1).
+  receivablePaymentId Int? @unique
+  receivablePayment   ReceivablePayment? @relation(fields: [receivablePaymentId], references: [id], onDelete: SetNull)
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("CashMovementCreatedBy", fields: [createdByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("cash_movements")
+  @@index([type])
+  @@index([occurredAt])
+  @@index([category])
   @@index([createdByUserId])
 }
 
@@ -440,9 +482,10 @@ model User {
   approvedUsers User[] @relation("ApprovedBy")
 
   // Documentos comerciales creados por el usuario
-  quotesCreated         Quote[]             @relation("QuoteCreatedBy")
-  salesCreated          Sale[]              @relation("SaleCreatedBy")
-  receivablePaymentsCreated ReceivablePayment[] @relation("ReceivablePaymentCreatedBy")
+  quotesCreated              Quote[]             @relation("QuoteCreatedBy")
+  salesCreated               Sale[]              @relation("SaleCreatedBy")
+  receivablePaymentsCreated  ReceivablePayment[] @relation("ReceivablePaymentCreatedBy")
+  cashMovementsCreated       CashMovement[]      @relation("CashMovementCreatedBy")
 
   @@map("users")
 }

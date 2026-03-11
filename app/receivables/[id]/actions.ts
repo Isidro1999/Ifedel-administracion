@@ -74,7 +74,7 @@ export async function registerReceivablePayment(
         ? 'PAID'
         : 'PARTIAL'
 
-    await tx.receivablePayment.create({
+    const payment = await tx.receivablePayment.create({
       data: {
         receivableId,
         amount: amountRounded,
@@ -91,6 +91,20 @@ export async function registerReceivablePayment(
         amountPaid: newAmountPaid,
         balance: newBalance >= 0 ? newBalance : 0,
         status: newStatus,
+      },
+    })
+
+    // Movimiento de caja asociado (ingreso) - se crea sólo si aún no existe por seguridad.
+    await tx.cashMovement.create({
+      data: {
+        type: 'IN',
+        amount: amountRounded,
+        currency: 'ARS',
+        occurredAt: paidAtDate,
+        concept: `Cobro cuenta por cobrar #${receivableId}`,
+        category: 'COBRO_CLIENTE',
+        receivablePaymentId: payment.id,
+        createdByUserId: userId,
       },
     })
 
