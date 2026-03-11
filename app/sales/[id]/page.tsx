@@ -2,58 +2,47 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
-import { ConvertToSaleButton } from './ConvertToSaleButton'
 
-interface QuotesDetailPageProps {
+interface SalesDetailPageProps {
   params: { id: string }
 }
 
-export default async function QuoteDetailPage({ params }: QuotesDetailPageProps) {
+export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
   const id = Number(params.id)
   if (!Number.isFinite(id) || id <= 0) {
     notFound()
   }
 
-  const quote = await prisma.quote.findUnique({
+  const sale = await prisma.sale.findUnique({
     where: { id },
     include: {
-      customer: true,
+      quote: true,
       createdBy: true,
-      items: true,
-      sale: true,
+      items: { orderBy: { sortOrder: 'asc' } },
     },
   })
 
-  if (!quote) {
+  if (!sale) {
     notFound()
   }
 
   const clientLabel =
-    quote.customerCompany ||
-    quote.customerName ||
-    quote.customerEmail ||
-    quote.customerPhone ||
+    sale.customerCompany ||
+    sale.customerName ||
+    sale.customerEmail ||
+    sale.customerPhone ||
     'Sin datos de cliente'
 
   const createdByLabel =
-    quote.createdBy?.email || quote.createdBy?.name || 'Desconocido'
+    sale.createdBy?.email || sale.createdBy?.name || 'Desconocido'
 
   const issuedAt =
-    quote.issuedAt instanceof Date
-      ? quote.issuedAt
-      : new Date(quote.issuedAt as any)
+    sale.issuedAt instanceof Date
+      ? sale.issuedAt
+      : new Date(sale.issuedAt as Date)
   const issuedAtLabel = issuedAt.toISOString().slice(0, 10)
 
-  const expiresAtLabel = quote.expiresAt
-    ? (quote.expiresAt instanceof Date
-        ? quote.expiresAt
-        : new Date(quote.expiresAt as any)
-      )
-        .toISOString()
-        .slice(0, 10)
-    : '-'
-
-  const currencyLabel = quote.currency
+  const currencyLabel = sale.currency
 
   const fmtMoneyGeneric = (amount: number | null | undefined) => {
     if (amount == null || Number.isNaN(amount)) return '-'
@@ -68,10 +57,10 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-ifedel-black">
-              Cotización {quote.quoteNumber}
+              Venta {sale.saleNumber}
             </h1>
             <p className="text-sm text-gray-600">
-              Estado: <span className="font-medium">{quote.status}</span>
+              Estado: <span className="font-medium">{sale.status}</span>
             </p>
           </div>
           <div className="flex gap-2">
@@ -79,24 +68,28 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
               href="/quotes"
               className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Volver al listado
+              Cotizaciones
             </Link>
-            <ConvertToSaleButton
-              quoteId={quote.id}
-              existingSale={quote.sale ? { id: quote.sale.id, saleNumber: quote.sale.saleNumber } : null}
-            />
+            {sale.quote && (
+              <Link
+                href={`/quotes/${sale.quote.id}`}
+                className="rounded-md border border-ifedel-green px-4 py-2 text-sm text-ifedel-green hover:bg-ifedel-green/10"
+              >
+                Ver cotización {sale.quote.quoteNumber}
+              </Link>
+            )}
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm space-y-2">
             <h2 className="text-base font-semibold text-ifedel-black mb-1">
-              Datos de la cotización
+              Datos de la venta
             </h2>
             <div className="flex justify-between">
-              <span className="text-gray-600">N° cotización</span>
+              <span className="text-gray-600">N° venta</span>
               <span className="font-mono text-xs text-gray-900">
-                {quote.quoteNumber}
+                {sale.saleNumber}
               </span>
             </div>
             <div className="flex justify-between">
@@ -104,25 +97,21 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
               <span className="text-gray-900">{issuedAtLabel}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Vence</span>
-              <span className="text-gray-900">{expiresAtLabel}</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-gray-600">Moneda</span>
-              <span className="text-gray-900">{quote.currency}</span>
+              <span className="text-gray-900">{sale.currency}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Tipo de cambio (ARS por {quote.currency})</span>
+              <span className="text-gray-600">Tipo de cambio (ARS por {sale.currency})</span>
               <span className="text-gray-900">
-                {quote.exchangeRateARS != null
-                  ? fmtNumberAR(quote.exchangeRateARS)
+                {sale.exchangeRateARS != null
+                  ? fmtNumberAR(sale.exchangeRateARS)
                   : '-'}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Descuento (%)</span>
               <span className="text-gray-900">
-                {quote.discountPct.toFixed(2)}%
+                {sale.discountPct.toFixed(2)}%
               </span>
             </div>
             <div className="flex justify-between border-t border-gray-200 pt-2 mt-2">
@@ -137,24 +126,24 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
             </h2>
             <div className="space-y-1">
               <p className="text-gray-900">{clientLabel}</p>
-              {quote.customerEmail && (
+              {sale.customerEmail && (
                 <p className="text-gray-700 text-xs">
-                  Email: {quote.customerEmail}
+                  Email: {sale.customerEmail}
                 </p>
               )}
-              {quote.customerPhone && (
+              {sale.customerPhone && (
                 <p className="text-gray-700 text-xs">
-                  Teléfono: {quote.customerPhone}
+                  Teléfono: {sale.customerPhone}
                 </p>
               )}
             </div>
-            {quote.notes && (
+            {sale.notes && (
               <div className="mt-3 border-t border-gray-200 pt-2">
                 <p className="text-xs font-semibold text-gray-700 mb-1">
                   Notas
                 </p>
                 <p className="text-xs text-gray-700 whitespace-pre-line">
-                  {quote.notes}
+                  {sale.notes}
                 </p>
               </div>
             )}
@@ -169,38 +158,38 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
             <div className="flex justify-between">
               <span className="text-gray-600">Subtotal (sin IVA)</span>
               <span className="font-medium">
-                {fmtMoneyGeneric(quote.subtotal)}
+                {fmtMoneyGeneric(sale.subtotal)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">IVA</span>
               <span className="font-medium">
-                {fmtMoneyGeneric(quote.taxAmount)}
+                {fmtMoneyGeneric(sale.taxAmount)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Total (con IVA)</span>
               <span className="font-medium">
-                {fmtMoneyGeneric(quote.total)}
+                {fmtMoneyGeneric(sale.total)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Descuento</span>
               <span className="font-medium text-red-600">
-                -{fmtMoneyGeneric(quote.discountAmount)}
+                -{fmtMoneyGeneric(sale.discountAmount)}
               </span>
             </div>
             <div className="flex justify-between border-t border-gray-200 pt-2 mt-2">
               <span className="text-gray-800">Total final</span>
               <span className="font-semibold">
-                {fmtMoneyGeneric(quote.totalWithDiscount)}
+                {fmtMoneyGeneric(sale.totalWithDiscount)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Total en ARS</span>
               <span className="font-semibold">
-                {quote.totalARS != null
-                  ? fmtMoneyARS(quote.totalARS)
+                {sale.totalARS != null
+                  ? fmtMoneyARS(sale.totalARS)
                   : '-'}
               </span>
             </div>
@@ -209,11 +198,11 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
 
         <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">
           <h2 className="text-base font-semibold text-ifedel-black mb-3">
-            Ítems de la cotización
+            Ítems de la venta
           </h2>
-          {quote.items.length === 0 ? (
+          {sale.items.length === 0 ? (
             <p className="text-gray-600 text-sm">
-              Esta cotización no tiene ítems guardados.
+              Esta venta no tiene ítems.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -244,39 +233,36 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {quote.items
-                    .slice()
-                    .sort((a, b) => a.sortOrder - b.sortOrder)
-                    .map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-800">
-                          {item.sku}
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="text-gray-900">{item.title}</div>
-                          {item.description && (
-                            <div className="text-xs text-gray-600">
-                              {item.description}
-                            </div>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
-                          {item.qty}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
-                          {fmtMoneyGeneric(item.unitPrice)}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
-                          {item.taxRate.toFixed(2)}%
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
-                          {fmtMoneyGeneric(item.subtotal)}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
-                          {fmtMoneyGeneric(item.total)}
-                        </td>
-                      </tr>
-                    ))}
+                  {sale.items.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-800">
+                        {item.sku}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="text-gray-900">{item.title}</div>
+                        {item.description && (
+                          <div className="text-xs text-gray-600">
+                            {item.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                        {item.qty}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                        {fmtMoneyGeneric(item.unitPrice)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                        {item.taxRate.toFixed(2)}%
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                        {fmtMoneyGeneric(item.subtotal)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                        {fmtMoneyGeneric(item.total)}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -286,4 +272,3 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
     </div>
   )
 }
-

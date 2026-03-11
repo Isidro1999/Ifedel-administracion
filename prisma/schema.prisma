@@ -149,8 +149,9 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   // Relaciones
-  quotes Quote[]
-  sales  Sale[]
+  quotes       Quote[]
+  sales        Sale[]
+  receivables  Receivable[]
 
   @@map("customers")
 }
@@ -302,6 +303,9 @@ model Sale {
   createdByUserId String?
   createdBy       User? @relation("SaleCreatedBy", fields: [createdByUserId], references: [id])
 
+  // Cuenta por cobrar (0..1 por venta)
+  receivable Receivable?
+
   // Líneas
   items SaleItem[]
 
@@ -348,6 +352,47 @@ model SaleItem {
   @@map("sale_items")
   @@index([saleId])
   @@index([productId])
+}
+
+/// Cuenta por cobrar asociada a una venta (1:1). Base para cobros parciales/totales y proyección de ingresos.
+/// OVERDUE no se persiste: se calcula en consultas cuando dueDate < hoy y status es PENDING o PARTIAL.
+model Receivable {
+  id     Int @id @default(autoincrement())
+  saleId Int @unique
+  sale   Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
+  // Cliente: FK + snapshot mínimo para legibilidad histórica y reporting
+  customerId      Int?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  customerName    String?
+  customerCompany String?
+
+  // Montos en moneda de la venta
+  totalAmount Float
+  currency    String  @default("USD")
+  amountPaid  Float   @default(0)
+  balance    Float   // totalAmount - amountPaid; se mantiene en sync al registrar cobros
+
+  dueDate  DateTime
+  issuedAt DateTime @default(now())
+
+  /// Estados esperados (String):
+  /// - PENDING: sin cobros (amountPaid == 0)
+  /// - PARTIAL: cobro parcial (0 < amountPaid < totalAmount)
+  /// - PAID: totalmente cobrada (amountPaid >= totalAmount)
+  /// - CANCELLED: anulada (no se esperan más cobros)
+  /// OVERDUE se deriva: dueDate < hoy y status in (PENDING, PARTIAL)
+  status String @default("PENDING")
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("receivables")
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
 }
 
 // --- Auth.js (NextAuth v5) + aprobación manual ---
