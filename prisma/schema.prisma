@@ -389,10 +389,34 @@ model Receivable {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  payments ReceivablePayment[]
+
   @@map("receivables")
   @@index([customerId])
   @@index([status])
   @@index([dueDate])
+}
+
+/// Cobro aplicado a una cuenta por cobrar. Un registro por cada pago recibido.
+model ReceivablePayment {
+  id            Int   @id @default(autoincrement())
+  receivableId  Int
+  receivable    Receivable @relation(fields: [receivableId], references: [id], onDelete: Restrict)
+
+  amount   Float   // Monto cobrado, en la moneda de la Receivable (ARS)
+  paidAt   DateTime @default(now())
+  reference String?
+  notes    String?
+
+  createdByUserId String?
+  createdBy       User? @relation("ReceivablePaymentCreatedBy", fields: [createdByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("receivable_payments")
+  @@index([receivableId])
+  @@index([paidAt])
+  @@index([createdByUserId])
 }
 
 // --- Auth.js (NextAuth v5) + aprobación manual ---
@@ -416,8 +440,9 @@ model User {
   approvedUsers User[] @relation("ApprovedBy")
 
   // Documentos comerciales creados por el usuario
-  quotesCreated Quote[] @relation("QuoteCreatedBy")
-  salesCreated  Sale[]  @relation("SaleCreatedBy")
+  quotesCreated         Quote[]             @relation("QuoteCreatedBy")
+  salesCreated          Sale[]              @relation("SaleCreatedBy")
+  receivablePaymentsCreated ReceivablePayment[] @relation("ReceivablePaymentCreatedBy")
 
   @@map("users")
 }

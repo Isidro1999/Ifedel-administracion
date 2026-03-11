@@ -26,6 +26,24 @@ export default async function Home() {
               Ver y gestionar las cotizaciones persistidas.
             </p>
           </Link>
+          <Link
+            href="/sales"
+            className="p-6 bg-white rounded-lg shadow border-2 border-transparent hover:border-ifedel-primary hover:shadow-lg transition"
+          >
+            <h2 className="text-2xl font-semibold mb-2 text-ifedel-black">Ventas</h2>
+            <p className="text-ifedel-brown">
+              Ver y analizar las ventas registradas.
+            </p>
+          </Link>
+          <Link
+            href="/receivables"
+            className="p-6 bg-white rounded-lg shadow border-2 border-transparent hover:border-ifedel-primary hover:shadow-lg transition"
+          >
+            <h2 className="text-2xl font-semibold mb-2 text-ifedel-black">Cuentas por cobrar</h2>
+            <p className="text-ifedel-brown">
+              Consultar saldos pendientes y vencimientos.
+            </p>
+          </Link>
           {isAdmin && (
             <>
               <Link

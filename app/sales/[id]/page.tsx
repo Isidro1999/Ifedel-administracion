@@ -46,8 +46,8 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
 
   const fmtMoneyGeneric = (amount: number | null | undefined) => {
     if (amount == null || Number.isNaN(amount)) return '-'
-    if (currencyLabel === 'ARS') return fmtMoneyARS(amount)
     if (currencyLabel === 'USD') return fmtMoneyUSD(amount)
+    if (currencyLabel === 'ARS') return fmtMoneyARS(amount)
     return `${currencyLabel} ${fmtNumberAR(amount)}`
   }
 
@@ -180,19 +180,21 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
               </span>
             </div>
             <div className="flex justify-between border-t border-gray-200 pt-2 mt-2">
-              <span className="text-gray-800">Total final</span>
-              <span className="font-semibold">
-                {fmtMoneyGeneric(sale.totalWithDiscount)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Total en ARS</span>
+              <span className="text-gray-800">Total final (ARS)</span>
               <span className="font-semibold">
                 {sale.totalARS != null
                   ? fmtMoneyARS(sale.totalARS)
-                  : '-'}
+                  : fmtMoneyGeneric(sale.totalWithDiscount)}
               </span>
             </div>
+            {sale.currency === 'USD' && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Referencia en USD</span>
+                <span className="font-medium text-gray-700">
+                  {fmtMoneyUSD(sale.totalWithDiscount)}
+                </span>
+              </div>
+            )}
           </div>
         </section>
 

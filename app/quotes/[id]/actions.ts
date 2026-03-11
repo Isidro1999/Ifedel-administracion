@@ -83,16 +83,28 @@ export async function convertQuoteToSale(quoteId: number) {
     const dueDate = new Date(issuedAt)
     dueDate.setDate(dueDate.getDate() + RECEIVABLE_DEFAULT_DUE_DAYS)
 
+    // Determinar el monto exigible en ARS de forma robusta
+    let totalAmountARS = sale.totalARS
+    const rate = sale.exchangeRateARS
+    if (totalAmountARS == null || !Number.isFinite(totalAmountARS)) {
+      if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
+        totalAmountARS = sale.totalWithDiscount * rate
+      } else {
+        // Fallback: asumimos que totalWithDiscount ya está en ARS
+        totalAmountARS = sale.totalWithDiscount
+      }
+    }
+
     await tx.receivable.create({
       data: {
         saleId: sale.id,
         customerId: quote.customerId,
         customerName: quote.customerName ?? null,
         customerCompany: quote.customerCompany ?? null,
-        totalAmount: quote.totalWithDiscount,
-        currency: quote.currency,
+        totalAmount: totalAmountARS,
+        currency: 'ARS',
         amountPaid: 0,
-        balance: quote.totalWithDiscount,
+        balance: totalAmountARS,
         issuedAt: quote.issuedAt,
         dueDate,
         status: 'PENDING',
