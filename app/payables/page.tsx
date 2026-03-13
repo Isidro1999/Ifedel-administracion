@@ -1,6 +1,10 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { MetricCard } from '@/components/layout/MetricCard'
+import { SectionCard } from '@/components/layout/SectionCard'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function PayablesListPage() {
   const payables = await prisma.payable.findMany({
@@ -13,26 +17,95 @@ export default async function PayablesListPage() {
 
   const today = new Date()
 
-  return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-ifedel-black">
-              Cuentas por pagar
-            </h1>
-            <p className="text-sm text-gray-600">
-              Deudas con proveedores originadas en compras registradas.
-            </p>
-          </div>
-        </div>
+  const totalPending = payables
+    .filter((p) => p.status === 'PENDING' || p.status === 'PARTIAL')
+    .reduce((acc, p) => acc + (p.balance || 0), 0)
 
-        {payables.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-            Todavía no hay cuentas por pagar registradas.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+  const totalOverdue = payables
+    .filter((p) => {
+      const due =
+        p.dueDate instanceof Date ? p.dueDate : new Date(p.dueDate as any)
+      return (
+        due < today &&
+        (p.status === 'PENDING' || p.status === 'PARTIAL') &&
+        (p.balance || 0) > 0
+      )
+    })
+    .reduce((acc, p) => acc + (p.balance || 0), 0)
+
+  const totalPaid = payables.reduce(
+    (acc, p) => acc + (p.amountPaid || 0),
+    0
+  )
+
+  const openCount = payables.filter(
+    (p) => p.status === 'PENDING' || p.status === 'PARTIAL'
+  ).length
+
+  const paidCount = payables.filter((p) => p.status === 'PAID').length
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Cuentas por pagar"
+        description="Deudas con proveedores originadas en compras registradas."
+        actions={
+          <Link
+            href="/purchases"
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            Ver compras
+          </Link>
+        }
+      />
+
+      {payables.length > 0 && (
+        <section className="grid gap-4 md:grid-cols-3">
+          <MetricCard
+            label="Total pendiente"
+            value={fmtMoneyARS(totalPending)}
+            helper="Suma de saldos de cuentas PENDING + PARTIAL."
+          />
+          <MetricCard
+            label="Total vencido"
+            value={fmtMoneyARS(totalOverdue)}
+            helper="Cuentas vencidas con saldo pendiente."
+            tone="warning"
+          />
+          <MetricCard
+            label="Total pagado"
+            value={fmtMoneyARS(totalPaid)}
+            helper="Pagos registrados a proveedores."
+          />
+        </section>
+      )}
+
+      {payables.length > 0 && (
+        <section className="grid gap-4 md:grid-cols-2">
+          <MetricCard
+            label="Cuentas abiertas"
+            value={openCount}
+            helper="En estado PENDING o PARTIAL."
+          />
+          <MetricCard
+            label="Cuentas pagadas"
+            value={paidCount}
+            helper="Con estado PAID y saldo en cero."
+          />
+        </section>
+      )}
+
+      {payables.length === 0 ? (
+        <EmptyState
+          title="Todavía no hay cuentas por pagar"
+          description="A medida que registres compras con condiciones de pago, se irán creando automáticamente las cuentas por pagar asociadas."
+        />
+      ) : (
+        <SectionCard
+          title="Detalle de cuentas por pagar"
+          description="Listado detallado de cada cuenta, su proveedor, fechas clave y estado de pago."
+        >
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -135,8 +208,8 @@ export default async function PayablesListPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </SectionCard>
+      )}
     </div>
   )
 }

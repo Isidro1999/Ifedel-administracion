@@ -1,6 +1,10 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { MetricCard } from '@/components/layout/MetricCard'
+import { SectionCard } from '@/components/layout/SectionCard'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function ReceivablesListPage() {
   const receivables = await prisma.receivable.findMany({
@@ -41,96 +45,67 @@ export default async function ReceivablesListPage() {
   const paidCount = receivables.filter((r) => r.status === 'PAID').length
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-ifedel-black">
-              Cuentas por cobrar
-            </h1>
-            <p className="text-sm text-gray-600">
-              Listado de saldos pendientes asociados a ventas confirmadas.
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Cuentas por cobrar"
+        description="Listado de saldos pendientes asociados a ventas confirmadas."
+        actions={
           <Link
             href="/sales"
             className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
           >
             Volver a ventas
           </Link>
-        </div>
+        }
+      />
 
-        {receivables.length > 0 && (
-          <section className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-wide text-gray-500">
-                Total pendiente
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-                {fmtMoneyARS(totalPending)}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Suma de saldos de cuentas PENDING + PARTIAL.
-              </p>
-            </div>
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <p className="text-xs uppercase tracking-wide text-red-700">
-                Total vencido
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-red-700">
-                {fmtMoneyARS(totalOverdue)}
-              </p>
-              <p className="mt-1 text-xs text-red-700">
-                Cuentas vencidas con saldo pendiente.
-              </p>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-wide text-gray-500">
-                Total cobrado
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-                {fmtMoneyARS(totalCollected)}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Suma de cobros registrados en todas las cuentas.
-              </p>
-            </div>
-          </section>
-        )}
+      {receivables.length > 0 && (
+        <section className="grid gap-4 md:grid-cols-3">
+          <MetricCard
+            label="Total pendiente"
+            value={fmtMoneyARS(totalPending)}
+            helper="Suma de saldos de cuentas PENDING + PARTIAL."
+          />
+          <MetricCard
+            label="Total vencido"
+            value={fmtMoneyARS(totalOverdue)}
+            helper="Cuentas vencidas con saldo pendiente."
+            tone="danger"
+          />
+          <MetricCard
+            label="Total cobrado"
+            value={fmtMoneyARS(totalCollected)}
+            helper="Suma de cobros registrados en todas las cuentas."
+          />
+        </section>
+      )}
 
-        {receivables.length > 0 && (
-          <section className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-wide text-gray-500">
-                Cuentas abiertas
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-                {openCount}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                En estado PENDING o PARTIAL.
-              </p>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <p className="text-xs uppercase tracking-wide text-gray-500">
-                Cuentas pagadas
-              </p>
-              <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-                {paidCount}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Con estado PAID y saldo en cero.
-              </p>
-            </div>
-          </section>
-        )}
+      {receivables.length > 0 && (
+        <section className="grid gap-4 md:grid-cols-2">
+          <MetricCard
+            label="Cuentas abiertas"
+            value={openCount}
+            helper="En estado PENDING o PARTIAL."
+          />
+          <MetricCard
+            label="Cuentas pagadas"
+            value={paidCount}
+            helper="Con estado PAID y saldo en cero."
+          />
+        </section>
+      )}
 
-        {receivables.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-            Todavía no hay cuentas por cobrar registradas.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+      {receivables.length === 0 ? (
+        <EmptyState
+          title="Todavía no hay cuentas por cobrar"
+          description="A medida que confirmes ventas con condiciones de pago, se irán creando automáticamente las cuentas por cobrar asociadas."
+        />
+      ) : (
+        <SectionCard
+          title="Detalle de cuentas por cobrar"
+          description="Listado detallado de cada cuenta, su cliente, fechas clave y estado de cobro."
+        >
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -267,8 +242,8 @@ export default async function ReceivablesListPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </SectionCard>
+      )}
     </div>
   )
 }

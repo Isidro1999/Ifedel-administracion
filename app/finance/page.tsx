@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { MetricCard } from '@/components/layout/MetricCard'
+import { SectionCard } from '@/components/layout/SectionCard'
 
 export default async function FinancePage() {
   const [movements, receivables, payables] = await Promise.all([
@@ -84,17 +87,11 @@ export default async function FinancePage() {
     .reduce((acc, m) => acc + m.amount, 0)
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-ifedel-black">
-              Dashboard financiero
-            </h1>
-            <p className="text-sm text-gray-600">
-              Visión ejecutiva de caja, cuentas por cobrar y por pagar.
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Dashboard financiero"
+        description="Visión ejecutiva de caja, cuentas por cobrar y por pagar."
+        actions={
           <div className="flex flex-wrap gap-2">
             <Link
               href="/cash"
@@ -115,133 +112,83 @@ export default async function FinancePage() {
               Cuentas por pagar
             </Link>
           </div>
-        </div>
+        }
+      />
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Saldo actual de caja
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(saldoCaja)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Ingresos menos egresos registrados.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Pendiente por cobrar
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(totalPorCobrarPendiente)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Suma de saldos de cuentas por cobrar abiertas.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Pendiente por pagar
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(totalPorPagarPendiente)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Suma de saldos de cuentas por pagar abiertas.
-            </p>
-          </div>
-        </section>
+      <section className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          label="Saldo actual de caja"
+          value={fmtMoneyARS(saldoCaja)}
+          helper="Ingresos menos egresos registrados."
+        />
+        <MetricCard
+          label="Pendiente por cobrar"
+          value={fmtMoneyARS(totalPorCobrarPendiente)}
+          helper="Suma de saldos de cuentas por cobrar abiertas."
+        />
+        <MetricCard
+          label="Pendiente por pagar"
+          value={fmtMoneyARS(totalPorPagarPendiente)}
+          helper="Suma de saldos de cuentas por pagar abiertas."
+        />
+      </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <p className="text-xs uppercase tracking-wide text-red-700">
-              Vencido por cobrar
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-red-700">
-              {fmtMoneyARS(totalPorCobrarVencido)}
-            </p>
-            <p className="mt-1 text-xs text-red-700">
-              Cuentas por cobrar vencidas con saldo pendiente.
-            </p>
-          </div>
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <p className="text-xs uppercase tracking-wide text-amber-700">
-              Vencido por pagar
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-amber-700">
-              {fmtMoneyARS(totalPorPagarVencido)}
-            </p>
-            <p className="mt-1 text-xs text-amber-700">
-              Cuentas por pagar vencidas con saldo pendiente.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Total cobrado / pagado
-            </p>
-            <p className="mt-1 text-lg font-semibold text-ifedel-black">
-              Cobrado: {fmtMoneyARS(totalCobrado)}
-            </p>
-            <p className="mt-1 text-lg font-semibold text-ifedel-black">
-              Pagado: {fmtMoneyARS(totalPagado)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Acumulado histórico en cuentas por cobrar y por pagar.
-            </p>
-          </div>
-        </section>
+      <section className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          label="Vencido por cobrar"
+          value={fmtMoneyARS(totalPorCobrarVencido)}
+          helper="Cuentas por cobrar vencidas con saldo pendiente."
+          tone="danger"
+        />
+        <MetricCard
+          label="Vencido por pagar"
+          value={fmtMoneyARS(totalPorPagarVencido)}
+          helper="Cuentas por pagar vencidas con saldo pendiente."
+          tone="warning"
+        />
+        <MetricCard
+          label="Total cobrado / pagado"
+          value={
+            <div className="space-y-1 text-sm">
+              <div>Cobrado: {fmtMoneyARS(totalCobrado)}</div>
+              <div>Pagado: {fmtMoneyARS(totalPagado)}</div>
+            </div>
+          }
+          helper="Acumulado histórico en cuentas por cobrar y por pagar."
+        />
+      </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Cuentas por cobrar abiertas
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {cuentasPorCobrarAbiertas}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              En estado PENDING o PARTIAL.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Cuentas por pagar abiertas
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {cuentasPorPagarAbiertas}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              En estado PENDING o PARTIAL.
-            </p>
-          </div>
-        </section>
+      <section className="grid gap-4 md:grid-cols-2">
+        <MetricCard
+          label="Cuentas por cobrar abiertas"
+          value={cuentasPorCobrarAbiertas}
+          helper="En estado PENDING o PARTIAL."
+        />
+        <MetricCard
+          label="Cuentas por pagar abiertas"
+          value={cuentasPorPagarAbiertas}
+          helper="En estado PENDING o PARTIAL."
+        />
+      </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Ingresos de caja (mes actual)
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(ingresosMes)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Suma de movimientos IN desde inicio de mes.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Egresos de caja (mes actual)
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(egresosMes)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Suma de movimientos OUT desde inicio de mes.
-            </p>
-          </div>
-        </section>
-      </div>
+      <section className="grid gap-4 md:grid-cols-2">
+        <SectionCard
+          title="Ingresos de caja (mes actual)"
+          description="Suma de movimientos IN desde inicio de mes."
+        >
+          <p className="text-2xl font-semibold text-ifedel-black">
+            {fmtMoneyARS(ingresosMes)}
+          </p>
+        </SectionCard>
+        <SectionCard
+          title="Egresos de caja (mes actual)"
+          description="Suma de movimientos OUT desde inicio de mes."
+        >
+          <p className="text-2xl font-semibold text-ifedel-black">
+            {fmtMoneyARS(egresosMes)}
+          </p>
+        </SectionCard>
+      </section>
     </div>
   )
 }

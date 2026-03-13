@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, type ReactNode } from 'react'
 import type { Session } from 'next-auth'
+import { UserProvider } from '@/components/layout/UserContext'
 
 const PUBLIC_PATHS = ['/api/auth', '/pending', '/login']
 const isPublicPath = (path: string) =>
@@ -41,7 +42,9 @@ export function AuthGuard({ session, children }: AuthGuardProps) {
   }, [pathname, session, router])
 
   // En rutas públicas o si ya hay sesión válida, mostrar contenido
-  if (isPublicPath(pathname)) return <>{children}</>
+  if (isPublicPath(pathname)) {
+    return <UserProvider user={session?.user ?? null}>{children}</UserProvider>
+  }
   if (!session?.user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -66,5 +69,5 @@ export function AuthGuard({ session, children }: AuthGuardProps) {
     )
   }
 
-  return <>{children}</>
+  return <UserProvider user={session.user}>{children}</UserProvider>
 }

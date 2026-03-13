@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { SectionCard } from '@/components/layout/SectionCard'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function PurchasesListPage() {
   const purchases = await prisma.purchase.findMany({
@@ -11,31 +14,33 @@ export default async function PurchasesListPage() {
   })
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-ifedel-black">
-              Compras registradas
-            </h1>
-            <p className="text-sm text-gray-600">
-              Listado simple de compras a proveedores y sus totales.
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Compras registradas"
+        description="Listado simple de compras a proveedores y sus totales."
+        actions={
           <Link
             href="/purchases/new"
             className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             Nueva compra
           </Link>
-        </div>
+        }
+      />
 
-        {purchases.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-            Todavía no hay compras registradas.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+      {purchases.length === 0 ? (
+        <EmptyState
+          title="Todavía no hay compras registradas"
+          description="Cuando registres tus primeras compras a proveedores, van a aparecer listadas acá con sus totales y estado."
+          actionLabel="Registrar compra"
+          actionHref="/purchases/new"
+        />
+      ) : (
+        <SectionCard
+          title="Listado de compras"
+          description="Detalle de cada compra con su proveedor, fecha, monto y estado."
+        >
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -108,8 +113,8 @@ export default async function PurchasesListPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </SectionCard>
+      )}
     </div>
   )
 }

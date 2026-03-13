@@ -130,6 +130,19 @@ model Settings {
   @@map("settings")
 }
 
+/// Configuración económica/financiera global de IFEDEL.
+/// Se usa una única fila con id = 1.
+model FinancialSettings {
+  id                      Int      @id
+  ingresosBrutosRate      Float   @default(0)
+  bankCreditRate          Float   @default(0)
+  bankDebitRate           Float   @default(0)
+  fixedMonthlyOverheadARS Float   @default(0)
+  updatedAt               DateTime @updatedAt
+
+  @@map("financial_settings")
+}
+
 /// Proveedores comerciales de IFEDEL
 model Supplier {
   id      Int    @id @default(autoincrement())

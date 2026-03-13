@@ -2,6 +2,10 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { RegisterCashOutForm } from './RegisterCashOutForm'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { MetricCard } from '@/components/layout/MetricCard'
+import { SectionCard } from '@/components/layout/SectionCard'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function CashPage() {
   const movements = await prisma.cashMovement.findMany({
@@ -22,93 +26,78 @@ export default async function CashPage() {
     .reduce((acc, m) => acc + m.amount, 0)
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-ifedel-black">Caja</h1>
-            <p className="text-sm text-gray-600">
-              Resumen simple de ingresos y egresos en ARS.
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Caja"
+        description="Resumen simple de ingresos y egresos en ARS."
+        actions={
           <Link
-            href="/"
+            href="/finance"
             className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
           >
-            Volver al inicio
+            Ver dashboard financiero
           </Link>
-        </div>
+        }
+      />
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Saldo actual
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(saldo)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Ingresos menos egresos registrados.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Total ingresos
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(totalIngresos)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Suma de movimientos de tipo IN.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">
-              Total egresos
-            </p>
-            <p className="mt-1 text-2xl font-semibold text-ifedel-black">
-              {fmtMoneyARS(totalEgresos)}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              Suma de movimientos de tipo OUT.
-            </p>
-          </div>
-        </section>
+      <section className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          label="Saldo actual"
+          value={fmtMoneyARS(saldo)}
+          helper="Ingresos menos egresos registrados."
+        />
+        <MetricCard
+          label="Total ingresos"
+          value={fmtMoneyARS(totalIngresos)}
+          helper="Suma de movimientos de tipo IN."
+        />
+        <MetricCard
+          label="Total egresos"
+          value={fmtMoneyARS(totalEgresos)}
+          helper="Suma de movimientos de tipo OUT."
+        />
+      </section>
 
+      <SectionCard
+        title="Registrar egreso de caja"
+        description="Registrar de forma rápida un nuevo movimiento de salida."
+      >
         <RegisterCashOutForm />
+      </SectionCard>
 
-        {movements.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-            Todavía no hay movimientos de caja registrados.
-          </div>
-        ) : (
-          <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">
-            <h2 className="text-base font-semibold text-ifedel-black mb-3">
-              Movimientos de caja
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">
-                      Fecha
-                    </th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">
-                      Tipo
-                    </th>
-                    <th className="px-3 py-2 text-right font-semibold text-gray-700">
-                      Monto
-                    </th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">
-                      Concepto
-                    </th>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">
-                      Categoría
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {movements.map((m) => {
+      {movements.length === 0 ? (
+        <EmptyState
+          title="Todavía no hay movimientos de caja"
+          description="Cuando registres ingresos o egresos, vas a ver el detalle histórico de caja en este bloque."
+        />
+      ) : (
+        <SectionCard
+          title="Movimientos de caja"
+          description="Detalle histórico de ingresos y egresos registrados."
+        >
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                    Fecha
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                    Tipo
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                    Monto
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                    Concepto
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                    Categoría
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {movements.map((m) => {
                     const date =
                       m.occurredAt instanceof Date
                         ? m.occurredAt
@@ -139,9 +128,8 @@ export default async function CashPage() {
                 </tbody>
               </table>
             </div>
-          </section>
+          </SectionCard>
         )}
-      </div>
     </div>
   )
 }

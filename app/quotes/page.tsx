@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { SectionCard } from '@/components/layout/SectionCard'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function QuotesListPage() {
   const quotes = await prisma.quote.findMany({
@@ -11,31 +14,33 @@ export default async function QuotesListPage() {
   })
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-ifedel-black">
-              Cotizaciones guardadas
-            </h1>
-            <p className="text-sm text-gray-600">
-              Listado simple de cotizaciones persistidas en el sistema.
-            </p>
-          </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Cotizaciones guardadas"
+        description="Listado simple de cotizaciones persistidas en el sistema."
+        actions={
           <Link
             href="/quotes/new"
             className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             Nueva cotización
           </Link>
-        </div>
+        }
+      />
 
-        {quotes.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-            Todavía no hay cotizaciones guardadas.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+      {quotes.length === 0 ? (
+        <EmptyState
+          title="Todavía no hay cotizaciones guardadas"
+          description="Podés generar una nueva cotización desde el catálogo de productos o usando el flujo de creación rápida."
+          actionLabel="Crear cotización"
+          actionHref="/quotes/new"
+        />
+      ) : (
+        <SectionCard
+          title="Listado de cotizaciones"
+          description="Detalle de cada cotización con su cliente, monto y estado."
+        >
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -121,8 +126,8 @@ export default async function QuotesListPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </SectionCard>
+      )}
     </div>
   )
 }

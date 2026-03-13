@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
 import "./globals.css";
-import { AppHeader } from "@/components/AppHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { auth } from "@/auth";
+import { AppShell } from "@/components/layout/AppShell";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -28,10 +28,10 @@ export default async function RootLayout({
     <html lang="es" className={raleway.variable}>
       <body className="antialiased font-sans">
         <AuthGuard session={session}>
-          <AppHeader />
-          <main>{children}</main>
+          <AppShell>{children}</AppShell>
         </AuthGuard>
       </body>
     </html>
   );
 }
+

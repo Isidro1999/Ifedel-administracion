@@ -3,6 +3,8 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { UserActions } from './UserActions'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { SectionCard } from '@/components/layout/SectionCard'
 
 export default async function AdminUsersPage() {
   const session = await auth()
@@ -38,18 +40,26 @@ export default async function AdminUsersPage() {
 
   const pendingTable = (
     <table className="w-full text-sm">
-      <thead className="bg-gray-100">
+      <thead className="bg-gray-50">
         <tr>
-          <th className="text-left p-3">Nombre / Email</th>
-          <th className="text-left p-3">Fecha</th>
-          <th className="text-right p-3">Acciones</th>
+          <th className="p-3 text-left font-semibold text-gray-700">
+            Nombre / Email
+          </th>
+          <th className="p-3 text-left font-semibold text-gray-700">
+            Fecha
+          </th>
+          <th className="p-3 text-right font-semibold text-gray-700">
+            Acciones
+          </th>
         </tr>
       </thead>
       <tbody>
         {pending.map((u) => (
-          <tr key={u.id} className="border-t border-gray-100">
+          <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
             <td className="p-3">
-              <div className="font-medium">{u.name || '—'}</div>
+              <div className="font-medium text-ifedel-black">
+                {u.name || '—'}
+              </div>
               <div className="text-gray-500">{u.email || '—'}</div>
             </td>
             <td className="p-3 text-gray-500">
@@ -68,24 +78,34 @@ export default async function AdminUsersPage() {
 
   const approvedTable = (
     <table className="w-full text-sm">
-      <thead className="bg-gray-100">
+      <thead className="bg-gray-50">
         <tr>
-          <th className="text-left p-3">Nombre / Email</th>
-          <th className="text-left p-3">Rol</th>
-          <th className="text-left p-3">Aprobado el</th>
+          <th className="p-3 text-left font-semibold text-gray-700">
+            Nombre / Email
+          </th>
+          <th className="p-3 text-left font-semibold text-gray-700">
+            Rol
+          </th>
+          <th className="p-3 text-left font-semibold text-gray-700">
+            Aprobado el
+          </th>
         </tr>
       </thead>
       <tbody>
         {approved.map((u) => (
-          <tr key={u.id} className="border-t border-gray-100">
+          <tr key={u.id} className="border-t border-gray-100 hover:bg-gray-50">
             <td className="p-3">
-              <div className="font-medium">{u.name || '—'}</div>
+              <div className="font-medium text-ifedel-black">
+                {u.name || '—'}
+              </div>
               <div className="text-gray-500">{u.email || '—'}</div>
             </td>
             <td className="p-3">
               <span
                 className={
-                  u.role === 'ADMIN' ? 'text-purple-600 font-medium' : ''
+                  u.role === 'ADMIN'
+                    ? 'font-medium text-purple-600'
+                    : 'text-gray-700'
                 }
               >
                 {u.role}
@@ -103,43 +123,50 @@ export default async function AdminUsersPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Administración de usuarios</h1>
-          <Link href="/" className="text-sm text-ifedel-primary hover:underline font-medium">
-            ← Volver al inicio
+    <div className="space-y-6">
+      <PageHeader
+        title="Administración de usuarios"
+        description="Aprobá o rechazá usuarios que solicitan acceso y revisá los usuarios ya aprobados."
+        actions={
+          <Link
+            href="/"
+            className="text-sm font-medium text-ifedel-primary hover:underline"
+          >
+            Volver al inicio
           </Link>
-        </div>
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 text-amber-700">
-            Pendientes de aprobación ({pending.length})
-          </h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {pending.length === 0 ? (
-              <p className="p-4 text-gray-500 text-sm">
-                No hay usuarios pendientes.
-              </p>
-            ) : (
-              pendingTable
-            )}
+        }
+      />
+
+      <SectionCard
+        title={`Pendientes de aprobación (${pending.length})`}
+        description="Usuarios que solicitaron acceso y aún no fueron aprobados."
+      >
+        {pending.length === 0 ? (
+          <p className="text-sm text-gray-600">
+            No hay usuarios pendientes de aprobación.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-gray-200 bg-white">
+            {pendingTable}
           </div>
-        </section>
-        <section>
-          <h2 className="text-lg font-semibold mb-3 text-green-700">
-            Usuarios aprobados ({approved.length})
-          </h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {approved.length === 0 ? (
-              <p className="p-4 text-gray-500 text-sm">
-                No hay usuarios aprobados aún.
-              </p>
-            ) : (
-              approvedTable
-            )}
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title={`Usuarios aprobados (${approved.length})`}
+        description="Listado de usuarios con acceso aprobado al sistema."
+      >
+        {approved.length === 0 ? (
+          <p className="text-sm text-gray-600">
+            Todavía no hay usuarios aprobados.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border border-gray-200 bg-white">
+            {approvedTable}
           </div>
-        </section>
-      </div>
+        )}
+      </SectionCard>
     </div>
   )
 }
+

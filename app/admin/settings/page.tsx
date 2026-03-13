@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { SectionCard } from '@/components/layout/SectionCard'
 
 interface ExchangeRateResponse {
   usdArsRate: number | null
@@ -88,92 +90,104 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-8">
-          <Link href="/" className="text-ifedel-primary hover:underline mb-4 inline-block font-medium">
-            ← Volver al inicio
-          </Link>
-          <h1 className="text-3xl font-bold mb-2">Settings</h1>
-          <p className="text-gray-600">
-            Configurá el tipo de cambio USD → ARS para mostrar precios aproximados en pesos.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Settings generales"
+        description="Configuración básica del sistema, incluyendo el tipo de cambio USD → ARS."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/"
+              className="text-sm font-medium text-ifedel-primary hover:underline"
+            >
+              Volver al inicio
+            </Link>
+            <Link
+              href="/admin/financial-settings"
+              className="text-sm font-medium text-gray-700 hover:underline"
+            >
+              Ir a parámetros financieros
+            </Link>
+          </div>
+        }
+      />
 
-        <div className="bg-white rounded-lg shadow p-6">
-          {initialLoading ? (
-            <div className="text-gray-500">Cargando settings...</div>
-          ) : (
-            <>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Clave de Administrador
-                  </label>
-                  <input
-                    type="password"
-                    value={adminKey}
-                    onChange={(e) => setAdminKey(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                    placeholder="Ingresa la clave de administrador"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Tipo de cambio USD → ARS
-                  </label>
-                  <input
-                    type="number"
-                    step="0.0001"
-                    min="0"
-                    value={usdArsRate}
-                    onChange={(e) => setUsdArsRate(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                    placeholder="Ej: 1085.50"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Se usa para convertir precios en USD a un equivalente aproximado en ARS en el
-                    catálogo.
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !adminKey}
-                  className="px-4 py-2 bg-ifedel-primary text-white rounded-md hover:opacity-90 disabled:opacity-50 font-medium"
-                >
-                  {loading ? 'Guardando...' : 'Guardar'}
-                </button>
-                {successMessage && (
-                  <div className="mt-4 p-3 rounded bg-green-50 border border-green-200 text-sm text-green-800">
-                    {successMessage}
-                  </div>
-                )}
-                {errorMessage && (
-                  <div className="mt-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-800">
-                    {errorMessage}
-                  </div>
-                )}
-              </form>
-
-              <div className="mt-6 border-t pt-4 text-sm text-gray-600">
-                <div>
-                  <span className="font-medium">Último valor guardado: </span>
-                  {savedRate?.usdArsRate != null ? `${savedRate.usdArsRate} ARS por 1 USD` : '—'}
-                </div>
-                <div>
-                  <span className="font-medium">Última actualización: </span>
-                  {formatDate(savedRate?.updatedAt ?? null)}
-                </div>
+      <SectionCard
+        title="Tipo de cambio USD → ARS"
+        description="Se usa para convertir precios en USD a un equivalente aproximado en ARS dentro del catálogo."
+      >
+        {initialLoading ? (
+          <div className="text-sm text-gray-600">Cargando settings...</div>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Clave de Administrador
+                </label>
+                <input
+                  type="password"
+                  value={adminKey}
+                  onChange={(e) => setAdminKey(e.target.value)}
+                  className="w-full rounded-md border px-3 py-2"
+                  placeholder="Ingresa la clave de administrador"
+                  required
+                />
               </div>
-            </>
-          )}
-        </div>
-      </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Tipo de cambio USD → ARS
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  value={usdArsRate}
+                  onChange={(e) => setUsdArsRate(e.target.value)}
+                  className="w-full rounded-md border px-3 py-2"
+                  placeholder="Ej: 1085.50"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !adminKey}
+                className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {loading ? 'Guardando...' : 'Guardar'}
+              </button>
+            </form>
+
+            <div className="mt-4 border-t pt-3 text-sm text-gray-600">
+              <div>
+                <span className="font-medium">Último valor guardado: </span>
+                {savedRate?.usdArsRate != null
+                  ? `${savedRate.usdArsRate} ARS por 1 USD`
+                  : '—'}
+              </div>
+              <div>
+                <span className="font-medium">Última actualización: </span>
+                {formatDate(savedRate?.updatedAt ?? null)}
+              </div>
+            </div>
+
+            {successMessage && (
+              <div className="mt-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                {successMessage}
+              </div>
+            )}
+            {errorMessage && (
+              <div className="mt-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                {errorMessage}
+              </div>
+            )}
+          </>
+        )}
+      </SectionCard>
     </div>
   )
 }
+
 
