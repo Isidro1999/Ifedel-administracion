@@ -143,6 +143,33 @@ model FinancialSettings {
   @@map("financial_settings")
 }
 
+model PaymentTerm {
+  id          Int                      @id @default(autoincrement())
+  code        String                   @unique
+  label       String
+  description String?
+  isActive    Boolean                  @default(true)
+  isDefault   Boolean                  @default(false)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  installments PaymentTermInstallment[]
+
+  @@map("payment_terms")
+}
+
+model PaymentTermInstallment {
+  id            Int         @id @default(autoincrement())
+  paymentTermId Int
+  order         Int         @default(0)
+  offsetDays    Int
+  percentage    Float
+
+  paymentTerm PaymentTerm @relation(fields: [paymentTermId], references: [id], onDelete: Cascade)
+
+  @@map("payment_term_installments")
+}
+
 /// Proveedores comerciales de IFEDEL
 model Supplier {
   id      Int    @id @default(autoincrement())
@@ -228,6 +255,12 @@ model Quote {
   exchangeRateARS Float?
   validityDays    Int     @default(7)
   discountPct     Float   @default(0)
+
+  // Condición de pago
+  paymentTermId              Int?
+  paymentTermCodeSnapshot    String?
+  paymentTermLabelSnapshot   String?
+  paymentTermInstallmentsRaw String? // JSON con offsetDays/percentage para resiliencia histórica
 
   // Totales genéricos (en currency)
   subtotal          Float
@@ -326,6 +359,12 @@ model Sale {
   currency        String  @default("USD")
   exchangeRateARS Float?
   discountPct     Float   @default(0)
+
+  // Condición de pago congelada al momento de la venta
+  paymentTermId              Int?
+  paymentTermCodeSnapshot    String?
+  paymentTermLabelSnapshot   String?
+  paymentTermInstallmentsRaw String?
 
   // Totales genéricos (en currency)
   subtotal          Float
@@ -428,11 +467,34 @@ model Receivable {
   updatedAt DateTime @updatedAt
 
   payments ReceivablePayment[]
+  installments ReceivableInstallment[]
 
   @@map("receivables")
   @@index([customerId])
   @@index([status])
   @@index([dueDate])
+}
+
+model ReceivableInstallment {
+  id           Int         @id @default(autoincrement())
+  receivableId Int
+  receivable   Receivable  @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  order     Int      @default(0)
+  dueDate   DateTime
+  amount    Float
+  amountPaid Float   @default(0)
+  balance   Float
+  status    String   @default("PENDING")
+  label     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("receivable_installments")
+  @@index([receivableId])
+  @@index([dueDate])
+  @@index([status])
 }
 
 /// Cobro aplicado a una cuenta por cobrar. Un registro por cada pago recibido.

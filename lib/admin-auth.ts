@@ -18,3 +18,12 @@ export function unauthorizedResponse() {
     { status: 401 }
   )
 }
+
+export async function requireAdminKey(adminKey?: string): Promise<boolean> {
+  const expectedKey = process.env.ADMIN_KEY
+  if (!expectedKey) {
+    console.error('ADMIN_KEY no está configurada en las variables de entorno')
+    return false
+  }
+  return adminKey === expectedKey
+}

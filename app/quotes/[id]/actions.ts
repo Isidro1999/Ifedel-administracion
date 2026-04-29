@@ -56,6 +56,10 @@ export async function convertQuoteToSale(quoteId: number) {
         notes: quote.notes,
         issuedAt: quote.issuedAt,
         createdByUserId: userId,
+        paymentTermId: quote.paymentTermId,
+        paymentTermCodeSnapshot: quote.paymentTermCodeSnapshot,
+        paymentTermLabelSnapshot: quote.paymentTermLabelSnapshot,
+        paymentTermInstallmentsRaw: quote.paymentTermInstallmentsRaw,
         items: {
           create: quote.items.map((item, index) => ({
             productId: item.productId,
@@ -80,8 +84,8 @@ export async function convertQuoteToSale(quoteId: number) {
       quote.issuedAt instanceof Date
         ? quote.issuedAt
         : new Date(quote.issuedAt as string | number)
-    const dueDate = new Date(issuedAt)
-    dueDate.setDate(dueDate.getDate() + RECEIVABLE_DEFAULT_DUE_DAYS)
+    const baseDueDate = new Date(issuedAt)
+    baseDueDate.setDate(baseDueDate.getDate() + RECEIVABLE_DEFAULT_DUE_DAYS)
 
     // Determinar el monto exigible en ARS de forma robusta
     let totalAmountARS = sale.totalARS
@@ -95,7 +99,57 @@ export async function convertQuoteToSale(quoteId: number) {
       }
     }
 
-    await tx.receivable.create({
+    // Determinar cuotas a partir de la condición de pago (snapshot) si existe
+    type SnapshotInstallment = {
+      order: number
+      offsetDays: number
+      percentage: number
+      label?: string
+    }
+
+    let snapshotInstallments: SnapshotInstallment[] | null = null
+    if (sale.paymentTermInstallmentsRaw) {
+      try {
+        const parsed = JSON.parse(
+          sale.paymentTermInstallmentsRaw
+        ) as SnapshotInstallment[]
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          snapshotInstallments = parsed
+        }
+      } catch {
+        snapshotInstallments = null
+      }
+    }
+
+    if (!snapshotInstallments) {
+      snapshotInstallments = [
+        {
+          order: 0,
+          offsetDays: 0,
+          percentage: 1,
+        },
+      ]
+    }
+
+    const normalized = snapshotInstallments
+      .slice()
+      .sort((a, b) => a.order - b.order)
+
+    const amounts: number[] = []
+    let accumulated = 0
+
+    for (let i = 0; i < normalized.length; i += 1) {
+      const inst = normalized[i]
+      const rawAmount = totalAmountARS * inst.percentage
+      const rounded =
+        i === normalized.length - 1
+          ? Number((totalAmountARS - accumulated).toFixed(2))
+          : Number(rawAmount.toFixed(2))
+      amounts.push(rounded)
+      accumulated += rounded
+    }
+
+    const receivable = await tx.receivable.create({
       data: {
         saleId: sale.id,
         customerId: quote.customerId,
@@ -106,10 +160,67 @@ export async function convertQuoteToSale(quoteId: number) {
         amountPaid: 0,
         balance: totalAmountARS,
         issuedAt: quote.issuedAt,
-        dueDate,
+        dueDate: new Date(baseDueDate),
         status: 'PENDING',
+        installments: {
+          create: normalized.map((inst, index) => {
+            const days = typeof inst.offsetDays === 'number' ? inst.offsetDays : 0
+            const dueDate = new Date(issuedAt)
+            dueDate.setDate(dueDate.getDate() + days)
+            const amount = amounts[index]
+            return {
+              order: inst.order ?? index,
+              dueDate,
+              amount,
+              amountPaid: 0,
+              balance: amount,
+              status: 'PENDING',
+              label: inst.label ?? null,
+            }
+          }),
+        },
+      },
+      include: {
+        installments: true,
       },
     })
+
+    // Ajustar header (totales/saldo/estado/dueDate) según cuotas generadas
+    if (normalized.length > 0 && receivable.installments.length > 0) {
+      const lastInst = normalized[normalized.length - 1]
+      const lastDue = new Date(issuedAt)
+      const days = typeof lastInst.offsetDays === 'number' ? lastInst.offsetDays : 0
+      lastDue.setDate(lastDue.getDate() + days)
+
+      const totalInstallments = Number(
+        receivable.installments
+          .reduce((acc, inst) => acc + inst.amount, 0)
+          .toFixed(2)
+      )
+      const totalPaid = Number(
+        receivable.installments
+          .reduce((acc, inst) => acc + inst.amountPaid, 0)
+          .toFixed(2)
+      )
+      const totalBalance = Number(
+        receivable.installments
+          .reduce((acc, inst) => acc + inst.balance, 0)
+          .toFixed(2)
+      )
+      const headerStatus =
+        totalBalance <= 0 ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : 'PENDING'
+
+      await tx.receivable.update({
+        where: { id: receivable.id },
+        data: {
+          totalAmount: totalInstallments,
+          amountPaid: totalPaid,
+          balance: totalBalance,
+          status: headerStatus,
+          dueDate: lastDue,
+        },
+      })
+    }
 
     await tx.quote.update({
       where: { id: quote.id },

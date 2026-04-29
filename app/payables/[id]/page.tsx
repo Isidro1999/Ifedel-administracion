@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
+import { RegisterPayablePaymentForm } from './RegisterPayablePaymentForm'
 
 interface PayableDetailPageProps {
   params: { id: string }
@@ -177,26 +178,11 @@ export default async function PayableDetailPage({
           </div>
         </section>
 
-        <section className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="mb-1 text-base font-semibold text-ifedel-black">
-                Registrar pago (próximamente)
-              </h2>
-              <p className="text-xs">
-                Aquí vas a poder registrar pagos parciales o totales aplicados a
-                esta cuenta por pagar.
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled
-              className="rounded-md border border-gray-300 px-4 py-2 text-xs text-gray-400"
-            >
-              Registrar pago
-            </button>
-          </div>
-        </section>
+        <RegisterPayablePaymentForm
+          payableId={payable.id}
+          balance={payable.balance}
+          status={payable.status}
+        />
       </div>
     </div>
   )

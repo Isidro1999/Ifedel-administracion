@@ -12,6 +12,7 @@ export default async function ReceivablesListPage() {
     include: {
       sale: true,
       customer: true,
+      installments: true,
     },
   })
 
@@ -136,6 +137,12 @@ export default async function ReceivablesListPage() {
                   <th className="px-4 py-2 text-left font-semibold text-gray-700">
                     Vence
                   </th>
+                  <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                    Cuotas
+                  </th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                    Próximo vencimiento
+                  </th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-700">
                     Estado
                   </th>
@@ -172,6 +179,48 @@ export default async function ReceivablesListPage() {
 
                   const issuedAtLabel = issuedAt.toISOString().slice(0, 10)
                   const dueDateLabel = dueDate.toISOString().slice(0, 10)
+
+                  const sortedInstallments = (r.installments.length > 0
+                    ? r.installments
+                    : [
+                        {
+                          id: -1,
+                          order: 0,
+                          dueDate: r.dueDate,
+                          amount: r.totalAmount,
+                          amountPaid: r.amountPaid,
+                          balance: r.balance,
+                          status: r.status,
+                          label: 'Cuota única (legacy)',
+                          receivableId: r.id,
+                          createdAt: r.createdAt,
+                          updatedAt: r.updatedAt,
+                        },
+                      ]
+                  )
+                    .slice()
+                    .sort((a, b) => {
+                      const aDue =
+                        a.dueDate instanceof Date ? a.dueDate : new Date(a.dueDate as any)
+                      const bDue =
+                        b.dueDate instanceof Date ? b.dueDate : new Date(b.dueDate as any)
+                      if (aDue.getTime() === bDue.getTime()) return a.order - b.order
+                      return aDue.getTime() - bDue.getTime()
+                    })
+
+                  const nextOpenInstallment = sortedInstallments.find((inst) => {
+                    const status = inst.status
+                    return (status === 'PENDING' || status === 'PARTIAL') && inst.balance > 0
+                  })
+
+                  const nextDueLabel = nextOpenInstallment
+                    ? (nextOpenInstallment.dueDate instanceof Date
+                        ? nextOpenInstallment.dueDate
+                        : new Date(nextOpenInstallment.dueDate as any)
+                      )
+                        .toISOString()
+                        .slice(0, 10)
+                    : '-'
 
                   const isOverdue =
                     dueDate < today &&
@@ -215,6 +264,12 @@ export default async function ReceivablesListPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-gray-700">
                         {dueDateLabel}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right text-gray-700">
+                        {sortedInstallments.length}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-gray-700">
+                        {nextDueLabel}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-700">
                         {r.status}

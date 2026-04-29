@@ -22,6 +22,9 @@ export default async function ReceivableDetailPage({
       sale: true,
       customer: true,
       payments: { orderBy: { paidAt: 'desc' } },
+      installments: {
+        orderBy: { order: 'asc' },
+      },
     },
   })
 
@@ -59,6 +62,22 @@ export default async function ReceivableDetailPage({
     dueDate < today &&
     (receivable.status === 'PENDING' || receivable.status === 'PARTIAL') &&
     receivable.balance > 0
+
+  const displayInstallments =
+    receivable.installments.length > 0
+      ? receivable.installments
+      : [
+          {
+            id: -1,
+            order: 0,
+            dueDate: receivable.dueDate,
+            amount: receivable.totalAmount,
+            amountPaid: receivable.amountPaid,
+            balance: receivable.balance,
+            status: receivable.status,
+            label: 'Cuota única (legacy)',
+          },
+        ]
 
   return (
     <div className="min-h-screen p-8">
@@ -192,6 +211,83 @@ export default async function ReceivableDetailPage({
           balance={receivable.balance}
           status={receivable.status}
         />
+
+        <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">
+          <h2 className="text-base font-semibold text-ifedel-black mb-3">
+            Cuotas / vencimientos
+          </h2>
+          {receivable.installments.length === 0 && (
+            <p className="mb-3 text-xs text-amber-700">
+              Esta cuenta fue creada antes del módulo de cuotas. Se muestra una cuota única de referencia.
+            </p>
+          )}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                    N°
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                    Fecha vencimiento
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                    Monto
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                    Pagado
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                    Saldo
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {displayInstallments.map((inst, idx) => {
+                    const due =
+                      inst.dueDate instanceof Date
+                        ? inst.dueDate
+                        : new Date(inst.dueDate as any)
+                    const dueLabel = due.toISOString().slice(0, 10)
+                    const isInstallmentOverdue =
+                      due < today &&
+                      (inst.status === 'PENDING' || inst.status === 'PARTIAL') &&
+                      inst.balance > 0
+                    return (
+                      <tr key={inst.id} className="hover:bg-gray-50">
+                        <td className="whitespace-nowrap px-3 py-2 text-gray-900">
+                          {idx + 1}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-gray-900">
+                          {dueLabel}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                          {fmtMoneyARS(inst.amount)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                          {fmtMoneyARS(inst.amountPaid)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                          {fmtMoneyARS(inst.balance)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-gray-900">
+                          <span className="font-medium">{inst.status}</span>
+                          {isInstallmentOverdue && (
+                            <span className="ml-2 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                              VENCIDA
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">
           <h2 className="text-base font-semibold text-ifedel-black mb-3">

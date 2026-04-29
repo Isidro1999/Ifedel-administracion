@@ -73,6 +73,14 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
             <p className="text-sm text-gray-600">
               Estado: <span className="font-medium">{quote.status}</span>
             </p>
+            {quote.paymentTermLabelSnapshot && (
+              <p className="text-xs text-gray-600 mt-1">
+                Condición de pago:{' '}
+                <span className="font-medium">
+                  {quote.paymentTermLabelSnapshot} ({quote.paymentTermCodeSnapshot})
+                </span>
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <Link

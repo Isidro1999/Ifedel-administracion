@@ -67,12 +67,60 @@ export async function registerReceivablePayment(
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const newAmountPaid = round2(receivable.amountPaid + amountRounded)
-    const newBalance = round2(receivable.totalAmount - newAmountPaid)
-    const newStatus =
-      newBalance <= 0 || newAmountPaid >= receivable.totalAmount
-        ? 'PAID'
-        : 'PARTIAL'
+    let installments = await tx.receivableInstallment.findMany({
+      where: { receivableId },
+      orderBy: [{ dueDate: 'asc' }, { order: 'asc' }, { id: 'asc' }],
+    })
+
+    if (installments.length === 0) {
+      // Backfill legacy receivables created before installments existed.
+      await tx.receivableInstallment.create({
+        data: {
+          receivableId,
+          order: 0,
+          dueDate: receivable.dueDate,
+          amount: receivable.totalAmount,
+          amountPaid: receivable.amountPaid,
+          balance: receivable.balance,
+          status: receivable.status,
+          label: 'Cuota única (legacy)',
+        },
+      })
+      installments = await tx.receivableInstallment.findMany({
+        where: { receivableId },
+        orderBy: [{ dueDate: 'asc' }, { order: 'asc' }, { id: 'asc' }],
+      })
+    }
+
+    let remaining = amountRounded
+    for (const inst of installments) {
+      if (remaining <= 0) break
+      if (inst.status === 'PAID' || inst.balance <= 0) continue
+
+      const applied = Math.min(remaining, inst.balance)
+      const newAmountPaid = round2(inst.amountPaid + applied)
+      const newBalance = round2(inst.amount - newAmountPaid)
+      const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL'
+
+      await tx.receivableInstallment.update({
+        where: { id: inst.id },
+        data: {
+          amountPaid: newAmountPaid,
+          balance: newBalance <= 0 ? 0 : newBalance,
+          status: newStatus,
+        },
+      })
+
+      remaining = round2(remaining - applied)
+    }
+
+    if (remaining > 0) {
+      return {
+        success: false as const,
+        error:
+          'No se pudo imputar completamente el cobro en cuotas disponibles.',
+      }
+    }
 
     const payment = await tx.receivablePayment.create({
       data: {
@@ -85,11 +133,32 @@ export async function registerReceivablePayment(
       },
     })
 
+    const refreshedInstallments = await tx.receivableInstallment.findMany({
+      where: { receivableId },
+    })
+
+    const totalAmount = round2(
+      refreshedInstallments.reduce((acc, inst) => acc + inst.amount, 0)
+    )
+    const totalAmountPaid = round2(
+      refreshedInstallments.reduce((acc, inst) => acc + inst.amountPaid, 0)
+    )
+    const totalBalance = round2(
+      refreshedInstallments.reduce((acc, inst) => acc + inst.balance, 0)
+    )
+    const newStatus =
+      totalBalance <= 0
+        ? 'PAID'
+        : totalAmountPaid > 0
+        ? 'PARTIAL'
+        : 'PENDING'
+
     await tx.receivable.update({
       where: { id: receivableId },
       data: {
-        amountPaid: newAmountPaid,
-        balance: newBalance >= 0 ? newBalance : 0,
+        totalAmount,
+        amountPaid: totalAmountPaid,
+        balance: totalBalance >= 0 ? totalBalance : 0,
         status: newStatus,
       },
     })
@@ -108,8 +177,16 @@ export async function registerReceivablePayment(
       },
     })
 
-    return { newBalance: newBalance >= 0 ? newBalance : 0, newStatus }
+    return {
+      success: true as const,
+      newBalance: totalBalance >= 0 ? totalBalance : 0,
+      newStatus,
+    }
   })
+
+  if (!result.success) {
+    return { success: false, error: result.error }
+  }
 
   revalidatePath(`/receivables/${receivableId}`)
   revalidatePath('/receivables')

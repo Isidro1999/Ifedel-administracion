@@ -9,7 +9,7 @@ export const IFEDelBrand = {
   companyName: 'IFEDEL',
   tagline: 'Soluciones Agropecuarias',
   colors: IFEDEL_COLORS,
-  address: 'El Ghetto',
+  address: 'Avenida Centenario 1825',
   phone: '+54 9 11 51435129',
   email: 'info@ifedel.com.ar',
   website: 'ifedel.com.ar',

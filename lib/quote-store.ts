@@ -22,6 +22,7 @@ export interface QuoteMeta {
   validityDays: number
   exchangeRateARS: number
   discountPct: number
+  paymentTermCode?: string
 }
 
 interface QuoteState {
@@ -47,6 +48,7 @@ export const useQuoteStore = create<QuoteState>()(
         validityDays: 7,
         exchangeRateARS: 1000,
         discountPct: 0,
+        paymentTermCode: 'CONTADO',
       },
       addItem: (item, qty = 1) =>
         set((state) => {
@@ -93,6 +95,7 @@ export const useQuoteStore = create<QuoteState>()(
             validityDays: 7,
             exchangeRateARS: 1000,
             discountPct: 0,
+            paymentTermCode: 'CONTADO',
           },
         })),
       setClientField: (key, value) =>

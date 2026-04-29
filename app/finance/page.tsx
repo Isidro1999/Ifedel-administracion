@@ -6,9 +6,14 @@ import { MetricCard } from '@/components/layout/MetricCard'
 import { SectionCard } from '@/components/layout/SectionCard'
 
 export default async function FinancePage() {
-  const [movements, receivables, payables] = await Promise.all([
+  const [movements, receivables, receivableInstallments, payables] = await Promise.all([
     prisma.cashMovement.findMany(),
     prisma.receivable.findMany(),
+    prisma.receivableInstallment.findMany({
+      include: {
+        receivable: true,
+      },
+    }),
     prisma.payable.findMany(),
   ])
 
@@ -28,21 +33,21 @@ export default async function FinancePage() {
     0
   )
 
-  const totalPorCobrarPendiente = receivables
-    .filter((r) => r.status === 'PENDING' || r.status === 'PARTIAL')
-    .reduce((acc, r) => acc + (r.balance || 0), 0)
+  const totalPorCobrarPendiente = receivableInstallments
+    .filter((i) => i.status === 'PENDING' || i.status === 'PARTIAL')
+    .reduce((acc, i) => acc + (i.balance || 0), 0)
 
-  const totalPorCobrarVencido = receivables
-    .filter((r) => {
+  const totalPorCobrarVencido = receivableInstallments
+    .filter((i) => {
       const due =
-        r.dueDate instanceof Date ? r.dueDate : new Date(r.dueDate as any)
+        i.dueDate instanceof Date ? i.dueDate : new Date(i.dueDate as any)
       return (
         due < today &&
-        (r.status === 'PENDING' || r.status === 'PARTIAL') &&
-        (r.balance || 0) > 0
+        (i.status === 'PENDING' || i.status === 'PARTIAL') &&
+        (i.balance || 0) > 0
       )
     })
-    .reduce((acc, r) => acc + (r.balance || 0), 0)
+    .reduce((acc, i) => acc + (i.balance || 0), 0)
 
   const totalPorPagarPendiente = payables
     .filter((p) => p.status === 'PENDING' || p.status === 'PARTIAL')
@@ -60,9 +65,11 @@ export default async function FinancePage() {
     })
     .reduce((acc, p) => acc + (p.balance || 0), 0)
 
-  const cuentasPorCobrarAbiertas = receivables.filter(
-    (r) => r.status === 'PENDING' || r.status === 'PARTIAL'
-  ).length
+  const cuentasPorCobrarAbiertas = new Set(
+    receivableInstallments
+      .filter((i) => (i.status === 'PENDING' || i.status === 'PARTIAL') && i.balance > 0)
+      .map((i) => i.receivableId)
+  ).size
 
   const cuentasPorPagarAbiertas = payables.filter(
     (p) => p.status === 'PENDING' || p.status === 'PARTIAL'

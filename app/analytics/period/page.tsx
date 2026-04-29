@@ -9,8 +9,9 @@ import { computeSaleMarginForSale } from '@/lib/margin'
 export default async function PeriodAnalyticsPage() {
   const today = new Date()
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
 
-  const [settings, sales] = await Promise.all([
+  const [settings, sales, installments] = await Promise.all([
     getFinancialSettings(),
     prisma.sale.findMany({
       where: {
@@ -22,6 +23,17 @@ export default async function PeriodAnalyticsPage() {
       },
       include: {
         items: { include: { product: true }, orderBy: { sortOrder: 'asc' } },
+      },
+    }),
+    prisma.receivableInstallment.findMany({
+      where: {
+        dueDate: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      include: {
+        receivable: true,
       },
     }),
   ])
@@ -84,6 +96,19 @@ export default async function PeriodAnalyticsPage() {
 
   const analyzedSalesCount = sales.length
   const anyMissingCosts = margins.some((m) => m.hasMissingCosts)
+
+  const openInstallments = installments.filter(
+    (inst) =>
+      (inst.status === 'PENDING' || inst.status === 'PARTIAL') && inst.balance > 0
+  )
+  const projectedCollectionsMonth = openInstallments.reduce(
+    (acc, inst) => acc + inst.balance,
+    0
+  )
+  const overdueInstallments = openInstallments.filter((inst) => {
+    const due = inst.dueDate instanceof Date ? inst.dueDate : new Date(inst.dueDate as any)
+    return due < today
+  }).length
 
   const periodLabel = `${startOfMonth
     .toISOString()
@@ -252,6 +277,38 @@ export default async function PeriodAnalyticsPage() {
                 </dt>
                 <dd className="mt-1 text-lg font-semibold text-ifedel-black">
                   {analyzedSalesCount}
+                </dd>
+              </div>
+            </dl>
+          </SectionCard>
+
+          <SectionCard
+            title="Cobranza proyectada del mes"
+            description="Saldos pendientes de cuotas con vencimiento dentro del mes actual (incluye vencidas)."
+          >
+            <dl className="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Saldo pendiente por cobrar
+                </dt>
+                <dd className="mt-1 text-lg font-semibold text-ifedel-black">
+                  {fmtMoneyARS(projectedCollectionsMonth)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Cuotas abiertas del mes
+                </dt>
+                <dd className="mt-1 text-lg font-semibold text-ifedel-black">
+                  {openInstallments.length}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Cuotas vencidas
+                </dt>
+                <dd className="mt-1 text-lg font-semibold text-ifedel-black">
+                  {overdueInstallments}
                 </dd>
               </div>
             </dl>

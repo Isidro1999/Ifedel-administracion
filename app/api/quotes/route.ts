@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import type { Prisma } from '@prisma/client'
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 
@@ -24,6 +26,7 @@ const QuoteMetaInputSchema = z.object({
   validityDays: z.number().int().positive().default(7),
   exchangeRateARS: z.number().positive(),
   discountPct: z.number().min(0).max(100).default(0),
+  paymentTermCode: z.string().trim().min(1).default('CONTADO'),
 })
 
 const QuotePayloadSchema = z.object({
@@ -91,7 +94,7 @@ function hasMeaningfulClientData(client: QuotePayload['client']) {
 
 async function getOrCreateCustomerId(
   payload: QuotePayload,
-  tx: typeof prisma
+  tx: Prisma.TransactionClient
 ): Promise<number | null> {
   const { client } = payload
   if (!hasMeaningfulClientData(client)) return null
@@ -133,7 +136,66 @@ async function getOrCreateCustomerId(
   return created.id
 }
 
-async function generateQuoteNumber(tx: typeof prisma): Promise<string> {
+async function resolvePaymentTermForQuote(
+  payload: QuotePayload,
+  tx: Prisma.TransactionClient
+) {
+  const code = payload.meta.paymentTermCode?.trim() || 'CONTADO'
+
+  const term = await tx.paymentTerm.findFirst({
+    where: {
+      code,
+      isActive: true,
+    },
+    include: {
+      installments: {
+        orderBy: { order: 'asc' },
+      },
+    },
+  })
+
+  if (!term) {
+    const fallback = await tx.paymentTerm.findFirst({
+      where: { isDefault: true, isActive: true },
+      include: { installments: { orderBy: { order: 'asc' } } },
+    })
+    if (!fallback) {
+      return {
+        paymentTermId: null as number | null,
+        paymentTermCodeSnapshot: null as string | null,
+        paymentTermLabelSnapshot: null as string | null,
+        paymentTermInstallmentsRaw: null as string | null,
+      }
+    }
+    return {
+      paymentTermId: fallback.id,
+      paymentTermCodeSnapshot: fallback.code,
+      paymentTermLabelSnapshot: fallback.label,
+      paymentTermInstallmentsRaw: JSON.stringify(
+        fallback.installments.map((inst) => ({
+          order: inst.order,
+          offsetDays: inst.offsetDays,
+          percentage: inst.percentage,
+        }))
+      ),
+    }
+  }
+
+  return {
+    paymentTermId: term.id,
+    paymentTermCodeSnapshot: term.code,
+    paymentTermLabelSnapshot: term.label,
+    paymentTermInstallmentsRaw: JSON.stringify(
+      term.installments.map((inst) => ({
+        order: inst.order,
+        offsetDays: inst.offsetDays,
+        percentage: inst.percentage,
+      }))
+    ),
+  }
+}
+
+async function generateQuoteNumber(tx: Prisma.TransactionClient): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `Q-${year}-`
 
@@ -205,6 +267,8 @@ export async function POST(request: NextRequest) {
 
       const quoteNumber = await generateQuoteNumber(tx)
 
+      const paymentTermData = await resolvePaymentTermForQuote(payload, tx)
+
       const created = await tx.quote.create({
         data: {
           quoteNumber,
@@ -233,6 +297,12 @@ export async function POST(request: NextRequest) {
           customerPhone: payload.client.phone?.trim() || null,
 
           createdByUserId: userId,
+
+          paymentTermId: paymentTermData.paymentTermId,
+          paymentTermCodeSnapshot: paymentTermData.paymentTermCodeSnapshot,
+          paymentTermLabelSnapshot: paymentTermData.paymentTermLabelSnapshot,
+          paymentTermInstallmentsRaw:
+            paymentTermData.paymentTermInstallmentsRaw,
 
           items: {
             create: payload.items.map((item, index) => {
@@ -263,7 +333,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         quoteId: result.id,
@@ -271,6 +341,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
+
+    revalidatePath('/quotes')
+    return response
   } catch (error: any) {
     console.error('Error creando la cotización:', error)
     return NextResponse.json(

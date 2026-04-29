@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useQuoteStore } from '@/lib/quote-store'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
@@ -18,6 +19,7 @@ export default function NewQuotePage() {
     setValidityDays,
     setDiscountPct,
   } = useQuoteStore()
+  const router = useRouter()
 
   const {
     subtotalUSD,
@@ -61,6 +63,43 @@ export default function NewQuotePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [paymentTerms, setPaymentTerms] = useState<
+    { id: number; code: string; label: string }[]
+  >([])
+  const [paymentTermsError, setPaymentTermsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadTerms = async () => {
+      try {
+        const res = await fetch('/api/payment-terms')
+        if (!res.ok) {
+          throw new Error('No se pudieron cargar las condiciones de pago')
+        }
+        const data = (await res.json()) as {
+          terms: { id: number; code: string; label: string }[]
+        }
+        if (!cancelled) {
+          setPaymentTerms(data.terms)
+          if (!meta.paymentTermCode && data.terms.length > 0) {
+            // default to first / default term
+            // we'll rely on store default for now
+          }
+        }
+      } catch (err) {
+        console.error('Error cargando payment terms', err)
+        if (!cancelled) {
+          setPaymentTermsError(
+            'No se pudieron cargar las condiciones de pago. Se usará CONTADO por defecto.'
+          )
+        }
+      }
+    }
+    loadTerms()
+    return () => {
+      cancelled = true
+    }
+  }, [meta.paymentTermCode])
 
   const handleSaveQuote = async () => {
     if (items.length === 0) return
@@ -106,6 +145,9 @@ export default function NewQuotePage() {
       } else {
         setSaveMessage('Cotización guardada correctamente.')
       }
+
+      clear()
+      router.push('/quotes')
     } catch (err) {
       console.error('Error al llamar a /api/quotes', err)
       setSaveError('No se pudo comunicar con el servidor para guardar.')
@@ -258,6 +300,44 @@ export default function NewQuotePage() {
                 className="w-full px-3 py-2 border rounded text-sm"
                 placeholder="Ej: +54 9 ..."
               />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Condición de pago
+              </label>
+              <select
+                value={meta.paymentTermCode ?? 'CONTADO'}
+                onChange={(e) =>
+                  // usamos el store genérico para meta vía setDiscount / etc.
+                  // como no tenemos setter específico, construimos un event artificial:
+                  useQuoteStore.setState((state) => ({
+                    meta: {
+                      ...state.meta,
+                      paymentTermCode: e.target.value,
+                    },
+                  }))
+                }
+                className="w-full px-3 py-2 border rounded text-sm"
+              >
+                {paymentTerms.length === 0 ? (
+                  <>
+                    <option value="CONTADO">CONTADO</option>
+                    <option value="0-30">0-30</option>
+                    <option value="0-30-60">0-30-60</option>
+                  </>
+                ) : (
+                  paymentTerms.map((term) => (
+                    <option key={term.id} value={term.code}>
+                      {term.label} ({term.code})
+                    </option>
+                  ))
+                )}
+              </select>
+              {paymentTermsError && (
+                <p className="mt-1 text-xs text-amber-700">
+                  {paymentTermsError}
+                </p>
+              )}
             </div>
           </div>
         </section>

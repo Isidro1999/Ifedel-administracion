@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getFinancialSettings, saveFinancialSettings } from '@/lib/financial-settings'
 import { requireAdminKey } from '@/lib/admin-auth'
 

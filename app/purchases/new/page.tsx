@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 type Item = {
   sku: string
@@ -12,6 +13,7 @@ type Item = {
 }
 
 export default function NewPurchasePage() {
+  const router = useRouter()
   const [supplierName, setSupplierName] = useState('')
   const [supplierCompany, setSupplierCompany] = useState('')
   const [supplierEmail, setSupplierEmail] = useState('')
@@ -110,6 +112,18 @@ export default function NewPurchasePage() {
       } else {
         setMessage('Compra registrada correctamente.')
       }
+
+      setSupplierName('')
+      setSupplierCompany('')
+      setSupplierEmail('')
+      setSupplierPhone('')
+      setCurrency('USD')
+      setExchangeRateARS('1000')
+      setDiscountPct('0')
+      setIssuedAt(new Date().toISOString().slice(0, 10))
+      setNotes('')
+      setItems([{ sku: '', title: '', unitCost: '', taxRate: '21', qty: '1' }])
+      router.push('/purchases')
     } catch (err) {
       console.error('Error al llamar a /api/purchases', err)
       setError('No se pudo comunicar con el servidor para registrar la compra.')

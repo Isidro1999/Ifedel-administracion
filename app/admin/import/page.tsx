@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 
-interface ImportResult {
+type ImportResult = {
   created: number
   updated: number
   failed: number
@@ -25,15 +25,12 @@ export default function ImportPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      setFile(selectedFile)
-      if (selectedFile.name.endsWith('.csv')) {
-        setFormat('csv')
-      } else if (selectedFile.name.endsWith('.json')) {
-        setFormat('json')
-      }
-      setResult(null)
-    }
+    if (!selectedFile) return
+
+    setFile(selectedFile)
+    if (selectedFile.name.endsWith('.csv')) setFormat('csv')
+    if (selectedFile.name.endsWith('.json')) setFormat('json')
+    setResult(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +58,7 @@ export default function ImportPage() {
       })
 
       if (!res.ok) {
-        const error = await res.json()
+        const error = await res.json().catch(() => ({}))
         throw new Error(error.error || 'Error al importar')
       }
 
@@ -90,8 +87,8 @@ export default function ImportPage() {
       />
 
       <SectionCard
-        title="Cargar archivo de importación"
-        description="Seleccioná el archivo, el formato y la clave de administrador para ejecutar la importación."
+        title="Cargar archivo de importacion"
+        description="Selecciona el archivo, el formato y la clave de administrador para ejecutar la importacion."
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -137,9 +134,7 @@ export default function ImportPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">
-              Archivo
-            </label>
+            <label className="mb-2 block text-sm font-medium">Archivo</label>
             <input
               type="file"
               accept={format === 'json' ? '.json' : '.csv'}
@@ -166,35 +161,27 @@ export default function ImportPage() {
 
       {result && (
         <SectionCard
-          title="Resultado de la importación"
+          title="Resultado de la importacion"
           description="Resumen de productos creados, actualizados y filas con error."
         >
           <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded border border-green-200 bg-green-50 p-4">
-              <div className="text-2xl font-bold text-green-600">
-                {result.created}
-              </div>
+              <div className="text-2xl font-bold text-green-600">{result.created}</div>
               <div className="text-sm text-green-700">Creados</div>
             </div>
             <div className="rounded border border-blue-200 bg-blue-50 p-4">
-              <div className="text-2xl font-bold text-ifedel-primary">
-                {result.updated}
-              </div>
+              <div className="text-2xl font-bold text-ifedel-primary">{result.updated}</div>
               <div className="text-sm text-ifedel-brown">Actualizados</div>
             </div>
             <div className="rounded border border-red-200 bg-red-50 p-4">
-              <div className="text-2xl font-bold text-red-600">
-                {result.failed}
-              </div>
+              <div className="text-2xl font-bold text-red-600">{result.failed}</div>
               <div className="text-sm text-red-700">Fallidos</div>
             </div>
           </div>
 
           {result.errors.length > 0 ? (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-ifedel-black">
-                Errores detectados
-              </h3>
+              <h3 className="text-sm font-semibold text-ifedel-black">Errores detectados</h3>
               <div className="max-h-64 space-y-2 overflow-y-auto">
                 {result.errors.map((error, idx) => (
                   <div
@@ -202,8 +189,7 @@ export default function ImportPage() {
                     className="rounded border border-red-200 bg-red-50 p-3 text-sm"
                   >
                     <div className="font-medium">
-                      Fila {error.row}{' '}
-                      {error.sku && `(SKU: ${error.sku})`}
+                      Fila {error.row} {error.sku && `(SKU: ${error.sku})`}
                     </div>
                     <div className="text-red-700">{error.message}</div>
                   </div>
@@ -212,7 +198,7 @@ export default function ImportPage() {
             </div>
           ) : (
             <div className="rounded border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-              ✓ Importación completada sin errores
+              Importacion completada sin errores
             </div>
           )}
         </SectionCard>
@@ -220,33 +206,25 @@ export default function ImportPage() {
 
       <SectionCard
         title="Formato de archivo esperado"
-        description="Resumen rápido de los campos obligatorios y opcionales para la importación."
+        description="Resumen rapido de los campos obligatorios y opcionales para la importacion."
       >
         <p className="mb-4 text-sm text-gray-600">
-          Consultá la documentación completa en{' '}
-          <Link
-            href="/docs/import-format"
-            className="text-ifedel-primary hover:underline"
-          >
-            /docs/import-format.md
-          </Link>
-          .
+          Consulta la documentacion completa en el archivo{' '}
+          <code className="rounded bg-gray-100 px-1 py-0.5 text-xs">README.md</code>{' '}
+          del proyecto (seccion de importacion).
         </p>
         <div className="text-sm text-gray-600">
           <p className="mb-2">
             <strong>Campos requeridos:</strong> sku, title, brand, category
           </p>
           <p className="mb-2">
-            <strong>Campos opcionales:</strong> short, description, images,
-            specs, prices, files, isActive, isFeatured
+            <strong>Campos opcionales:</strong> short, description, images, specs, prices, files, isActive, isFeatured
           </p>
           <p>
-            Los productos se identifican por SKU. Si un producto con el mismo
-            SKU ya existe, se actualizará; de lo contrario, se creará uno nuevo.
+            Los productos se identifican por SKU. Si un producto con el mismo SKU ya existe, se actualiza; de lo contrario, se crea uno nuevo.
           </p>
         </div>
       </SectionCard>
     </div>
   )
 }
-

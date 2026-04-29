@@ -17,6 +17,13 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
     where: { id },
     include: {
       quote: true,
+      receivable: {
+        include: {
+          installments: {
+            orderBy: { order: 'asc' },
+          },
+        },
+      },
       createdBy: true,
       items: { orderBy: { sortOrder: 'asc' } },
     },
@@ -39,7 +46,7 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
   const issuedAt =
     sale.issuedAt instanceof Date
       ? sale.issuedAt
-      : new Date(sale.issuedAt as Date)
+        : new Date(sale.issuedAt as Date)
   const issuedAtLabel = issuedAt.toISOString().slice(0, 10)
 
   const currencyLabel = sale.currency
@@ -50,6 +57,27 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
     if (currencyLabel === 'ARS') return fmtMoneyARS(amount)
     return `${currencyLabel} ${fmtNumberAR(amount)}`
   }
+
+  const receivable = sale.receivable
+  const hasReceivable = !!receivable
+  const receivableBalance = receivable?.balance ?? null
+  const receivableStatus = receivable?.status ?? null
+  const displayInstallments = receivable
+    ? receivable.installments.length > 0
+      ? receivable.installments
+      : [
+          {
+            id: -1,
+            order: 0,
+            dueDate: receivable.dueDate,
+            amount: receivable.totalAmount,
+            amountPaid: receivable.amountPaid,
+            balance: receivable.balance,
+            status: receivable.status,
+            label: 'Cuota única (legacy)',
+          },
+        ]
+    : []
 
   return (
     <div className="min-h-screen p-8">
@@ -62,6 +90,14 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
             <p className="text-sm text-gray-600">
               Estado: <span className="font-medium">{sale.status}</span>
             </p>
+            {sale.paymentTermLabelSnapshot && (
+              <p className="text-xs text-gray-600 mt-1">
+                Condición de pago:{' '}
+                <span className="font-medium">
+                  {sale.paymentTermLabelSnapshot} ({sale.paymentTermCodeSnapshot})
+                </span>
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <Link
@@ -149,6 +185,131 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
             )}
           </div>
         </div>
+
+        {hasReceivable && (
+          <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">
+            <h2 className="mb-3 text-base font-semibold text-ifedel-black">
+              Estado de cobranza
+            </h2>
+            <div className="flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
+              <div className="space-y-1">
+                <p className="text-sm text-gray-700">
+                  Cuenta por cobrar vinculada:{' '}
+                  <span className="font-mono text-xs text-ifedel-primary">
+                    #{receivable!.id}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-700">
+                  Estado:{' '}
+                  <span className="font-semibold uppercase">
+                    {receivableStatus}
+                  </span>
+                </p>
+                {receivableBalance != null && (
+                  <p className="text-sm text-gray-700">
+                    Saldo pendiente:{' '}
+                    <span className="font-semibold">
+                      {fmtMoneyARS(receivableBalance)}
+                    </span>
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Link
+                  href={`/receivables/${receivable!.id}`}
+                  className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Registrar cobro
+                </Link>
+                <Link
+                  href="/receivables"
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Ver todas las cuentas por cobrar
+                </Link>
+              </div>
+            </div>
+            {receivable && (
+              <div className="mt-4">
+                <h3 className="mb-2 text-sm font-semibold text-ifedel-black">
+                  Cuotas / vencimientos
+                </h3>
+                {receivable.installments.length === 0 && (
+                  <p className="mb-2 text-xs text-amber-700">
+                    Venta legacy: se muestra una cuota única de referencia hasta completar el backfill.
+                  </p>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                          N°
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                          Fecha vencimiento
+                        </th>
+                        <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                          Monto
+                        </th>
+                        <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                          Pagado
+                        </th>
+                        <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                          Saldo
+                        </th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                          Estado
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {displayInstallments.map((inst, idx) => {
+                        const due =
+                          inst.dueDate instanceof Date
+                            ? inst.dueDate
+                            : new Date(inst.dueDate as any)
+                        const dueLabel = due.toISOString().slice(0, 10)
+                        const now = new Date()
+                        const isOverdue =
+                          due < now &&
+                          (inst.status === 'PENDING' || inst.status === 'PARTIAL') &&
+                          inst.balance > 0
+                        return (
+                          <tr key={inst.id} className="hover:bg-gray-50">
+                            <td className="whitespace-nowrap px-3 py-2 text-gray-900">
+                              {idx + 1}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-gray-900">
+                              {dueLabel}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                              {fmtMoneyARS(inst.amount)}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                              {fmtMoneyARS(inst.amountPaid)}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-right text-gray-900">
+                              {fmtMoneyARS(inst.balance)}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-gray-900">
+                              <span className="font-medium">{inst.status}</span>
+                              {isOverdue && (
+                                <span className="ml-2 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                                  VENCIDA
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">
           <h2 className="text-base font-semibold text-ifedel-black mb-3">

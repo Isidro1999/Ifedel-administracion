@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import type { Prisma } from '@prisma/client'
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { PAYABLE_DEFAULT_DUE_DAYS } from '@/lib/payable-config'
@@ -94,7 +96,7 @@ function hasMeaningfulSupplierData(s: PurchasePayload['supplier']) {
 
 async function getOrCreateSupplierId(
   payload: PurchasePayload,
-  tx: typeof prisma
+  tx: Prisma.TransactionClient
 ): Promise<number | null> {
   const { supplier } = payload
   if (!hasMeaningfulSupplierData(supplier)) return null
@@ -136,7 +138,7 @@ async function getOrCreateSupplierId(
   return created.id
 }
 
-async function generatePurchaseNumber(tx: typeof prisma): Promise<string> {
+async function generatePurchaseNumber(tx: Prisma.TransactionClient): Promise<string> {
   const year = new Date().getFullYear()
   const prefix = `P-${year}-`
 
@@ -290,7 +292,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         purchaseId: result.id,
@@ -298,6 +300,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
+    revalidatePath('/purchases')
+    revalidatePath('/payables')
+    return response
   } catch (error: any) {
     console.error('Error creando la compra:', error)
     return NextResponse.json(
