@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { requireAdminSession } from '@/lib/admin-auth'
 import { slugify } from '@/lib/utils'
 import { ImportProductSchema, ImportProduct } from '@/lib/import-schemas'
-import Papa from 'papaparse'
+import type { PrismaClient } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -21,7 +19,8 @@ interface ImportResult {
 
 async function processProduct(
   data: ImportProduct,
-  rowIndex: number
+  rowIndex: number,
+  prisma: PrismaClient
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Validar con Zod
@@ -277,6 +276,13 @@ function parseCSVRow(row: any): ImportProduct | null {
 }
 
 export async function POST(request: NextRequest) {
+  const [{ prisma }, { requireAdminSession }, PapaModule] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/admin-auth'),
+    import('papaparse'),
+  ])
+  const Papa = (PapaModule as any).default ?? PapaModule
+
   const gate = await requireAdminSession()
   if (!gate.ok) return gate.response
 
@@ -304,7 +310,7 @@ export async function POST(request: NextRequest) {
 
       products = parsed.data
         .map((row: any) => parseCSVRow(row))
-        .filter((p): p is ImportProduct => p !== null)
+        .filter((p: ImportProduct | null): p is ImportProduct => p !== null)
     } else {
       // JSON
       try {
@@ -339,7 +345,7 @@ export async function POST(request: NextRequest) {
         where: { sku: product.sku },
       })
 
-      const processResult = await processProduct(product, i + 1)
+      const processResult = await processProduct(product, i + 1, prisma)
 
       if (processResult.success) {
         if (existingProduct) {
