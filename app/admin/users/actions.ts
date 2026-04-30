@@ -1,10 +1,12 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
-import { auth } from '@/auth'
 import { revalidatePath } from 'next/cache'
 
 export async function approveUser(userId: string) {
+  const [{ prisma }, { auth }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/auth'),
+  ])
   const session = await auth()
   if (session?.user?.role !== 'ADMIN') {
     return { error: 'No autorizado' }
@@ -22,6 +24,10 @@ export async function approveUser(userId: string) {
 }
 
 export async function rejectUser(userId: string) {
+  const [{ prisma }, { auth }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/auth'),
+  ])
   const session = await auth()
   if (session?.user?.role !== 'ADMIN') {
     return { error: 'No autorizado' }

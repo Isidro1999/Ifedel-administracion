@@ -1,6 +1,4 @@
 import Link from 'next/link'
-import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { UserActions } from './UserActions'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -10,6 +8,10 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function AdminUsersPage() {
+  const [{ auth }, { prisma }] = await Promise.all([
+    import('@/auth'),
+    import('@/lib/prisma'),
+  ])
   const session = await auth()
   if (session?.user?.role !== 'ADMIN') {
     redirect('/')
