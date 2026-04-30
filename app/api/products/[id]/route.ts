@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -8,6 +7,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { prisma } = await import('@/lib/prisma')
   try {
     const id = parseInt(params.id)
 

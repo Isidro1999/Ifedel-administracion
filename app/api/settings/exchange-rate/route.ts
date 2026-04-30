@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+  const { prisma } = await import('@/lib/prisma')
   try {
     const settings = await prisma.settings.findFirst()
 

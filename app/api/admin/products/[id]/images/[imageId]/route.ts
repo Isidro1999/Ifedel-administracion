@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { requireAdminSession } from '@/lib/admin-auth'
-import { cloudinary } from '@/lib/cloudinary'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -10,6 +7,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; imageId: string } }
 ) {
+  const [{ prisma }, { requireAdminSession }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/admin-auth'),
+  ])
   const gate = await requireAdminSession()
   if (!gate.ok) return gate.response
 
@@ -72,6 +73,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; imageId: string } }
 ) {
+  const [{ prisma }, { requireAdminSession }, { cloudinary }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/admin-auth'),
+    import('@/lib/cloudinary'),
+  ])
   const gate = await requireAdminSession()
   if (!gate.ok) return gate.response
 

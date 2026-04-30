@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import { prisma } from '@/lib/prisma'
-import { auth } from '@/auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -216,6 +214,10 @@ async function generateQuoteNumber(tx: Prisma.TransactionClient): Promise<string
 }
 
 export async function POST(request: NextRequest) {
+  const [{ prisma }, { auth }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/auth'),
+  ])
   const session = await auth()
   const userId = (session?.user as { id?: string } | null)?.id
 

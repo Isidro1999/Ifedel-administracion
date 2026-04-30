@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
-import { getFinancialSettings, saveFinancialSettings } from '@/lib/financial-settings'
-import { requireAdminSession } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET() {
+  const [{ requireAdminSession }, { getFinancialSettings }] = await Promise.all([
+    import('@/lib/admin-auth'),
+    import('@/lib/financial-settings'),
+  ])
   const gate = await requireAdminSession()
   if (!gate.ok) return gate.response
 
@@ -19,6 +21,10 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const [{ requireAdminSession }, { getFinancialSettings, saveFinancialSettings }] = await Promise.all([
+    import('@/lib/admin-auth'),
+    import('@/lib/financial-settings'),
+  ])
   const gate = await requireAdminSession()
   if (!gate.ok) return gate.response
 
