@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
 import "./globals.css";
 import { AuthGuard } from "@/components/AuthGuard";
-import { auth } from "@/auth";
 import { AppShell } from "@/components/layout/AppShell";
 import { IFEDelBrand } from "@/lib/ifedel-brand";
 
@@ -23,16 +22,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
   return (
     <html lang="es" className={raleway.variable}>
       <body className="antialiased font-sans">
-        <AuthGuard session={session}>
+        <AuthGuard>
           <AppShell>{children}</AppShell>
         </AuthGuard>
       </body>

@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, type ReactNode } from 'react'
 import type { Session } from 'next-auth'
+import { SessionProvider, useSession } from 'next-auth/react'
 import { UserProvider } from '@/components/layout/UserContext'
 
 const PUBLIC_PATHS = ['/api/auth', '/pending', '/login']
@@ -10,13 +11,14 @@ const isPublicPath = (path: string) =>
   PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))
 
 type AuthGuardProps = {
-  session: Session | null
+  session?: Session | null
   children: ReactNode
 }
 
-export function AuthGuard({ session, children }: AuthGuardProps) {
+function AuthGateInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { data: session, status: sessionStatus } = useSession()
 
   useEffect(() => {
     if (!pathname) return
@@ -45,6 +47,13 @@ export function AuthGuard({ session, children }: AuthGuardProps) {
   if (isPublicPath(pathname)) {
     return <UserProvider user={session?.user ?? null}>{children}</UserProvider>
   }
+  if (sessionStatus === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="text-ifedel-brown">Cargando sesión…</p>
+      </div>
+    )
+  }
   if (!session?.user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -52,9 +61,9 @@ export function AuthGuard({ session, children }: AuthGuardProps) {
       </div>
     )
   }
-  const status = (session.user as { status?: string }).status
+  const approvalStatus = (session.user as { status?: string }).status
   const role = (session.user as { role?: string }).role
-  if (status !== 'APPROVED') {
+  if (approvalStatus !== 'APPROVED') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <p className="text-ifedel-brown">Redirigiendo…</p>
@@ -70,4 +79,12 @@ export function AuthGuard({ session, children }: AuthGuardProps) {
   }
 
   return <UserProvider user={session.user}>{children}</UserProvider>
+}
+
+export function AuthGuard({ session = null, children }: AuthGuardProps) {
+  return (
+    <SessionProvider session={session}>
+      <AuthGateInner>{children}</AuthGateInner>
+    </SessionProvider>
+  )
 }
