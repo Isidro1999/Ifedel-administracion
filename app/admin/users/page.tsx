@@ -6,6 +6,9 @@ import { UserActions } from './UserActions'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export default async function AdminUsersPage() {
   const session = await auth()
   if (session?.user?.role !== 'ADMIN') {
