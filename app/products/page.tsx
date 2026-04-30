@@ -16,7 +16,7 @@ interface Product {
   brand: { name: string }
   category: { name: string }
   images: Array<{ url: string; isPrimary: boolean }>
-  prices: Array<{ netPrice: number; currency: string; priceList: string; taxRate: number }>
+  prices: Array<{ netPrice: number; currency: string; priceList: string; taxRate?: number | null }>
 }
 
 interface Facets {
@@ -111,7 +111,8 @@ export default function ProductsPage() {
   const getDisplayPrice = (product: Product) => {
     if (product.prices.length === 0) return null
     const price = product.prices[0]
-    return formatCurrency(price.netPrice * (1 + price.taxRate / 100), price.currency)
+    const taxRate = price.taxRate ?? 0
+    return formatCurrency(price.netPrice * (1 + taxRate / 100), price.currency)
   }
 
   const { items, addItem, updateQty, removeItem } = useQuoteStore()
@@ -242,7 +243,7 @@ export default function ProductsPage() {
                     sku: product.sku,
                     title: product.title,
                     unitPriceUSD: mainPrice.netPrice,
-                    taxRate: mainPrice.taxRate,
+                    taxRate: mainPrice.taxRate ?? 0,
                     imageUrl: product.images[0]?.url,
                   },
                   qty > 0 ? qty : 1
@@ -259,7 +260,7 @@ export default function ProductsPage() {
                       sku: product.sku,
                       title: product.title,
                       unitPriceUSD: mainPrice.netPrice,
-                      taxRate: mainPrice.taxRate,
+                      taxRate: mainPrice.taxRate ?? 0,
                       imageUrl: product.images[0]?.url,
                     },
                     newQty
@@ -309,7 +310,8 @@ export default function ProductsPage() {
                         <div className="text-xs text-gray-500">
                           {(() => {
                             const p = mainPrice
-                            const totalUsd = p.netPrice * (1 + p.taxRate / 100)
+                            const taxRate = p.taxRate ?? 0
+                            const totalUsd = p.netPrice * (1 + taxRate / 100)
                             const totalArs = totalUsd * exchangeRate.usdArsRate!
                             return `≈ ${formatCurrency(
                               totalArs,
