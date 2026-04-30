@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { RegisterPaymentForm } from '@/app/receivables/[id]/RegisterPaymentForm'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 interface SalesDetailPageProps {
   params: { id: string }
 }

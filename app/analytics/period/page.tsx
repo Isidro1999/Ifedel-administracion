@@ -6,6 +6,9 @@ import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { getFinancialSettings } from '@/lib/financial-settings'
 import { computeSaleMarginForSale } from '@/lib/margin'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export default async function PeriodAnalyticsPage() {
   const today = new Date()
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)

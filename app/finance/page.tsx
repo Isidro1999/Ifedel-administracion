@@ -6,6 +6,9 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { MetricCard } from '@/components/layout/MetricCard'
 import { SectionCard } from '@/components/layout/SectionCard'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export default async function FinancePage() {
   const [movements, receivables, receivableInstallments, payables] = await Promise.all([
     prisma.cashMovement.findMany(),

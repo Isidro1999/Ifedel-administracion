@@ -16,6 +16,9 @@ import { auth } from '@/auth'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 function QuickLink({
   href,
   label,

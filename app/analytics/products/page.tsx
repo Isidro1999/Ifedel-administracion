@@ -6,6 +6,9 @@ import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { getFinancialSettings } from '@/lib/financial-settings'
 import { EmptyState } from '@/components/ui/EmptyState'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 type ProductAggRow = {
   productId: number
   sku: string

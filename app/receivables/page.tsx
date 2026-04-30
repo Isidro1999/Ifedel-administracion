@@ -9,6 +9,9 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export default async function ReceivablesListPage() {
   const receivables = await prisma.receivable.findMany({
     orderBy: { dueDate: 'asc' },

@@ -3,6 +3,7 @@ import { signIn } from '@/auth'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export default async function LoginPage({
   searchParams,

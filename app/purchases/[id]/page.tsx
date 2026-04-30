@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 interface PurchaseDetailPageProps {
   params: { id: string }
 }

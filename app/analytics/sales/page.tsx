@@ -7,6 +7,9 @@ import { getFinancialSettings } from '@/lib/financial-settings'
 import { computeSaleMarginForSale, formatMarginPct } from '@/lib/margin'
 import { EmptyState } from '@/components/ui/EmptyState'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export default async function SalesAnalyticsPage() {
   const [settings, sales] = await Promise.all([
     getFinancialSettings(),

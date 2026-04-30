@@ -7,6 +7,9 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export default async function SalesListPage() {
   const sales = await prisma.sale.findMany({
     orderBy: { createdAt: 'desc' },

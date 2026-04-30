@@ -4,6 +4,9 @@ import { prisma } from '@/lib/prisma'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { ConvertToSaleButton } from './ConvertToSaleButton'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 interface QuotesDetailPageProps {
   params: { id: string }
 }
