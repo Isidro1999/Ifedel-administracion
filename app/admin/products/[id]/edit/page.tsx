@@ -77,7 +77,6 @@ export default function EditProductPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [adminKey, setAdminKey] = useState('')
   const [form, setForm] = useState<ImportProduct | null>(null)
    const [images, setImages] = useState<ProductImage[]>([])
    const [uploadingImage, setUploadingImage] = useState(false)
@@ -116,8 +115,8 @@ export default function EditProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form || !adminKey.trim()) {
-      setError(adminKey.trim() ? 'Completá los campos requeridos' : 'Ingresá la clave de administrador')
+    if (!form) {
+      setError('Completá los campos requeridos')
       return
     }
     setError('')
@@ -125,9 +124,9 @@ export default function EditProductPage() {
     try {
       const res = await fetch(`/api/admin/products/${id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify(form),
       })
@@ -175,18 +174,6 @@ export default function EditProductPage() {
         <h1 className="text-2xl font-bold mb-6">Editar producto</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium mb-1">Clave de administrador</label>
-            <input
-              type="password"
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="x-admin-key"
-              required
-            />
-          </div>
-
           <div className="bg-white rounded-lg border p-4 space-y-4">
             <h2 className="text-lg font-semibold">Datos básicos</h2>
             <div>
@@ -306,11 +293,6 @@ export default function EditProductPage() {
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (!file) return
-                  if (!adminKey.trim()) {
-                    setImageError('Ingresá la clave de administrador para subir imágenes')
-                    e.target.value = ''
-                    return
-                  }
                   setImageError('')
                   setUploadingImage(true)
                   try {
@@ -318,7 +300,7 @@ export default function EditProductPage() {
                     formData.append('file', file)
                     const res = await fetch(`/api/admin/products/${id}/images`, {
                       method: 'POST',
-                      headers: { 'x-admin-key': adminKey },
+                      credentials: 'include',
                       body: formData,
                     })
                     if (!res.ok) {
@@ -382,19 +364,15 @@ export default function EditProductPage() {
                         className="px-2 py-1 text-xs border rounded hover:bg-white"
                         disabled={img.isPrimary}
                         onClick={async () => {
-                          if (!adminKey.trim()) {
-                            setImageError('Ingresá la clave de administrador')
-                            return
-                          }
                           setImageError('')
                           try {
                             const res = await fetch(
                               `/api/admin/products/${id}/images/${img.id}`,
                               {
                                 method: 'PATCH',
+                                credentials: 'include',
                                 headers: {
                                   'Content-Type': 'application/json',
-                                  'x-admin-key': adminKey,
                                 },
                                 body: JSON.stringify({ isPrimary: true }),
                               }
@@ -437,10 +415,6 @@ export default function EditProductPage() {
                               sortOrder: index,
                             }))
                             setImages(withOrder)
-                            if (!adminKey.trim()) {
-                              setImageError('Ingresá la clave de administrador')
-                              return
-                            }
                             try {
                               await Promise.all(
                                 withOrder.map((i) =>
@@ -448,9 +422,9 @@ export default function EditProductPage() {
                                     `/api/admin/products/${id}/images/${i.id}`,
                                     {
                                       method: 'PATCH',
+                                      credentials: 'include',
                                       headers: {
                                         'Content-Type': 'application/json',
-                                        'x-admin-key': adminKey,
                                       },
                                       body: JSON.stringify({ sortOrder: i.sortOrder }),
                                     }
@@ -483,10 +457,6 @@ export default function EditProductPage() {
                               sortOrder: index,
                             }))
                             setImages(withOrder)
-                            if (!adminKey.trim()) {
-                              setImageError('Ingresá la clave de administrador')
-                              return
-                            }
                             try {
                               await Promise.all(
                                 withOrder.map((i) =>
@@ -494,9 +464,9 @@ export default function EditProductPage() {
                                     `/api/admin/products/${id}/images/${i.id}`,
                                     {
                                       method: 'PATCH',
+                                      credentials: 'include',
                                       headers: {
                                         'Content-Type': 'application/json',
-                                        'x-admin-key': adminKey,
                                       },
                                       body: JSON.stringify({ sortOrder: i.sortOrder }),
                                     }
@@ -519,10 +489,6 @@ export default function EditProductPage() {
                         type="button"
                         className="px-2 py-1 text-xs text-red-600 hover:underline"
                         onClick={async () => {
-                          if (!adminKey.trim()) {
-                            setImageError('Ingresá la clave de administrador')
-                            return
-                          }
                           if (
                             !confirm(
                               '¿Eliminar esta imagen? Se eliminará también de Cloudinary.'
@@ -536,7 +502,7 @@ export default function EditProductPage() {
                               `/api/admin/products/${id}/images/${img.id}`,
                               {
                                 method: 'DELETE',
-                                headers: { 'x-admin-key': adminKey },
+                                credentials: 'include',
                               }
                             )
                             if (!res.ok) {

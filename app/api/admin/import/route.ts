@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminKey, unauthorizedResponse } from '@/lib/admin-auth'
+import { requireAdminSession } from '@/lib/admin-auth'
 import { slugify } from '@/lib/utils'
 import { ImportProductSchema, ImportProduct } from '@/lib/import-schemas'
 import Papa from 'papaparse'
@@ -274,9 +274,8 @@ function parseCSVRow(row: any): ImportProduct | null {
 }
 
 export async function POST(request: NextRequest) {
-  if (!verifyAdminKey(request)) {
-    return unauthorizedResponse()
-  }
+  const gate = await requireAdminSession()
+  if (!gate.ok) return gate.response
 
   try {
     const formData = await request.formData()

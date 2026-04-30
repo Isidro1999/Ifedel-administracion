@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminKey, unauthorizedResponse } from '@/lib/admin-auth'
+import { requireAdminSession } from '@/lib/admin-auth'
 
 export async function PUT(request: NextRequest) {
-  if (!verifyAdminKey(request)) {
-    return unauthorizedResponse()
-  }
+  const gate = await requireAdminSession()
+  if (!gate.ok) return gate.response
 
   try {
     const body = await request.json()

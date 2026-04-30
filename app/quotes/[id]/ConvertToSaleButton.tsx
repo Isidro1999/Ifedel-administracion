@@ -18,7 +18,7 @@ export function ConvertToSaleButton({ quoteId, existingSale }: Props) {
       <div className="flex flex-col items-end gap-1">
         <Link
           href={`/sales/${existingSale.id}`}
-          className="rounded-md border border-ifedel-green bg-ifedel-green/10 px-4 py-2 text-sm font-medium text-ifedel-green hover:bg-ifedel-green/20"
+          className="rounded-md border border-ifedel-primary bg-ifedel-primary/10 px-4 py-2 text-sm font-medium text-ifedel-brown hover:bg-ifedel-primary/20"
         >
           Ver venta {existingSale.saleNumber}
         </Link>
@@ -49,7 +49,7 @@ export function ConvertToSaleButton({ quoteId, existingSale }: Props) {
         type="button"
         onClick={handleConvert}
         disabled={pending}
-        className="rounded-md border border-ifedel-green bg-ifedel-green px-4 py-2 text-sm font-medium text-white hover:bg-ifedel-green/90 disabled:opacity-60"
+        className="rounded-lg border border-ifedel-primary bg-ifedel-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-ifedel-primary/25 transition hover:brightness-95 disabled:opacity-60"
       >
         {pending ? 'Convirtiendo…' : 'Convertir en venta'}
       </button>

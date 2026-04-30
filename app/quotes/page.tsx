@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { btnPrimary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
+import { DataTableShell } from '@/components/ui/DataTableShell'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function QuotesListPage() {
@@ -19,10 +22,7 @@ export default async function QuotesListPage() {
         title="Cotizaciones guardadas"
         description="Listado simple de cotizaciones persistidas en el sistema."
         actions={
-          <Link
-            href="/quotes/new"
-            className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
+          <Link href="/quotes/new" className={btnPrimary}>
             Nueva cotización
           </Link>
         }
@@ -40,37 +40,37 @@ export default async function QuotesListPage() {
           title="Listado de cotizaciones"
           description="Detalle de cada cotización con su cliente, monto y estado."
         >
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <DataTableShell>
+            <table className="dashboard-table min-w-full text-sm">
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     N°
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Estado
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Cliente
                   </th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Total
                   </th>
-                  <th className="px-2 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Moneda
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Emitida
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Creada por
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {quotes.map((q) => {
                   const clientLabel =
                     q.customerCompany ||
@@ -90,12 +90,12 @@ export default async function QuotesListPage() {
                   const issuedAtLabel = issuedAt.toISOString().slice(0, 10)
 
                   return (
-                    <tr key={q.id} className="hover:bg-gray-50">
+                    <tr key={q.id}>
                       <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-gray-800">
                         {q.quoteNumber}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-700">
-                        {q.status}
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <StatusBadge status={q.status} />
                       </td>
                       <td className="px-4 py-2">
                         <span className="block text-gray-900">{clientLabel}</span>
@@ -112,11 +112,8 @@ export default async function QuotesListPage() {
                       <td className="whitespace-nowrap px-4 py-2 text-gray-700">
                         {createdByLabel}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-gray-500">
-                        <Link
-                          href={`/quotes/${q.id}`}
-                          className="text-xs font-medium text-ifedel-primary hover:underline"
-                        >
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <Link href={`/quotes/${q.id}`} className={linkAccentXs}>
                           Ver detalle
                         </Link>
                       </td>
@@ -125,7 +122,7 @@ export default async function QuotesListPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </DataTableShell>
         </SectionCard>
       )}
     </div>

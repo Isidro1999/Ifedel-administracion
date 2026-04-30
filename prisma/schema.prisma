@@ -5,9 +5,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Producción/staging: DATABASE_URL (pooler) + DIRECT_URL (conexión directa para migraciones).
+// En local sin pooler podés usar la misma URL en ambas variables.
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Brand {

@@ -15,7 +15,6 @@ export default function AdminSettingsPage() {
   const [savedRate, setSavedRate] = useState<ExchangeRateResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
-  const [adminKey, setAdminKey] = useState('')
   const [successMessage, setSuccessMessage] = useState<string>('')
   const [errorMessage, setErrorMessage] = useState<string>('')
 
@@ -41,11 +40,6 @@ export default function AdminSettingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!adminKey) {
-      setErrorMessage('Debes ingresar la clave de administrador')
-      setSuccessMessage('')
-      return
-    }
     const value = parseFloat(usdArsRate)
     if (!isFinite(value) || value <= 0) {
       setErrorMessage('Ingresá un tipo de cambio válido (número positivo)')
@@ -59,9 +53,9 @@ export default function AdminSettingsPage() {
     try {
       const res = await fetch('/api/admin/settings/exchange-rate', {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify({ usdArsRate: value }),
       })
@@ -123,20 +117,6 @@ export default function AdminSettingsPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">
-                  Clave de Administrador
-                </label>
-                <input
-                  type="password"
-                  value={adminKey}
-                  onChange={(e) => setAdminKey(e.target.value)}
-                  className="w-full rounded-md border px-3 py-2"
-                  placeholder="Ingresa la clave de administrador"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium">
                   Tipo de cambio USD → ARS
                 </label>
                 <input
@@ -153,7 +133,7 @@ export default function AdminSettingsPage() {
 
               <button
                 type="submit"
-                disabled={loading || !adminKey}
+                disabled={loading}
                 className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
               >
                 {loading ? 'Guardando...' : 'Guardar'}

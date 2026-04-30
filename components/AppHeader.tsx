@@ -19,15 +19,17 @@ export async function AppHeader() {
           className="-ml-2 flex items-center gap-2 text-ifedel-black no-underline hover:opacity-90 transition-opacity"
           aria-label={`${IFEDelBrand.companyName} - Ir al inicio`}
         >
-          {IFEDelBrand.logo?.url ? (
-            <Image
-              src={IFEDelBrand.logo.url}
-              alt={IFEDelBrand.companyName}
-              width={240}
-              height={72}
-              className="h-14 w-auto object-contain sm:h-16"
-              priority
-            />
+          {IFEDelBrand.logo?.src ? (
+            <span className="flex h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-black ring-2 ring-ifedel-primary/20 sm:h-16 sm:w-16">
+              <Image
+                src={IFEDelBrand.logo.src}
+                alt={IFEDelBrand.companyName}
+                width={128}
+                height={128}
+                className="h-full w-full object-contain p-1"
+                priority
+              />
+            </span>
           ) : (
             <span className="text-lg font-bold text-gray-800">
               {IFEDelBrand.companyName}

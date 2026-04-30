@@ -83,7 +83,7 @@ export default async function PayableDetailPage({
             {payable.purchase && (
               <Link
                 href={`/purchases/${payable.purchase.id}`}
-                className="rounded-md border border-ifedel-green px-4 py-2 text-sm text-ifedel-green hover:bg-ifedel-green/10"
+                className="rounded-md border border-ifedel-primary px-4 py-2 text-sm font-medium text-ifedel-brown hover:bg-ifedel-primary/10"
               >
                 Ver compra {payable.purchase.purchaseNumber}
               </Link>

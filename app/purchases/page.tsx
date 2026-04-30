@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { btnPrimary } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
+import { DataTableShell } from '@/components/ui/DataTableShell'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function PurchasesListPage() {
@@ -19,10 +22,7 @@ export default async function PurchasesListPage() {
         title="Compras registradas"
         description="Listado simple de compras a proveedores y sus totales."
         actions={
-          <Link
-            href="/purchases/new"
-            className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
+          <Link href="/purchases/new" className={btnPrimary}>
             Nueva compra
           </Link>
         }
@@ -40,31 +40,31 @@ export default async function PurchasesListPage() {
           title="Listado de compras"
           description="Detalle de cada compra con su proveedor, fecha, monto y estado."
         >
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <DataTableShell>
+            <table className="dashboard-table min-w-full text-sm">
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     N°
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Proveedor
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Fecha
                   </th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Total
                   </th>
-                  <th className="px-2 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Moneda
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Estado
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {purchases.map((p) => {
                   const supplierLabel =
                     p.supplierCompany ||
@@ -83,7 +83,7 @@ export default async function PurchasesListPage() {
                       : `${p.currency} ${fmtNumberAR(p.totalWithDiscount)}`
 
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50">
+                    <tr key={p.id}>
                       <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-ifedel-primary">
                         <Link
                           href={`/purchases/${p.id}`}
@@ -104,15 +104,15 @@ export default async function PurchasesListPage() {
                       <td className="whitespace-nowrap px-2 py-2 text-gray-700">
                         {p.currency}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-700">
-                        {p.status}
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <StatusBadge status={p.status} />
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
-          </div>
+          </DataTableShell>
         </SectionCard>
       )}
     </div>

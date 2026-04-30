@@ -20,7 +20,6 @@ export default function AdminFinancialSettingsPage() {
     bankDebitRate: 0,
     fixedMonthlyOverheadARS: 0,
   })
-  const [adminKey, setAdminKey] = useState('')
   const [initialLoading, setInitialLoading] = useState(true)
   const [loading, setLoading] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -29,7 +28,9 @@ export default function AdminFinancialSettingsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/admin/financial-settings')
+        const res = await fetch('/api/admin/financial-settings', {
+          credentials: 'include',
+        })
         if (!res.ok) {
           throw new Error('No se pudieron cargar los parámetros financieros')
         }
@@ -62,18 +63,13 @@ export default function AdminFinancialSettingsPage() {
     setSuccessMessage('')
     setErrorMessage('')
 
-    if (!adminKey) {
-      setErrorMessage('Debes ingresar la clave de administrador')
-      return
-    }
-
     setLoading(true)
     try {
       const res = await fetch('/api/admin/financial-settings', {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
         },
         body: JSON.stringify(form),
       })
@@ -127,20 +123,6 @@ export default function AdminFinancialSettingsPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="mb-1 block text-sm font-medium">
-                Clave de Administrador
-              </label>
-              <input
-                type="password"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                className="w-full rounded-md border px-3 py-2"
-                placeholder="Ingresa la clave de administrador"
-                required
-              />
-            </div>
-
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium">
@@ -225,7 +207,7 @@ export default function AdminFinancialSettingsPage() {
 
             <button
               type="submit"
-              disabled={loading || !adminKey}
+              disabled={loading}
               className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               {loading ? 'Guardando...' : 'Guardar parámetros'}

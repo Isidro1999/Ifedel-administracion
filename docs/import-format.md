@@ -245,7 +245,7 @@ Todos los productos se validan con Zod antes de procesarse. Los errores de valid
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.json" \
   -F "format=json"
 ```
@@ -254,18 +254,17 @@ curl -X POST http://localhost:3000/api/admin/import \
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.csv" \
   -F "format=csv"
 ```
 
 ### Desde la UI
 
-1. Ve a `/admin/import`
-2. Ingresa tu clave de administrador
-3. Selecciona el formato (JSON o CSV)
-4. Sube el archivo
-5. Haz clic en "Importar Productos"
+1. Ve a `/admin/import` (sesión de usuario ADMIN)
+2. Selecciona el formato (JSON o CSV)
+3. Sube el archivo
+4. Haz clic en "Importar Productos"
 
 ## Respuesta de Importación
 

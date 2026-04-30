@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
+import { btnSecondary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { MetricCard } from '@/components/layout/MetricCard'
 import { SectionCard } from '@/components/layout/SectionCard'
+import { DataTableShell } from '@/components/ui/DataTableShell'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function PayablesListPage() {
@@ -50,10 +53,7 @@ export default async function PayablesListPage() {
         title="Cuentas por pagar"
         description="Deudas con proveedores originadas en compras registradas."
         actions={
-          <Link
-            href="/purchases"
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
+          <Link href="/purchases" className={btnSecondary}>
             Ver compras
           </Link>
         }
@@ -105,37 +105,40 @@ export default async function PayablesListPage() {
           title="Detalle de cuentas por pagar"
           description="Listado detallado de cada cuenta, su proveedor, fechas clave y estado de pago."
         >
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <DataTableShell>
+            <table className="dashboard-table min-w-full text-sm">
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Compra
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Proveedor
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Emitida
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Vence
                   </th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Total (ARS)
                   </th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Saldo (ARS)
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Estado
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Overdue
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {payables.map((p) => {
                   const supplierLabel =
                     p.supplierCompany ||
@@ -162,7 +165,7 @@ export default async function PayablesListPage() {
                     p.balance > 0
 
                   return (
-                    <tr key={p.id} className="hover:bg-gray-50">
+                    <tr key={p.id}>
                       <td className="whitespace-nowrap px-4 py-2 text-xs text-ifedel-primary">
                         {p.purchase ? (
                           <Link
@@ -190,8 +193,8 @@ export default async function PayablesListPage() {
                       <td className="whitespace-nowrap px-4 py-2 text-right font-semibold text-gray-900">
                         {fmtMoneyARS(p.balance)}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-700">
-                        {p.status}
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <StatusBadge status={p.status} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-2">
                         {isOverdue ? (
@@ -202,12 +205,17 @@ export default async function PayablesListPage() {
                           <span className="text-xs text-gray-500">-</span>
                         )}
                       </td>
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <Link href={`/payables/${p.id}`} className={linkAccentXs}>
+                          Ver detalle
+                        </Link>
+                      </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
-          </div>
+          </DataTableShell>
         </SectionCard>
       )}
     </div>

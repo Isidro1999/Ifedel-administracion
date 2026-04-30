@@ -156,7 +156,7 @@ export function RegisterPaymentForm({
         <button
           type="submit"
           disabled={isDisabled}
-          className="rounded-md bg-ifedel-green px-4 py-2 text-sm font-medium text-white hover:bg-ifedel-green/90 disabled:opacity-50"
+          className="rounded-lg bg-ifedel-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-ifedel-primary/25 transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? 'Registrando…' : 'Registrar cobro'}
         </button>

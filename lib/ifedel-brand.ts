@@ -13,9 +13,9 @@ export const IFEDelBrand = {
   phone: '+54 9 11 51435129',
   email: 'info@ifedel.com.ar',
   website: 'ifedel.com.ar',
+  /** Marca IFEDEL (verde sobre negro). Archivo en `public/brand/ifedel-mark.png`. */
   logo: {
-    url:
-      'https://res.cloudinary.com/dqcb3hmi3/image/upload/f_png,q_auto,w_400/v1772651895/1_qciftl.png',
+    src: '/brand/ifedel-mark.png',
   },
 }
 

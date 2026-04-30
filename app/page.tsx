@@ -1,149 +1,143 @@
 import Link from 'next/link'
+import {
+  Banknote,
+  BarChart3,
+  ChevronRight,
+  FileSpreadsheet,
+  Package,
+  Settings,
+  ShoppingCart,
+  Sparkles,
+  Upload,
+  Users,
+  Wallet,
+} from 'lucide-react'
 import { auth } from '@/auth'
+import { PageHeader } from '@/components/layout/PageHeader'
+import { SectionCard } from '@/components/layout/SectionCard'
+
+function QuickLink({
+  href,
+  label,
+  Icon,
+}: {
+  href: string
+  label: string
+  Icon: typeof Package
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/40 px-3 py-2.5 text-sm font-medium text-slate-800 transition hover:border-ifedel-primary/35 hover:bg-white hover:shadow-md hover:shadow-slate-900/5"
+    >
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-ifedel-brown shadow-sm ring-1 ring-slate-200/80 transition group-hover:bg-ifedel-primary/10 group-hover:text-ifedel-primary group-hover:ring-ifedel-primary/25">
+          <Icon className="h-4 w-4" strokeWidth={2} aria-hidden />
+        </span>
+        <span className="truncate">{label}</span>
+      </span>
+      <ChevronRight
+        className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-ifedel-primary"
+        aria-hidden
+      />
+    </Link>
+  )
+}
 
 export default async function Home() {
   const session = await auth()
   const isAdmin = session?.user?.role === 'ADMIN'
 
   return (
-    <div className="space-y-6">
-      <header className="border-b border-gray-100 pb-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-ifedel-black">
-          Panel general
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-gray-600">
-          Resumen rápido del estado del sistema comercial y financiero de IFEDEL.
-        </p>
-      </header>
+    <div className="space-y-8">
+      <PageHeader
+        title="Panel general"
+        description="Resumen rápido del estado del sistema comercial y financiero de IFEDEL."
+      />
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Operación
-          </h2>
-          <p className="mt-2 text-sm text-gray-700">
-            Accesos rápidos a los flujos principales del día a día.
-          </p>
-          <div className="mt-4 space-y-2 text-sm">
-            <Link
-              href="/products"
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-            >
-              <span>Catálogo de productos</span>
-            </Link>
-            <Link
-              href="/quotes"
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-            >
-              <span>Cotizaciones guardadas</span>
-            </Link>
-            <Link
-              href="/sales"
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-            >
-              <span>Ventas registradas</span>
-            </Link>
+      <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <SectionCard
+          title="Operación"
+          description="Flujos principales del día a día comercial."
+        >
+          <div className="space-y-2">
+            <QuickLink href="/products" label="Catálogo de productos" Icon={Package} />
+            <QuickLink href="/quotes" label="Cotizaciones guardadas" Icon={FileSpreadsheet} />
+            <QuickLink href="/sales" label="Ventas registradas" Icon={ShoppingCart} />
           </div>
-        </div>
+        </SectionCard>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Tesorería
-          </h2>
-          <p className="mt-2 text-sm text-gray-700">
-            Seguimiento simple de cobranzas, pagos y posición de caja.
-          </p>
-          <div className="mt-4 space-y-2 text-sm">
-            <Link
-              href="/receivables"
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-            >
-              <span>Cuentas por cobrar</span>
-            </Link>
-            <Link
-              href="/payables"
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-            >
-              <span>Cuentas por pagar</span>
-            </Link>
-            <Link
-              href="/cash"
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-            >
-              <span>Caja</span>
-            </Link>
+        <SectionCard
+          title="Tesorería"
+          description="Cobranzas, pagos y posición de caja."
+        >
+          <div className="space-y-2">
+            <QuickLink href="/receivables" label="Cuentas por cobrar" Icon={Wallet} />
+            <QuickLink href="/payables" label="Cuentas por pagar" Icon={Banknote} />
+            <QuickLink href="/cash" label="Caja" Icon={Banknote} />
           </div>
-        </div>
+        </SectionCard>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Administración
-          </h2>
-          <p className="mt-2 text-sm text-gray-700">
-            Configuración y tareas de mantenimiento del sistema.
-          </p>
-          <div className="mt-4 space-y-2 text-sm">
-            {isAdmin && (
-              <>
-                <Link
-                  href="/admin/import"
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-                >
-                  <span>Importar productos</span>
-                </Link>
-                <Link
-                  href="/admin/settings"
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-                >
-                  <span>Settings generales</span>
-                </Link>
-                <Link
-                  href="/admin/users"
-                  className="flex items-center justify-between rounded-md px-2 py-1.5 text-ifedel-black hover:bg-gray-50"
-                >
-                  <span>Usuarios</span>
-                </Link>
-              </>
-            )}
-            {!isAdmin && (
-              <p className="text-xs text-gray-500">
-                No tenés permisos de administración. Contactá a un usuario administrador para cambios de configuración.
-              </p>
-            )}
-          </div>
-        </div>
+        <SectionCard
+          title="Administración"
+          description="Configuración y mantenimiento del sistema."
+        >
+          {isAdmin ? (
+            <div className="space-y-2">
+              <QuickLink href="/admin/import" label="Importar productos" Icon={Upload} />
+              <QuickLink href="/admin/settings" label="Configuración general" Icon={Settings} />
+              <QuickLink href="/admin/users" label="Usuarios" Icon={Users} />
+            </div>
+          ) : (
+            <p className="text-xs leading-relaxed text-slate-500">
+              No tenés permisos de administración. Contactá a un usuario administrador para cambios de
+              configuración.
+            </p>
+          )}
+        </SectionCard>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-ifedel-black">
-            Actividad reciente
-          </h2>
-          <p className="mt-1 text-xs text-gray-500">
-            En esta etapa solo mostramos una estructura básica. Más adelante se puede conectar con eventos reales.
-          </p>
-          <ul className="mt-4 space-y-2 text-sm text-gray-700">
-            <li>• Ventas y cobranzas recientes.</li>
-            <li>• Cotizaciones emitidas en los últimos días.</li>
-            <li>• Movimientos relevantes de caja.</li>
+      <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <SectionCard
+          title="Actividad reciente"
+          description="Estructura base lista para conectar con eventos reales del negocio."
+        >
+          <ul className="space-y-3 text-sm text-slate-600">
+            <li className="flex gap-2">
+              <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-ifedel-primary" aria-hidden />
+              <span>Ventas y cobranzas recientes.</span>
+            </li>
+            <li className="flex gap-2">
+              <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-ifedel-primary" aria-hidden />
+              <span>Cotizaciones emitidas en los últimos días.</span>
+            </li>
+            <li className="flex gap-2">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ifedel-primary" aria-hidden />
+              <span>Movimientos relevantes de caja.</span>
+            </li>
           </ul>
-        </div>
+        </SectionCard>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-ifedel-black">
-            Próximos pasos
-          </h2>
-          <p className="mt-1 text-xs text-gray-500">
-            Sección pensada para ir incorporando recordatorios y tareas claves.
-          </p>
-          <ul className="mt-4 space-y-2 text-sm text-gray-700">
-            <li>• Revisar cuentas por cobrar próximas a vencer.</li>
-            <li>• Chequear compras pendientes y pagos asociados.</li>
-            <li>• Analizar ventas por período en el módulo de analytics.</li>
+        <SectionCard
+          title="Próximos pasos"
+          description="Recordatorios y tareas clave para el equipo."
+        >
+          <ul className="space-y-2.5 text-sm text-slate-600">
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ifedel-primary" />
+              Revisar cuentas por cobrar próximas a vencer.
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ifedel-primary" />
+              Chequear compras pendientes y pagos asociados.
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ifedel-primary" />
+              Analizar ventas por período en analytics.
+            </li>
           </ul>
-        </div>
+        </SectionCard>
       </section>
     </div>
   )
 }
-

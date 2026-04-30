@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
+import { btnSecondarySm } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { MetricCard } from '@/components/layout/MetricCard'
 import { SectionCard } from '@/components/layout/SectionCard'
@@ -100,22 +101,13 @@ export default async function FinancePage() {
         description="Visión ejecutiva de caja, cuentas por cobrar y por pagar."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/cash"
-              className="rounded-md border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
-            >
+            <Link href="/cash" className={btnSecondarySm}>
               Ver caja
             </Link>
-            <Link
-              href="/receivables"
-              className="rounded-md border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
-            >
+            <Link href="/receivables" className={btnSecondarySm}>
               Cuentas por cobrar
             </Link>
-            <Link
-              href="/payables"
-              className="rounded-md border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
-            >
+            <Link href="/payables" className={btnSecondarySm}>
               Cuentas por pagar
             </Link>
           </div>

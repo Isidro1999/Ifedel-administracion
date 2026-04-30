@@ -21,7 +21,6 @@ export default function ImportPage() {
   const [format, setFormat] = useState<'json' | 'csv'>('json')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
-  const [adminKey, setAdminKey] = useState('')
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -36,8 +35,8 @@ export default function ImportPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!file || !adminKey) {
-      alert('Por favor selecciona un archivo y proporciona la clave de administrador')
+    if (!file) {
+      alert('Por favor selecciona un archivo')
       return
     }
 
@@ -51,9 +50,7 @@ export default function ImportPage() {
 
       const res = await fetch('/api/admin/import', {
         method: 'POST',
-        headers: {
-          'x-admin-key': adminKey,
-        },
+        credentials: 'include',
         body: formData,
       })
 
@@ -88,23 +85,9 @@ export default function ImportPage() {
 
       <SectionCard
         title="Cargar archivo de importacion"
-        description="Selecciona el archivo, el formato y la clave de administrador para ejecutar la importacion."
+        description="Selecciona el archivo y el formato. La sesi?n de administrador autoriza la importaci?n."
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium">
-              Clave de Administrador
-            </label>
-            <input
-              type="password"
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-              placeholder="Ingresa la clave de administrador"
-              className="w-full rounded-md border px-3 py-2"
-              required
-            />
-          </div>
-
           <div>
             <label className="mb-2 block text-sm font-medium">
               Formato del archivo
@@ -151,7 +134,7 @@ export default function ImportPage() {
 
           <button
             type="submit"
-            disabled={loading || !file || !adminKey}
+            disabled={loading || !file}
             className="w-full rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? 'Importando...' : 'Importar productos'}

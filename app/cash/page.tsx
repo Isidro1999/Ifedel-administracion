@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
+import { btnSecondary } from '@/lib/ui-classes'
 import { RegisterCashOutForm } from './RegisterCashOutForm'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { MetricCard } from '@/components/layout/MetricCard'
 import { SectionCard } from '@/components/layout/SectionCard'
+import { DataTableShell } from '@/components/ui/DataTableShell'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function CashPage() {
@@ -31,10 +34,7 @@ export default async function CashPage() {
         title="Caja"
         description="Resumen simple de ingresos y egresos en ARS."
         actions={
-          <Link
-            href="/finance"
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
+          <Link href="/finance" className={btnSecondary}>
             Ver dashboard financiero
           </Link>
         }
@@ -75,28 +75,28 @@ export default async function CashPage() {
           title="Movimientos de caja"
           description="Detalle histórico de ingresos y egresos registrados."
         >
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <DataTableShell>
+            <table className="dashboard-table min-w-full text-sm">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Fecha
                   </th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Tipo
                   </th>
-                  <th className="px-3 py-2 text-right font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Monto
                   </th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Concepto
                   </th>
-                  <th className="px-3 py-2 text-left font-semibold text-gray-700">
+                  <th className="whitespace-nowrap px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Categoría
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {movements.map((m) => {
                     const date =
                       m.occurredAt instanceof Date
@@ -106,12 +106,12 @@ export default async function CashPage() {
                     const sign = m.type === 'OUT' ? -1 : 1
                     const signedAmount = sign * m.amount
                     return (
-                      <tr key={m.id} className="hover:bg-gray-50">
+                      <tr key={m.id}>
                         <td className="whitespace-nowrap px-3 py-2 text-gray-900">
                           {dateLabel}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-xs font-medium uppercase tracking-wide text-gray-700">
-                          {m.type}
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <StatusBadge status={m.type} />
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-gray-900">
                           {fmtMoneyARS(signedAmount)}
@@ -127,7 +127,7 @@ export default async function CashPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </DataTableShell>
           </SectionCard>
         )}
     </div>

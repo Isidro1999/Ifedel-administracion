@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { RegisterPaymentForm } from '@/app/receivables/[id]/RegisterPaymentForm'
 
 interface SalesDetailPageProps {
   params: { id: string }
@@ -109,7 +110,7 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
             {sale.quote && (
               <Link
                 href={`/quotes/${sale.quote.id}`}
-                className="rounded-md border border-ifedel-green px-4 py-2 text-sm text-ifedel-green hover:bg-ifedel-green/10"
+                className="rounded-md border border-ifedel-primary px-4 py-2 text-sm font-medium text-ifedel-brown hover:bg-ifedel-primary/10"
               >
                 Ver cotización {sale.quote.quoteNumber}
               </Link>
@@ -186,7 +187,8 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
           </div>
         </div>
 
-        {hasReceivable && (
+        {hasReceivable && receivable && (
+          <>
           <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">
             <h2 className="mb-3 text-base font-semibold text-ifedel-black">
               Estado de cobranza
@@ -196,7 +198,7 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
                 <p className="text-sm text-gray-700">
                   Cuenta por cobrar vinculada:{' '}
                   <span className="font-mono text-xs text-ifedel-primary">
-                    #{receivable!.id}
+                    #{receivable.id}
                   </span>
                 </p>
                 <p className="text-sm text-gray-700">
@@ -216,10 +218,10 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
               </div>
               <div className="flex gap-2">
                 <Link
-                  href={`/receivables/${receivable!.id}`}
+                  href={`/receivables/${receivable.id}`}
                   className="rounded-md bg-ifedel-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90"
                 >
-                  Registrar cobro
+                  Ir al detalle de cobranza
                 </Link>
                 <Link
                   href="/receivables"
@@ -229,8 +231,7 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
                 </Link>
               </div>
             </div>
-            {receivable && (
-              <div className="mt-4">
+            <div className="mt-4">
                 <h3 className="mb-2 text-sm font-semibold text-ifedel-black">
                   Cuotas / vencimientos
                 </h3>
@@ -306,9 +307,15 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+            </div>
           </section>
+
+          <RegisterPaymentForm
+            receivableId={receivable.id}
+            balance={receivable.balance}
+            status={receivable.status}
+          />
+          </>
         )}
 
         <section className="rounded-lg border border-gray-200 bg-white p-4 text-sm">

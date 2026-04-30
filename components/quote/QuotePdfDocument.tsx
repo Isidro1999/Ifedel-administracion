@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
     paddingLeft: 0,
   },
   logo: {
-    width: 170,
-    height: 60,
+    width: 52,
+    height: 52,
     objectFit: 'contain',
   },
   logoBox: {
@@ -278,17 +278,25 @@ export const QuotePdfDocument: React.FC<QuotePdfDocumentProps> = ({
     ? `${discountPct}%`
     : `${discountPct.toFixed(1)}%`
 
+  /** PDF se arma en el cliente: la imagen debe ser URL absoluta (mismo origen que /public). */
+  const pdfLogoSrc =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${IFEDelBrand.logo.src}`
+      : IFEDelBrand.logo.src.startsWith('http')
+        ? IFEDelBrand.logo.src
+        : ''
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.headerWrap}>
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              {IFEDelBrand.logo?.url ? (
-                <Image src={IFEDelBrand.logo.url} style={styles.logo} />
+              {pdfLogoSrc ? (
+                <Image src={pdfLogoSrc} style={styles.logo} />
               ) : (
                 <View style={styles.logoBox}>
-                  <Text style={styles.logoText}>IFE</Text>
+                  <Text style={styles.logoText}>IF</Text>
                 </View>
               )}
             </View>

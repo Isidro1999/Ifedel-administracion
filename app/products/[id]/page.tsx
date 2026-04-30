@@ -36,7 +36,6 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
-  const [adminKey, setAdminKey] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
@@ -96,10 +95,6 @@ export default function ProductDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!adminKey.trim()) {
-      setDeleteError('Ingresá la clave de administrador')
-      return
-    }
     if (!confirm(`¿Eliminar el producto "${product.title}" (${product.sku})? Esta acción no se puede deshacer.`)) {
       return
     }
@@ -108,7 +103,7 @@ export default function ProductDetailPage() {
     try {
       const res = await fetch(`/api/admin/products/${product.id}`, {
         method: 'DELETE',
-        headers: { 'x-admin-key': adminKey },
+        credentials: 'include',
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -285,25 +280,9 @@ export default function ProductDetailPage() {
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h2 className="text-xl font-semibold mb-3 text-gray-700">Eliminar producto</h2>
                 <p className="text-sm text-gray-500 mb-3">
-                  Para eliminar este producto ingresá la clave de administrador y confirmá.
+                  Solo usuarios administradores autenticados pueden eliminar. Se usa tu sesión actual.
                 </p>
                 <div className="flex flex-wrap items-end gap-2">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="block text-sm font-medium text-gray-600 mb-1">
-                      Clave de administrador
-                    </label>
-                    <input
-                      type="password"
-                      value={adminKey}
-                      onChange={(e) => {
-                        setAdminKey(e.target.value)
-                        setDeleteError('')
-                      }}
-                      placeholder="x-admin-key"
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                      disabled={deleting}
-                    />
-                  </div>
                   <button
                     type="button"
                     onClick={handleDelete}

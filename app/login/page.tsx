@@ -1,4 +1,6 @@
+import Image from 'next/image'
 import { signIn } from '@/auth'
+import { IFEDelBrand } from '@/lib/ifedel-brand'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +20,18 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-lg border-2 border-ifedel-primary bg-white p-8 shadow-md">
+        <div className="mb-6 flex justify-center">
+          <div className="overflow-hidden rounded-2xl bg-black p-2 ring-2 ring-ifedel-primary/40">
+            <Image
+              src={IFEDelBrand.logo.src}
+              alt={IFEDelBrand.companyName}
+              width={96}
+              height={96}
+              className="h-20 w-20 object-contain"
+              priority
+            />
+          </div>
+        </div>
         <h1 className="mb-2 text-center text-xl font-semibold text-ifedel-black">
           Iniciar sesión
         </h1>

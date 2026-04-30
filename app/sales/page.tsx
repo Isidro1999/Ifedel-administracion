@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { btnSecondary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { DataTableShell } from '@/components/ui/DataTableShell'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 export default async function SalesListPage() {
@@ -20,10 +23,7 @@ export default async function SalesListPage() {
         title="Ventas registradas"
         description="Listado simple de ventas generadas a partir de cotizaciones u otros procesos comerciales."
         actions={
-          <Link
-            href="/quotes"
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
+          <Link href="/quotes" className={btnSecondary}>
             Volver a cotizaciones
           </Link>
         }
@@ -35,40 +35,40 @@ export default async function SalesListPage() {
           description="Cuando registres ventas confirmadas, vas a poder analizarlas desde este listado y desde el módulo de analytics."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
+        <DataTableShell>
+          <table className="dashboard-table min-w-full text-sm">
+            <thead>
               <tr>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   N°
                 </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Estado
                 </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Cliente
                 </th>
-                <th className="px-4 py-2 text-right font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Total
                 </th>
-                <th className="px-2 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Moneda
                 </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Emitida
                 </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Creada por
                 </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Cotización origen
                 </th>
-                <th className="px-4 py-2 text-left font-semibold text-gray-700">
+                <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {sales.map((s) => {
                 const clientLabel =
                   s.customerCompany ||
@@ -102,12 +102,12 @@ export default async function SalesListPage() {
                     : null
 
                 return (
-                  <tr key={s.id} className="hover:bg-gray-50">
+                  <tr key={s.id}>
                     <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-gray-800">
                       {s.saleNumber}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-700">
-                      {s.status}
+                    <td className="whitespace-nowrap px-4 py-2">
+                      <StatusBadge status={s.status} />
                     </td>
                     <td className="px-4 py-2">
                       <span className="block text-gray-900">{clientLabel}</span>
@@ -141,11 +141,8 @@ export default async function SalesListPage() {
                         <span className="text-gray-500">-</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2 text-gray-500">
-                      <Link
-                        href={`/sales/${s.id}`}
-                        className="text-xs font-medium text-ifedel-primary hover:underline"
-                      >
+                    <td className="whitespace-nowrap px-4 py-2">
+                      <Link href={`/sales/${s.id}`} className={linkAccentXs}>
                         Ver detalle
                       </Link>
                     </td>
@@ -154,7 +151,7 @@ export default async function SalesListPage() {
               })}
             </tbody>
           </table>
-        </div>
+        </DataTableShell>
       )}
     </div>
   )

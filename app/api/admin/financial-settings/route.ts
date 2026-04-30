@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getFinancialSettings, saveFinancialSettings } from '@/lib/financial-settings'
-import { requireAdminKey } from '@/lib/admin-auth'
+import { requireAdminSession } from '@/lib/admin-auth'
 
 export async function GET() {
+  const gate = await requireAdminSession()
+  if (!gate.ok) return gate.response
+
   const settings = await getFinancialSettings()
   return NextResponse.json({
     ingresosBrutosRate: settings.ingresosBrutosRate,
@@ -13,11 +16,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const adminKey = request.headers.get('x-admin-key') || undefined
-  const ok = await requireAdminKey(adminKey)
-  if (!ok) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
+  const gate = await requireAdminSession()
+  if (!gate.ok) return gate.response
 
   const body = await request.json().catch(() => ({}))
 

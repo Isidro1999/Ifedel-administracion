@@ -35,19 +35,22 @@ Copia el archivo `.env.example` a `.env`:
 cp .env.example .env
 ```
 
-Edita `.env` y configura:
+Edita `.env` y configura **PostgreSQL** (local con Docker, Supabase, Neon, etc.):
 
 ```env
-DATABASE_URL="file:./dev.db"
-ADMIN_KEY="tu-clave-secreta-aqui"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 ```
 
-**Importante:** Cambia `ADMIN_KEY` por una clave segura en producción.
+En local sin pooler podés usar la **misma URL** en `DATABASE_URL` y `DIRECT_URL`. En **Vercel + Supabase/Neon**, `DATABASE_URL` suele ser la URL con **pooler** y `DIRECT_URL` la conexión **directa** (necesaria para migraciones).
 
 **Autenticación (Auth.js / NextAuth v5):**
 
 - `AUTH_SECRET`: secreto para firmar cookies/sesiones (generar con `openssl rand -base64 32`).
 - `AUTH_GOOGLE_ID` y `AUTH_GOOGLE_SECRET`: credenciales de Google OAuth (consola de Google Cloud).
+- `AUTH_URL` / `AUTH_TRUST_HOST`: ver `.env.example` para despliegue en Vercel.
+
+Las rutas `/api/admin/*` requieren **sesión** de usuario con rol **ADMIN** (no se usa `ADMIN_KEY` ni el header `x-admin-key`).
 
 Solo usuarios con estado **APPROVED** pueden usar la app; los **PENDING** ven `/pending`. El usuario con email `isidroballestrin@gmail.com` se crea como **ADMIN** y **APPROVED** automáticamente.
 
@@ -63,7 +66,7 @@ npm run db:generate
 npm run db:migrate
 ```
 
-O si prefieres usar `db push` (útil para desarrollo):
+Opcional en desarrollo (evitar en producción): sincronizar el schema sin historial de migraciones:
 
 ```bash
 npm run db:push
@@ -210,16 +213,13 @@ Obtiene los detalles completos de un producto.
 curl "http://localhost:3000/api/products/1"
 ```
 
-### Administrativos (requieren header `x-admin-key`)
+### Administrativos (requieren sesión: usuario **APPROVED** con rol **ADMIN**)
+
+Iniciá sesión en la aplicación y enviá la **cookie de sesión** en las peticiones (desde el navegador las rutas admin ya están autenticadas). Con `curl`, usá `-b` con la cookie copiada del navegador.
 
 #### POST `/api/admin/products`
 
 Crea un nuevo producto.
-
-**Headers:**
-```
-x-admin-key: tu-clave-admin
-```
 
 **Body:** Ver formato en `/docs/import-format.md`
 
@@ -228,7 +228,7 @@ x-admin-key: tu-clave-admin
 ```bash
 curl -X POST http://localhost:3000/api/admin/products \
   -H "Content-Type: application/json" \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -d '{
     "sku": "PROD-001",
     "title": "Laptop Dell",
@@ -252,7 +252,7 @@ Actualiza un producto existente.
 ```bash
 curl -X PUT http://localhost:3000/api/admin/products/1 \
   -H "Content-Type: application/json" \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -d '{...}'
 ```
 
@@ -264,18 +264,12 @@ Elimina un producto.
 
 ```bash
 curl -X DELETE http://localhost:3000/api/admin/products/1 \
-  -H "x-admin-key: tu-clave-admin"
+  -b "tu-cookie-de-sesion"
 ```
 
 #### POST `/api/admin/products/[id]/images`
 
 Sube una imagen a Cloudinary y la asocia al producto.
-
-**Headers:**
-
-```
-x-admin-key: tu-clave-admin
-```
 
 **Body (FormData):**
 - `file`: archivo de imagen (máx 8MB)
@@ -312,11 +306,6 @@ Elimina una imagen:
 
 Importa productos masivamente desde JSON o CSV.
 
-**Headers:**
-```
-x-admin-key: tu-clave-admin
-```
-
 **Body (FormData):**
 - `file`: Archivo JSON o CSV
 - `format`: `json` o `csv`
@@ -325,7 +314,7 @@ x-admin-key: tu-clave-admin
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.json" \
   -F "format=json"
 ```
@@ -400,24 +389,23 @@ PROD-001,Laptop Dell XPS 15,Dell,Computadoras,"[{""priceList"":""minorista"",""c
 
 ### Importar desde la UI
 
-1. Ve a `/admin/import`
-2. Ingresa tu clave de administrador
-3. Selecciona el formato (JSON o CSV)
-4. Sube el archivo
-5. Haz clic en "Importar Productos"
+1. Ve a `/admin/import` (con sesión de usuario ADMIN)
+2. Selecciona el formato (JSON o CSV)
+3. Sube el archivo
+4. Haz clic en "Importar Productos"
 
 ### Importar desde línea de comandos
 
 ```bash
 # JSON
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.json" \
   -F "format=json"
 
 # CSV
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.csv" \
   -F "format=csv"
 ```
@@ -495,12 +483,11 @@ Si aún no se configuró, devuelve:
 
 #### PUT `/api/admin/settings/exchange-rate`
 
-Endpoint admin protegido con `x-admin-key` para actualizar el tipo de cambio.
+Endpoint admin (sesión **ADMIN**) para actualizar el tipo de cambio.
 
 **Headers:**
 
 ```
-x-admin-key: tu-clave-admin
 Content-Type: application/json
 ```
 
@@ -517,7 +504,7 @@ Content-Type: application/json
 ```bash
 curl -X PUT http://localhost:3000/api/admin/settings/exchange-rate \
   -H "Content-Type: application/json" \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -d '{"usdArsRate":1085.5}'
 ```
 
@@ -545,40 +532,24 @@ En la UI se ve, por ejemplo:
 
 ## 🔒 Seguridad
 
-Las rutas administrativas (`/api/admin/*`) están protegidas con una clave de administrador:
-
-1. Configura `ADMIN_KEY` en `.env`
-2. Incluye el header `x-admin-key` en todas las peticiones admin
-3. Si la clave no coincide, recibirás un error 401
-
-**Importante:** En producción, usa una clave segura y no la compartas públicamente.
+Las rutas administrativas (`/api/admin/*`) exigen **sesión NextAuth** de un usuario con rol **ADMIN** y estado **APPROVED**. Sin sesión válida recibirás **401**; sin permisos de admin, **403**.
 
 ## 🚀 Producción
 
-### Base de Datos PostgreSQL
+### Base de datos (Vercel + Supabase / Neon)
 
-Para usar PostgreSQL en producción:
+El proyecto usa **PostgreSQL** en producción. Configurá en Vercel (y en tu proveedor):
 
-1. Cambia `DATABASE_URL` en `.env`:
+- **`DATABASE_URL`**: URL con **pooler** (conexiones limitadas para serverless).
+- **`DIRECT_URL`**: conexión **directa** al Postgres; Prisma la usa para **`prisma migrate deploy`** (no uses `db push` en producción).
 
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
-```
-
-2. Cambia el provider en `prisma/schema.prisma`:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-3. Ejecuta las migraciones:
+Tras el despliegue o en CI, aplicá migraciones:
 
 ```bash
-npx prisma migrate deploy
+npm run db:deploy
 ```
+
+Asegurate de que el build ejecute `prisma generate` (p. ej. `postinstall` o paso de build) y que las variables de Auth y Cloudinary estén definidas en el panel de Vercel.
 
 ### Build para Producción
 
@@ -594,15 +565,16 @@ npm start
 - `npm start`: Inicia el servidor de producción
 - `npm run lint`: Ejecuta el linter
 - `npm run db:generate`: Genera el cliente de Prisma
-- `npm run db:push`: Sincroniza el schema con la base de datos (desarrollo)
-- `npm run db:migrate`: Crea y aplica migraciones
+- `npm run db:push`: Sincroniza el schema con la base de datos (solo desarrollo; no en producción)
+- `npm run db:migrate`: Crea y aplica migraciones en desarrollo
+- `npm run db:deploy`: Aplica migraciones pendientes (staging/producción)
 - `npm run db:studio`: Abre Prisma Studio
 
 ## 🐛 Solución de Problemas
 
-### Error: "ADMIN_KEY no está configurada"
+### Error: variables `DATABASE_URL` / `DIRECT_URL`
 
-Asegúrate de tener un archivo `.env` con `ADMIN_KEY` definida.
+Definí ambas en `.env` apuntando a tu instancia PostgreSQL (en local pueden ser la misma URL).
 
 ### Error: "Prisma Client not generated"
 
