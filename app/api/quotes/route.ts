@@ -5,6 +5,9 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const QuoteItemInputSchema = z.object({
   productId: z.number().int().positive(),
   sku: z.string().min(1),

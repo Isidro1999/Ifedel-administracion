@@ -6,6 +6,9 @@ import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
 import { PAYABLE_DEFAULT_DUE_DAYS } from '@/lib/payable-config'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const PurchaseItemInputSchema = z.object({
   productId: z.number().int().positive().optional(),
   sku: z.string().min(1),
