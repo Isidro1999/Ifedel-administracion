@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { btnSecondarySm } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -10,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function FinancePage() {
+  const { prisma } = await import('@/lib/prisma')
   const [movements, receivables, receivableInstallments, payables] = await Promise.all([
     prisma.cashMovement.findMany(),
     prisma.receivable.findMany(),

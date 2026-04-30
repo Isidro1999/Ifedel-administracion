@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { btnPrimary } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -12,6 +11,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function PurchasesListPage() {
+  const { prisma } = await import('@/lib/prisma')
   const purchases = await prisma.purchase.findMany({
     orderBy: { issuedAt: 'desc' },
     include: {

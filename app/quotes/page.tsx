@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import { btnPrimary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
@@ -11,6 +10,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function QuotesListPage() {
+  const { prisma } = await import('@/lib/prisma')
   const quotes = await prisma.quote.findMany({
     orderBy: { createdAt: 'desc' },
     include: {

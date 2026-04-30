@@ -12,7 +12,6 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { auth } from '@/auth'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 
@@ -48,6 +47,7 @@ function QuickLink({
 }
 
 export default async function Home() {
+  const { auth } = await import('@/auth')
   const session = await auth()
   const isAdmin = session?.user?.role === 'ADMIN'
 

@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +12,7 @@ interface PurchaseDetailPageProps {
 export default async function PurchaseDetailPage({
   params,
 }: PurchaseDetailPageProps) {
+  const { prisma } = await import('@/lib/prisma')
   const id = Number(params.id)
   if (!Number.isFinite(id) || id <= 0) {
     notFound()

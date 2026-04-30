@@ -1,9 +1,8 @@
-import { auth, signOut } from '@/auth'
-
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function PendingPage() {
+  const { auth, signOut } = await import('@/auth')
   const session = await auth()
 
   async function handleSignOut() {

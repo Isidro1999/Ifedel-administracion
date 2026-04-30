@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import { signIn } from '@/auth'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
 export const dynamic = 'force-dynamic'
@@ -14,6 +13,7 @@ export default async function LoginPage({
 
   async function signInWithGoogle(formData: FormData) {
     'use server'
+    const { signIn } = await import('@/auth')
     const url = (formData.get('callbackUrl') as string) || '/'
     await signIn('google', { redirectTo: url })
   }

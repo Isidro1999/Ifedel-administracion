@@ -1,15 +1,17 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
-import { getFinancialSettings } from '@/lib/financial-settings'
 import { computeSaleMarginForSale } from '@/lib/margin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function PeriodAnalyticsPage() {
+  const [{ prisma }, { getFinancialSettings }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/financial-settings'),
+  ])
   const today = new Date()
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)

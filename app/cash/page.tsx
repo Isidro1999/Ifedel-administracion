@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { btnSecondary } from '@/lib/ui-classes'
 import { RegisterCashOutForm } from './RegisterCashOutForm'
@@ -14,6 +13,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function CashPage() {
+  const { prisma } = await import('@/lib/prisma')
   const movements = await prisma.cashMovement.findMany({
     orderBy: { occurredAt: 'desc' },
   })

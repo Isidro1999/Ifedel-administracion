@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { btnSecondary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -13,6 +12,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function PayablesListPage() {
+  const { prisma } = await import('@/lib/prisma')
   const payables = await prisma.payable.findMany({
     orderBy: { dueDate: 'asc' },
     include: {

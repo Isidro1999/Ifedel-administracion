@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { RegisterPayablePaymentForm } from './RegisterPayablePaymentForm'
 
@@ -14,6 +13,7 @@ interface PayableDetailPageProps {
 export default async function PayableDetailPage({
   params,
 }: PayableDetailPageProps) {
+  const { prisma } = await import('@/lib/prisma')
   const id = Number(params.id)
   if (!Number.isFinite(id) || id <= 0) {
     notFound()
