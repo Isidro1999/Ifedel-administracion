@@ -4,6 +4,9 @@ import { requireAdminSession } from '@/lib/admin-auth'
 import { slugify } from '@/lib/utils'
 import { ImportProductSchema } from '@/lib/import-schemas'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }

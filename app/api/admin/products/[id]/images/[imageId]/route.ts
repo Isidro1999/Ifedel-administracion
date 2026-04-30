@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdminSession } from '@/lib/admin-auth'
 import { cloudinary } from '@/lib/cloudinary'
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function PATCH(

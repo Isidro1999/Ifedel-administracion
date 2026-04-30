@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { getFinancialSettings, saveFinancialSettings } from '@/lib/financial-settings'
 import { requireAdminSession } from '@/lib/admin-auth'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 export async function GET() {
   const gate = await requireAdminSession()
   if (!gate.ok) return gate.response

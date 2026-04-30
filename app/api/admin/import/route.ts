@@ -5,6 +5,9 @@ import { slugify } from '@/lib/utils'
 import { ImportProductSchema, ImportProduct } from '@/lib/import-schemas'
 import Papa from 'papaparse'
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 interface ImportResult {
   created: number
   updated: number
