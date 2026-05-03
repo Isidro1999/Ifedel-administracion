@@ -12,24 +12,38 @@ import { EmptyState } from '@/components/ui/EmptyState'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const CASH_MOVEMENTS_LIST_LIMIT = 500
+
 export default async function CashPage() {
   const { prisma } = await import('@/lib/prisma')
-  const movements = await prisma.cashMovement.findMany({
-    orderBy: { occurredAt: 'desc' },
-  })
 
-  const saldo = movements.reduce((acc, m) => {
-    const sign = m.type === 'OUT' ? -1 : 1
-    return acc + sign * m.amount
-  }, 0)
+  const [sumCashIn, sumCashOut, movementCount, movements] = await Promise.all([
+    prisma.cashMovement.aggregate({
+      where: { type: 'IN' },
+      _sum: { amount: true },
+    }),
+    prisma.cashMovement.aggregate({
+      where: { type: 'OUT' },
+      _sum: { amount: true },
+    }),
+    prisma.cashMovement.count(),
+    prisma.cashMovement.findMany({
+      take: CASH_MOVEMENTS_LIST_LIMIT,
+      orderBy: { occurredAt: 'desc' },
+      select: {
+        id: true,
+        occurredAt: true,
+        type: true,
+        amount: true,
+        concept: true,
+        category: true,
+      },
+    }),
+  ])
 
-  const totalIngresos = movements
-    .filter((m) => m.type === 'IN')
-    .reduce((acc, m) => acc + m.amount, 0)
-
-  const totalEgresos = movements
-    .filter((m) => m.type === 'OUT')
-    .reduce((acc, m) => acc + m.amount, 0)
+  const saldo = (sumCashIn._sum.amount ?? 0) - (sumCashOut._sum.amount ?? 0)
+  const totalIngresos = sumCashIn._sum.amount ?? 0
+  const totalEgresos = sumCashOut._sum.amount ?? 0
 
   return (
     <div className="space-y-6">
@@ -68,7 +82,7 @@ export default async function CashPage() {
         <RegisterCashOutForm />
       </SectionCard>
 
-      {movements.length === 0 ? (
+      {movementCount === 0 ? (
         <EmptyState
           title="Todavía no hay movimientos de caja"
           description="Cuando registres ingresos o egresos, vas a ver el detalle histórico de caja en este bloque."
@@ -136,4 +150,3 @@ export default async function CashPage() {
     </div>
   )
 }
-

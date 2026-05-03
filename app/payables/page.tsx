@@ -11,44 +11,78 @@ import { EmptyState } from '@/components/ui/EmptyState'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const PAYABLES_LIST_LIMIT = 500
+const openPayableStatuses = ['PENDING', 'PARTIAL'] as const
+
 export default async function PayablesListPage() {
   const { prisma } = await import('@/lib/prisma')
-  const payables = await prisma.payable.findMany({
-    orderBy: { dueDate: 'asc' },
-    include: {
-      supplier: true,
-      purchase: true,
-    },
-  })
-
   const today = new Date()
 
-  const totalPending = payables
-    .filter((p) => p.status === 'PENDING' || p.status === 'PARTIAL')
-    .reduce((acc, p) => acc + (p.balance || 0), 0)
+  const [
+    totalPendingAgg,
+    totalOverdueAgg,
+    totalPaidAgg,
+    openCountAgg,
+    paidCountAgg,
+    payableCount,
+    payables,
+  ] = await Promise.all([
+    prisma.payable.aggregate({
+      where: { status: { in: [...openPayableStatuses] } },
+      _sum: { balance: true },
+    }),
+    prisma.payable.aggregate({
+      where: {
+        status: { in: [...openPayableStatuses] },
+        dueDate: { lt: today },
+        balance: { gt: 0 },
+      },
+      _sum: { balance: true },
+    }),
+    prisma.payable.aggregate({
+      _sum: { amountPaid: true },
+    }),
+    prisma.payable.count({
+      where: { status: { in: [...openPayableStatuses] } },
+    }),
+    prisma.payable.count({
+      where: { status: 'PAID' },
+    }),
+    prisma.payable.count(),
+    prisma.payable.findMany({
+      take: PAYABLES_LIST_LIMIT,
+      orderBy: { dueDate: 'asc' },
+      select: {
+        id: true,
+        purchaseId: true,
+        supplierCompany: true,
+        supplierName: true,
+        issuedAt: true,
+        dueDate: true,
+        totalAmount: true,
+        balance: true,
+        status: true,
+        supplier: {
+          select: {
+            company: true,
+            name: true,
+          },
+        },
+        purchase: {
+          select: {
+            id: true,
+            purchaseNumber: true,
+          },
+        },
+      },
+    }),
+  ])
 
-  const totalOverdue = payables
-    .filter((p) => {
-      const due =
-        p.dueDate instanceof Date ? p.dueDate : new Date(p.dueDate as any)
-      return (
-        due < today &&
-        (p.status === 'PENDING' || p.status === 'PARTIAL') &&
-        (p.balance || 0) > 0
-      )
-    })
-    .reduce((acc, p) => acc + (p.balance || 0), 0)
-
-  const totalPaid = payables.reduce(
-    (acc, p) => acc + (p.amountPaid || 0),
-    0
-  )
-
-  const openCount = payables.filter(
-    (p) => p.status === 'PENDING' || p.status === 'PARTIAL'
-  ).length
-
-  const paidCount = payables.filter((p) => p.status === 'PAID').length
+  const totalPending = totalPendingAgg._sum.balance ?? 0
+  const totalOverdue = totalOverdueAgg._sum.balance ?? 0
+  const totalPaid = totalPaidAgg._sum.amountPaid ?? 0
+  const openCount = openCountAgg
+  const paidCount = paidCountAgg
 
   return (
     <div className="space-y-6">
@@ -62,7 +96,7 @@ export default async function PayablesListPage() {
         }
       />
 
-      {payables.length > 0 && (
+      {payableCount > 0 && (
         <section className="grid gap-4 md:grid-cols-3">
           <MetricCard
             label="Total pendiente"
@@ -83,7 +117,7 @@ export default async function PayablesListPage() {
         </section>
       )}
 
-      {payables.length > 0 && (
+      {payableCount > 0 && (
         <section className="grid gap-4 md:grid-cols-2">
           <MetricCard
             label="Cuentas abiertas"
@@ -98,7 +132,7 @@ export default async function PayablesListPage() {
         </section>
       )}
 
-      {payables.length === 0 ? (
+      {payableCount === 0 ? (
         <EmptyState
           title="Todavía no hay cuentas por pagar"
           description="A medida que registres compras con condiciones de pago, se irán creando automáticamente las cuentas por pagar asociadas."
@@ -224,4 +258,3 @@ export default async function PayablesListPage() {
     </div>
   )
 }
-

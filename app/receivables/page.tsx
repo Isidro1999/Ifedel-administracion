@@ -11,45 +11,97 @@ import { EmptyState } from '@/components/ui/EmptyState'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const RECEIVABLES_LIST_LIMIT = 500
+const openReceivableStatuses = ['PENDING', 'PARTIAL'] as const
+
 export default async function ReceivablesListPage() {
   const { prisma } = await import('@/lib/prisma')
-  const receivables = await prisma.receivable.findMany({
-    orderBy: { dueDate: 'asc' },
-    include: {
-      sale: true,
-      customer: true,
-      installments: true,
-    },
-  })
-
   const today = new Date()
 
-  const totalPending = receivables
-    .filter((r) => r.status === 'PENDING' || r.status === 'PARTIAL')
-    .reduce((acc, r) => acc + (r.balance || 0), 0)
+  const [
+    totalPendingAgg,
+    totalOverdueAgg,
+    totalCollectedAgg,
+    openCountAgg,
+    paidCountAgg,
+    receivableCount,
+    receivables,
+  ] = await Promise.all([
+    prisma.receivable.aggregate({
+      where: { status: { in: [...openReceivableStatuses] } },
+      _sum: { balance: true },
+    }),
+    prisma.receivable.aggregate({
+      where: {
+        status: { in: [...openReceivableStatuses] },
+        dueDate: { lt: today },
+        balance: { gt: 0 },
+      },
+      _sum: { balance: true },
+    }),
+    prisma.receivable.aggregate({
+      _sum: { amountPaid: true },
+    }),
+    prisma.receivable.count({
+      where: { status: { in: [...openReceivableStatuses] } },
+    }),
+    prisma.receivable.count({
+      where: { status: 'PAID' },
+    }),
+    prisma.receivable.count(),
+    prisma.receivable.findMany({
+      take: RECEIVABLES_LIST_LIMIT,
+      orderBy: { dueDate: 'asc' },
+      select: {
+        id: true,
+        customerCompany: true,
+        customerName: true,
+        totalAmount: true,
+        amountPaid: true,
+        balance: true,
+        currency: true,
+        issuedAt: true,
+        dueDate: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        customer: {
+          select: {
+            company: true,
+            name: true,
+          },
+        },
+        sale: {
+          select: {
+            id: true,
+            saleNumber: true,
+          },
+        },
+        installments: {
+          orderBy: [{ dueDate: 'asc' }, { order: 'asc' }],
+          select: {
+            id: true,
+            order: true,
+            dueDate: true,
+            amount: true,
+            amountPaid: true,
+            balance: true,
+            status: true,
+            label: true,
+            receivableId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    }),
+  ])
 
-  const totalOverdue = receivables
-    .filter((r) => {
-      const dueDate =
-        r.dueDate instanceof Date ? r.dueDate : new Date(r.dueDate as any)
-      return (
-        dueDate < today &&
-        (r.status === 'PENDING' || r.status === 'PARTIAL') &&
-        (r.balance || 0) > 0
-      )
-    })
-    .reduce((acc, r) => acc + (r.balance || 0), 0)
-
-  const totalCollected = receivables.reduce(
-    (acc, r) => acc + (r.amountPaid || 0),
-    0
-  )
-
-  const openCount = receivables.filter(
-    (r) => r.status === 'PENDING' || r.status === 'PARTIAL'
-  ).length
-
-  const paidCount = receivables.filter((r) => r.status === 'PAID').length
+  const totalPending = totalPendingAgg._sum.balance ?? 0
+  const totalOverdue = totalOverdueAgg._sum.balance ?? 0
+  const totalCollected = totalCollectedAgg._sum.amountPaid ?? 0
+  const openCount = openCountAgg
+  const paidCount = paidCountAgg
 
   return (
     <div className="space-y-6">
@@ -63,7 +115,7 @@ export default async function ReceivablesListPage() {
         }
       />
 
-      {receivables.length > 0 && (
+      {receivableCount > 0 && (
         <section className="grid gap-4 md:grid-cols-3">
           <MetricCard
             label="Total pendiente"
@@ -84,7 +136,7 @@ export default async function ReceivablesListPage() {
         </section>
       )}
 
-      {receivables.length > 0 && (
+      {receivableCount > 0 && (
         <section className="grid gap-4 md:grid-cols-2">
           <MetricCard
             label="Cuentas abiertas"
@@ -99,7 +151,7 @@ export default async function ReceivablesListPage() {
         </section>
       )}
 
-      {receivables.length === 0 ? (
+      {receivableCount === 0 ? (
         <EmptyState
           title="Todavía no hay cuentas por cobrar"
           description="A medida que confirmes ventas con condiciones de pago, se irán creando automáticamente las cuentas por cobrar asociadas."
@@ -302,4 +354,3 @@ export default async function ReceivablesListPage() {
     </div>
   )
 }
-

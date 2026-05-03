@@ -9,13 +9,30 @@ import { EmptyState } from '@/components/ui/EmptyState'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const QUOTES_LIST_LIMIT = 500
+
 export default async function QuotesListPage() {
   const { prisma } = await import('@/lib/prisma')
   const quotes = await prisma.quote.findMany({
+    take: QUOTES_LIST_LIMIT,
     orderBy: { createdAt: 'desc' },
-    include: {
-      customer: true,
-      createdBy: true,
+    select: {
+      id: true,
+      quoteNumber: true,
+      status: true,
+      customerCompany: true,
+      customerName: true,
+      customerEmail: true,
+      customerPhone: true,
+      totalWithDiscount: true,
+      currency: true,
+      issuedAt: true,
+      createdBy: {
+        select: {
+          email: true,
+          name: true,
+        },
+      },
     },
   })
 
@@ -131,4 +148,3 @@ export default async function QuotesListPage() {
     </div>
   )
 }
-

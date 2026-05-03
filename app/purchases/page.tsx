@@ -10,12 +10,28 @@ import { EmptyState } from '@/components/ui/EmptyState'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const PURCHASES_LIST_LIMIT = 500
+
 export default async function PurchasesListPage() {
   const { prisma } = await import('@/lib/prisma')
   const purchases = await prisma.purchase.findMany({
+    take: PURCHASES_LIST_LIMIT,
     orderBy: { issuedAt: 'desc' },
-    include: {
-      supplier: true,
+    select: {
+      id: true,
+      purchaseNumber: true,
+      issuedAt: true,
+      currency: true,
+      totalWithDiscount: true,
+      status: true,
+      supplierCompany: true,
+      supplierName: true,
+      supplier: {
+        select: {
+          name: true,
+          company: true,
+        },
+      },
     },
   })
 
@@ -121,4 +137,3 @@ export default async function PurchasesListPage() {
     </div>
   )
 }
-

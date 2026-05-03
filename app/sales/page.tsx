@@ -9,14 +9,37 @@ import { EmptyState } from '@/components/ui/EmptyState'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const SALES_LIST_LIMIT = 500
+
 export default async function SalesListPage() {
   const { prisma } = await import('@/lib/prisma')
   const sales = await prisma.sale.findMany({
+    take: SALES_LIST_LIMIT,
     orderBy: { createdAt: 'desc' },
-    include: {
-      customer: true,
-      createdBy: true,
-      quote: true,
+    select: {
+      id: true,
+      saleNumber: true,
+      status: true,
+      customerCompany: true,
+      customerName: true,
+      customerEmail: true,
+      customerPhone: true,
+      issuedAt: true,
+      totalARS: true,
+      currency: true,
+      totalWithDiscount: true,
+      createdBy: {
+        select: {
+          email: true,
+          name: true,
+        },
+      },
+      quote: {
+        select: {
+          id: true,
+          quoteNumber: true,
+        },
+      },
     },
   })
 
@@ -159,4 +182,3 @@ export default async function SalesListPage() {
     </div>
   )
 }
-
