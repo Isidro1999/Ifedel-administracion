@@ -1,12 +1,31 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuoteStore } from '@/lib/quote-store'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
-import { DownloadQuotePdfButton } from '@/components/quote/DownloadQuotePdfButton'
+
+const DownloadQuotePdfButton = dynamic(
+  () =>
+    import('@/components/quote/DownloadQuotePdfButton').then(
+      (m) => m.DownloadQuotePdfButton,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <button
+        type="button"
+        disabled
+        className="px-4 py-2 bg-ifedel-primary text-white rounded-md opacity-60 text-sm font-medium cursor-wait"
+      >
+        Generar PDF
+      </button>
+    ),
+  },
+)
 
 export default function NewQuotePage() {
   const {
