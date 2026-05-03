@@ -10,92 +10,106 @@ export const runtime = 'nodejs'
 
 export default async function FinancePage() {
   const { prisma } = await import('@/lib/prisma')
-  const [movements, receivables, receivableInstallments, payables] = await Promise.all([
-    prisma.cashMovement.findMany(),
-    prisma.receivable.findMany(),
-    prisma.receivableInstallment.findMany({
-      include: {
-        receivable: true,
+  const today = new Date()
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+
+  const openReceivableStatuses = ['PENDING', 'PARTIAL'] as const
+  const openPayableStatuses = ['PENDING', 'PARTIAL'] as const
+
+  const [
+    sumCashIn,
+    sumCashOut,
+    sumCashInMonth,
+    sumCashOutMonth,
+    sumReceivablePaid,
+    sumPayablePaid,
+    sumInstallBalancePending,
+    sumInstallBalanceOverdue,
+    openReceivableGroups,
+    sumPayableBalancePending,
+    sumPayableBalanceOverdue,
+    openPayableCount,
+  ] = await Promise.all([
+    prisma.cashMovement.aggregate({
+      where: { type: 'IN' },
+      _sum: { amount: true },
+    }),
+    prisma.cashMovement.aggregate({
+      where: { type: 'OUT' },
+      _sum: { amount: true },
+    }),
+    prisma.cashMovement.aggregate({
+      where: {
+        type: 'IN',
+        occurredAt: { gte: startOfMonth, lte: today },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.cashMovement.aggregate({
+      where: {
+        type: 'OUT',
+        occurredAt: { gte: startOfMonth, lte: today },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.receivable.aggregate({
+      _sum: { amountPaid: true },
+    }),
+    prisma.payable.aggregate({
+      _sum: { amountPaid: true },
+    }),
+    prisma.receivableInstallment.aggregate({
+      where: { status: { in: [...openReceivableStatuses] } },
+      _sum: { balance: true },
+    }),
+    prisma.receivableInstallment.aggregate({
+      where: {
+        status: { in: [...openReceivableStatuses] },
+        dueDate: { lt: today },
+        balance: { gt: 0 },
+      },
+      _sum: { balance: true },
+    }),
+    prisma.receivableInstallment.groupBy({
+      by: ['receivableId'],
+      where: {
+        status: { in: [...openReceivableStatuses] },
+        balance: { gt: 0 },
       },
     }),
-    prisma.payable.findMany(),
+    prisma.payable.aggregate({
+      where: { status: { in: [...openPayableStatuses] } },
+      _sum: { balance: true },
+    }),
+    prisma.payable.aggregate({
+      where: {
+        status: { in: [...openPayableStatuses] },
+        dueDate: { lt: today },
+        balance: { gt: 0 },
+      },
+      _sum: { balance: true },
+    }),
+    prisma.payable.count({
+      where: { status: { in: [...openPayableStatuses] } },
+    }),
   ])
 
-  const today = new Date()
+  const saldoCaja =
+    (sumCashIn._sum.amount ?? 0) - (sumCashOut._sum.amount ?? 0)
+  const totalCobrado = sumReceivablePaid._sum.amountPaid ?? 0
+  const totalPagado = sumPayablePaid._sum.amountPaid ?? 0
 
-  const saldoCaja = movements.reduce((acc, m) => {
-    const sign = m.type === 'OUT' ? -1 : 1
-    return acc + sign * m.amount
-  }, 0)
+  const totalPorCobrarPendiente = sumInstallBalancePending._sum.balance ?? 0
+  const totalPorCobrarVencido = sumInstallBalanceOverdue._sum.balance ?? 0
 
-  const totalCobrado = receivables.reduce(
-    (acc, r) => acc + (r.amountPaid || 0),
-    0
-  )
-  const totalPagado = payables.reduce(
-    (acc, p) => acc + (p.amountPaid || 0),
-    0
-  )
+  const totalPorPagarPendiente = sumPayableBalancePending._sum.balance ?? 0
+  const totalPorPagarVencido = sumPayableBalanceOverdue._sum.balance ?? 0
 
-  const totalPorCobrarPendiente = receivableInstallments
-    .filter((i) => i.status === 'PENDING' || i.status === 'PARTIAL')
-    .reduce((acc, i) => acc + (i.balance || 0), 0)
+  const cuentasPorCobrarAbiertas = openReceivableGroups.length
+  const cuentasPorPagarAbiertas = openPayableCount
 
-  const totalPorCobrarVencido = receivableInstallments
-    .filter((i) => {
-      const due =
-        i.dueDate instanceof Date ? i.dueDate : new Date(i.dueDate as any)
-      return (
-        due < today &&
-        (i.status === 'PENDING' || i.status === 'PARTIAL') &&
-        (i.balance || 0) > 0
-      )
-    })
-    .reduce((acc, i) => acc + (i.balance || 0), 0)
-
-  const totalPorPagarPendiente = payables
-    .filter((p) => p.status === 'PENDING' || p.status === 'PARTIAL')
-    .reduce((acc, p) => acc + (p.balance || 0), 0)
-
-  const totalPorPagarVencido = payables
-    .filter((p) => {
-      const due =
-        p.dueDate instanceof Date ? p.dueDate : new Date(p.dueDate as any)
-      return (
-        due < today &&
-        (p.status === 'PENDING' || p.status === 'PARTIAL') &&
-        (p.balance || 0) > 0
-      )
-    })
-    .reduce((acc, p) => acc + (p.balance || 0), 0)
-
-  const cuentasPorCobrarAbiertas = new Set(
-    receivableInstallments
-      .filter((i) => (i.status === 'PENDING' || i.status === 'PARTIAL') && i.balance > 0)
-      .map((i) => i.receivableId)
-  ).size
-
-  const cuentasPorPagarAbiertas = payables.filter(
-    (p) => p.status === 'PENDING' || p.status === 'PARTIAL'
-  ).length
-
-  // Métricas de caja del mes actual (opcional)
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const movimientosMes = movements.filter((m) => {
-    const d =
-      m.occurredAt instanceof Date
-        ? m.occurredAt
-        : new Date(m.occurredAt as any)
-    return d >= startOfMonth && d <= today
-  })
-
-  const ingresosMes = movimientosMes
-    .filter((m) => m.type === 'IN')
-    .reduce((acc, m) => acc + m.amount, 0)
-
-  const egresosMes = movimientosMes
-    .filter((m) => m.type === 'OUT')
-    .reduce((acc, m) => acc + m.amount, 0)
+  const ingresosMes = sumCashInMonth._sum.amount ?? 0
+  const egresosMes = sumCashOutMonth._sum.amount ?? 0
 
   return (
     <div className="space-y-6">
@@ -194,4 +208,3 @@ export default async function FinancePage() {
     </div>
   )
 }
-
