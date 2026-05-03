@@ -5,6 +5,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import type { Session } from 'next-auth'
 import { SessionProvider, useSession } from 'next-auth/react'
 import { UserProvider } from '@/components/layout/UserContext'
+import { sanitizeCallbackUrl } from '@/lib/sanitize-callback-url'
 
 const PUBLIC_PATHS = ['/api/auth', '/pending', '/login']
 const isPublicPath = (path: string) =>
@@ -19,24 +20,8 @@ function authGuardLog(reason: string, data: Record<string, unknown>) {
   console.info('[AuthGuard]', reason, data)
 }
 
-/**
- * Evita loops: nunca devolver /login como destino post-login.
- */
-function sanitizeCallbackUrl(raw: string | null | undefined): string {
-  if (raw == null || raw === '') return '/'
-  let decoded = raw
-  try {
-    decoded = decodeURIComponent(raw)
-  } catch {
-    decoded = raw
-  }
-  if (!decoded.startsWith('/') || decoded.startsWith('//')) return '/'
-  if (decoded === '/login') return '/'
-  if (decoded.startsWith('/login?') || decoded.startsWith('/login/')) return '/'
-  return decoded
-}
-
 type AuthGuardProps = {
+  /** Sesión desde `auth()` en el layout. No usar `null` por defecto en el cliente: rompe SessionProvider. */
   session?: Session | null
   children: ReactNode
 }
@@ -56,11 +41,12 @@ function AuthGateInner({ children }: { children: ReactNode }) {
 
     authGuardLog('tick', {
       sessionStatus,
+      sessionUserPresent: Boolean(session?.user),
       email: session?.user?.email ?? null,
       role: (session?.user as { role?: string } | undefined)?.role ?? null,
       status: (session?.user as { status?: string } | undefined)?.status ?? null,
       pathname,
-      rawCallbackUrl: rawCallback,
+      callbackUrl: rawCallback,
       safeCallbackUrl: safeCallback,
     })
 
@@ -218,7 +204,7 @@ function AuthGateInner({ children }: { children: ReactNode }) {
   return <UserProvider user={session!.user}>{children}</UserProvider>
 }
 
-export function AuthGuard({ session = null, children }: AuthGuardProps) {
+export function AuthGuard({ session, children }: AuthGuardProps) {
   return (
     <SessionProvider
       session={session}

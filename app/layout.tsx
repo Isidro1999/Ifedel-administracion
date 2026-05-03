@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthGuard } from "@/components/AuthGuard";
 import { AppShell } from "@/components/layout/AppShell";
 import { IFEDelBrand } from "@/lib/ifedel-brand";
+import { auth } from "@/auth";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -22,15 +23,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="es" className={raleway.variable}>
       <body className="antialiased font-sans">
-        <AuthGuard>
+        <AuthGuard session={session}>
           <AppShell>{children}</AppShell>
         </AuthGuard>
       </body>

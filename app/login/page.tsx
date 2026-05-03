@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
+import { sanitizeCallbackUrl } from '@/lib/sanitize-callback-url'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -9,12 +10,15 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string }>
 }) {
-  const { callbackUrl = '/' } = await searchParams
+  const { callbackUrl: rawCallback } = await searchParams
+  const callbackUrl = sanitizeCallbackUrl(rawCallback ?? '/')
 
   async function signInWithGoogle(formData: FormData) {
     'use server'
     const { signIn } = await import('@/auth')
-    const url = (formData.get('callbackUrl') as string) || '/'
+    const url = sanitizeCallbackUrl(
+      (formData.get('callbackUrl') as string) || '/',
+    )
     await signIn('google', { redirectTo: url })
   }
 
