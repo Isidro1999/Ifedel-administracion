@@ -1,6 +1,17 @@
-import type { Sale, SaleItem, Product } from '@prisma/client'
+import type { Product } from '@prisma/client'
 import { fmtNumberAR } from '@/lib/format-money'
 import type { FinancialSettings } from '@/lib/financial-settings'
+
+/** Subconjunto de venta + ítems suficiente para calcular márgenes (p. ej. queries con `select`). */
+export type SaleLikeForMargin = {
+  exchangeRateARS: number | null
+  totalARS: number | null
+  totalWithDiscount: number
+  items: Array<{
+    qty: number
+    product: Pick<Product, 'cost' | 'costCurrency'> | null
+  }>
+}
 
 export type SaleMarginResult = {
   incomeARS: number
@@ -16,7 +27,7 @@ export type SaleMarginResult = {
 }
 
 function computeUnitCostARS(
-  product: Product | null,
+  product: Pick<Product, 'cost' | 'costCurrency'> | null,
   exchangeRateARS: number | null | undefined
 ): { unitCostARS: number; missingCost: boolean } {
   if (!product || product.cost == null) {
@@ -37,7 +48,7 @@ function computeUnitCostARS(
 }
 
 export function computeSaleMarginForSale(
-  sale: Sale & { items: (SaleItem & { product: Product | null })[] },
+  sale: SaleLikeForMargin,
   settings: FinancialSettings
 ): SaleMarginResult {
   const rate =

@@ -8,21 +8,56 @@ import { EmptyState } from '@/components/ui/EmptyState'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+const ANALYTICS_MONTHS = 12
+
 export default async function SalesAnalyticsPage() {
   const [{ prisma }, { getFinancialSettings }] = await Promise.all([
     import('@/lib/prisma'),
     import('@/lib/financial-settings'),
   ])
+
+  const issuedTo = new Date()
+  const issuedFrom = new Date(issuedTo)
+  issuedFrom.setMonth(issuedFrom.getMonth() - ANALYTICS_MONTHS)
+
   const [settings, sales] = await Promise.all([
     getFinancialSettings(),
     prisma.sale.findMany({
       orderBy: { issuedAt: 'desc' },
-      include: {
-        items: { include: { product: true }, orderBy: { sortOrder: 'asc' } },
-        customer: true,
-      },
       where: {
         status: 'CONFIRMED',
+        issuedAt: {
+          gte: issuedFrom,
+          lte: issuedTo,
+        },
+      },
+      select: {
+        id: true,
+        saleNumber: true,
+        issuedAt: true,
+        customerCompany: true,
+        customerName: true,
+        exchangeRateARS: true,
+        totalARS: true,
+        totalWithDiscount: true,
+        customer: {
+          select: {
+            company: true,
+            name: true,
+          },
+        },
+        items: {
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            qty: true,
+            product: {
+              select: {
+                cost: true,
+                costCurrency: true,
+              },
+            },
+          },
+        },
       },
     }),
   ])

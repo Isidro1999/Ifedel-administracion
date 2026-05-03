@@ -21,24 +21,47 @@ type ProductAggRow = {
   hasMissingCosts: boolean
 }
 
+const ANALYTICS_MONTHS = 12
+
 export default async function ProductsAnalyticsPage() {
   const [{ prisma }, { getFinancialSettings }] = await Promise.all([
     import('@/lib/prisma'),
     import('@/lib/financial-settings'),
   ])
+
+  const issuedTo = new Date()
+  const issuedFrom = new Date(issuedTo)
+  issuedFrom.setMonth(issuedFrom.getMonth() - ANALYTICS_MONTHS)
+
   const [settings, sales] = await Promise.all([
     getFinancialSettings(),
     prisma.sale.findMany({
       where: {
         status: 'CONFIRMED',
+        issuedAt: {
+          gte: issuedFrom,
+          lte: issuedTo,
+        },
       },
-      include: {
+      orderBy: { issuedAt: 'desc' },
+      select: {
+        exchangeRateARS: true,
+        totalARS: true,
+        totalWithDiscount: true,
         items: {
-          include: {
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            productId: true,
+            sku: true,
+            title: true,
+            total: true,
+            qty: true,
             product: {
-              include: {
-                brand: true,
-                category: true,
+              select: {
+                cost: true,
+                costCurrency: true,
+                brand: { select: { name: true } },
+                category: { select: { name: true } },
               },
             },
           },
