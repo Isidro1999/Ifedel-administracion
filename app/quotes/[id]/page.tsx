@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ConvertToSaleButton } from './ConvertToSaleButton'
 
 export const dynamic = 'force-dynamic'
@@ -74,7 +75,8 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
               Cotización {quote.quoteNumber}
             </h1>
             <p className="text-sm text-gray-600">
-              Estado: <span className="font-medium">{quote.status}</span>
+              Estado:{' '}
+              <StatusBadge status={quote.status} className="align-middle" />
             </p>
             {quote.paymentTermLabelSnapshot && (
               <p className="text-xs text-gray-600 mt-1">
@@ -94,6 +96,7 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
             </Link>
             <ConvertToSaleButton
               quoteId={quote.id}
+              quoteStatus={quote.status}
               existingSale={quote.sale ? { id: quote.sale.id, saleNumber: quote.sale.saleNumber } : null}
             />
           </div>

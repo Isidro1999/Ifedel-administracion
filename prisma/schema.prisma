@@ -229,13 +229,13 @@ model Quote {
   id          Int    @id @default(autoincrement())
   quoteNumber String @unique
 
-  /// Status de negocio esperados:
+  /// Status de negocio (string; valores habituales):
   /// - DRAFT: borrador en edición
-  /// - SAVED: guardada internamente, no enviada
+  /// - SAVED: persistida desde el flujo web (cabecera guardada)
   /// - SENT: enviada al cliente
-  /// - APPROVED: aprobada por el cliente
-  /// - REJECTED: rechazada / descartada
-  /// - EXPIRED: venció la validez
+  /// - CONFIRMED: confirmada comercialmente
+  /// - CANCELLED: anulada (soft delete; no borrar filas)
+  /// Legado / otros: APPROVED, REJECTED, EXPIRED
   status String @default("DRAFT")
 
   // Cliente (FK opcional) + snapshot embebido

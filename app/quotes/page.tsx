@@ -1,10 +1,12 @@
 import Link from 'next/link'
+import { auth } from '@/auth'
 import { btnPrimary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { CancelQuoteButton } from '@/components/quotes/CancelQuoteButton'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -12,6 +14,9 @@ export const runtime = 'nodejs'
 const QUOTES_LIST_LIMIT = 500
 
 export default async function QuotesListPage() {
+  const session = await auth()
+  const isAdmin = session?.user?.role === 'ADMIN'
+
   const { prisma } = await import('@/lib/prisma')
   const quotes = await prisma.quote.findMany({
     take: QUOTES_LIST_LIMIT,
@@ -27,6 +32,7 @@ export default async function QuotesListPage() {
       totalWithDiscount: true,
       currency: true,
       issuedAt: true,
+      sale: { select: { id: true } },
       createdBy: {
         select: {
           email: true,
@@ -109,8 +115,19 @@ export default async function QuotesListPage() {
 
                   const issuedAtLabel = issuedAt.toISOString().slice(0, 10)
 
+                  const isCancelled =
+                    (q.status || '').trim().toUpperCase() === 'CANCELLED'
+
+                  const showCancel =
+                    isAdmin && !isCancelled && q.sale == null
+
                   return (
-                    <tr key={q.id}>
+                    <tr
+                      key={q.id}
+                      className={
+                        isCancelled ? 'bg-slate-50/80 text-slate-600' : ''
+                      }
+                    >
                       <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-gray-800">
                         {q.quoteNumber}
                       </td>
@@ -133,9 +150,14 @@ export default async function QuotesListPage() {
                         {createdByLabel}
                       </td>
                       <td className="whitespace-nowrap px-4 py-2">
-                        <Link href={`/quotes/${q.id}`} className={linkAccentXs}>
-                          Ver detalle
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <Link href={`/quotes/${q.id}`} className={linkAccentXs}>
+                            Ver detalle
+                          </Link>
+                          {showCancel ? (
+                            <CancelQuoteButton quoteId={q.id} />
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   )

@@ -22,6 +22,10 @@ export async function convertQuoteToSale(quoteId: number) {
     return { error: 'Esta cotización ya fue convertida en venta' }
   }
 
+  if (quote.status === 'CANCELLED') {
+    return { error: 'La cotización está cancelada y no puede convertirse en venta.' }
+  }
+
   if (quote.items.length === 0) {
     return { error: 'La cotización no tiene ítems para convertir en venta' }
   }

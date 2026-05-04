@@ -6,12 +6,21 @@ import { convertQuoteToSale } from './actions'
 
 type Props = {
   quoteId: number
+  quoteStatus: string
   existingSale: { id: number; saleNumber: string } | null
 }
 
-export function ConvertToSaleButton({ quoteId, existingSale }: Props) {
+export function ConvertToSaleButton({ quoteId, quoteStatus, existingSale }: Props) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  if (quoteStatus === 'CANCELLED') {
+    return (
+      <p className="text-right text-xs text-gray-500 max-w-[220px]">
+        Cotización anulada
+      </p>
+    )
+  }
 
   if (existingSale) {
     return (
