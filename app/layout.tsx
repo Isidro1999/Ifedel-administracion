@@ -12,7 +12,7 @@ const raleway = Raleway({
   display: "swap",
 });
 
-export const dynamic = 'force-dynamic'
+/** `auth()` en el layout ya fuerza render dinámico; no hace falta duplicar aquí. */
 
 export const metadata: Metadata = {
   title: "Base de Productos - IFEDEL",

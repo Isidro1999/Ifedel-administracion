@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { Command, Menu, Search } from 'lucide-react'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { useCurrentUser } from '@/components/layout/UserContext'
-import { COMMAND_PALETTE_EVENT } from './CommandPalette'
+import { COMMAND_PALETTE_EVENT } from './command-palette-constants'
 
 type TopbarProps = {
   onToggleSidebar?: () => void

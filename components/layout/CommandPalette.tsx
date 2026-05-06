@@ -19,7 +19,9 @@ import {
   Wallet,
 } from 'lucide-react'
 
-export const COMMAND_PALETTE_EVENT = 'ifedel:command-palette'
+import { COMMAND_PALETTE_EVENT } from './command-palette-constants'
+
+export { COMMAND_PALETTE_EVENT }
 
 type Entry = {
   id: string

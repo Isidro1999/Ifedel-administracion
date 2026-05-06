@@ -2,11 +2,16 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Topbar } from './Topbar'
 import { Sidebar } from './Sidebar'
-import { CommandPalette } from './CommandPalette'
+
+const CommandPalette = dynamic(
+  () => import('./CommandPalette').then((m) => m.CommandPalette),
+  { ssr: false },
+)
 
 type AppShellProps = {
   children: ReactNode
