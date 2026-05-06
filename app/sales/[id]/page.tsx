@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { RegisterPaymentForm } from '@/app/receivables/[id]/RegisterPaymentForm'
 
 export const dynamic = 'force-dynamic'
@@ -64,6 +65,7 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
 
   const receivable = sale.receivable
   const hasReceivable = !!receivable
+  const saleIsCancelled = sale.status === 'CANCELLED'
   const receivableBalance = receivable?.balance ?? null
   const receivableStatus = receivable?.status ?? null
   const displayInstallments = receivable
@@ -86,13 +88,24 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
   return (
     <div className="min-h-screen p-8">
       <div className="mx-auto max-w-5xl space-y-6">
+        {saleIsCancelled && (
+          <div
+            className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+            role="status"
+          >
+            Esta venta está anulada. No se registran cobros nuevos sobre esta
+            operación; la cuenta por cobrar asociada quedó cancelada si no había
+            pagos.
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-ifedel-black">
               Venta {sale.saleNumber}
             </h1>
             <p className="text-sm text-gray-600">
-              Estado: <span className="font-medium">{sale.status}</span>
+              Estado:{' '}
+              <StatusBadge status={sale.status} className="align-middle" />
             </p>
             {sale.paymentTermLabelSnapshot && (
               <p className="text-xs text-gray-600 mt-1">
@@ -206,9 +219,14 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
                 </p>
                 <p className="text-sm text-gray-700">
                   Estado:{' '}
-                  <span className="font-semibold uppercase">
-                    {receivableStatus}
-                  </span>
+                  {receivableStatus ? (
+                    <StatusBadge
+                      status={receivableStatus}
+                      className="align-middle"
+                    />
+                  ) : (
+                    <span className="font-semibold uppercase">-</span>
+                  )}
                 </p>
                 {receivableBalance != null && (
                   <p className="text-sm text-gray-700">
@@ -313,11 +331,13 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
             </div>
           </section>
 
-          <RegisterPaymentForm
-            receivableId={receivable.id}
-            balance={receivable.balance}
-            status={receivable.status}
-          />
+          {!saleIsCancelled && (
+            <RegisterPaymentForm
+              receivableId={receivable.id}
+              balance={receivable.balance}
+              status={receivable.status}
+            />
+          )}
           </>
         )}
 

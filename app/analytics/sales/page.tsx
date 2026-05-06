@@ -5,7 +5,7 @@ import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { computeSaleMarginForSale, formatMarginPct } from '@/lib/margin'
 import { EmptyState } from '@/components/ui/EmptyState'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 120
 export const runtime = 'nodejs'
 
 const ANALYTICS_MONTHS = 12

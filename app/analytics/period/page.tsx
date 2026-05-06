@@ -4,7 +4,7 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { computeSaleMarginForSale } from '@/lib/margin'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 120
 export const runtime = 'nodejs'
 
 export default async function PeriodAnalyticsPage() {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
@@ -57,6 +57,21 @@ export default function ProductsPage() {
     currency: '', // vacío = mostrar todos los productos (no filtrar por moneda)
     sort: 'name_asc',
   })
+  const [qInput, setQInput] = useState('')
+  const [debouncedQ, setDebouncedQ] = useState('')
+  const lastCommittedQRef = useRef('')
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(qInput), 400)
+    return () => clearTimeout(id)
+  }, [qInput])
+
+  useEffect(() => {
+    if (lastCommittedQRef.current === debouncedQ) return
+    lastCommittedQRef.current = debouncedQ
+    setFilters((f) => ({ ...f, q: debouncedQ }))
+    setPagination((p) => ({ ...p, page: 1 }))
+  }, [debouncedQ])
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -148,8 +163,8 @@ export default function ProductsPage() {
             </label>
             <input
               type="text"
-              value={filters.q}
-              onChange={(e) => handleFilterChange('q', e.target.value)}
+              value={qInput}
+              onChange={(e) => setQInput(e.target.value)}
               placeholder="Buscar por nombre o SKU..."
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-ifedel-primary focus:ring-2 focus:ring-ifedel-primary"
             />

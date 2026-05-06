@@ -1,3 +1,4 @@
+import { revalidateTag, unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 
 export type FinancialSettings = {
@@ -8,28 +9,41 @@ export type FinancialSettings = {
   fixedMonthlyOverheadARS: number
 }
 
+const FINANCIAL_SETTINGS_TAG = 'financial-settings'
+
+const getFinancialSettingsCached = unstable_cache(
+  async (): Promise<FinancialSettings> => {
+    // En algunos entornos el cliente de Prisma puede estar desactualizado
+    // respecto al schema y no exponer aún `financialSettings`.
+    // En ese caso devolvemos defaults seguros en lugar de romper analytics.
+    const anyPrisma = prisma as any
+
+    const [settingsRow, financialRow] = await Promise.all([
+      prisma.settings.findFirst(),
+      anyPrisma.financialSettings?.findUnique
+        ? anyPrisma.financialSettings.findUnique({ where: { id: 1 } })
+        : Promise.resolve(null),
+    ])
+
+    const usdArsRate = settingsRow?.usdArsRate ?? 0
+
+    return {
+      usdArsRate,
+      ingresosBrutosRate: financialRow?.ingresosBrutosRate ?? 0,
+      bankCreditRate: financialRow?.bankCreditRate ?? 0,
+      bankDebitRate: financialRow?.bankDebitRate ?? 0,
+      fixedMonthlyOverheadARS: financialRow?.fixedMonthlyOverheadARS ?? 0,
+    }
+  },
+  ['financial-settings:v1'],
+  {
+    revalidate: 120,
+    tags: [FINANCIAL_SETTINGS_TAG],
+  },
+)
+
 export async function getFinancialSettings(): Promise<FinancialSettings> {
-  // En algunos entornos el cliente de Prisma puede estar desactualizado
-  // respecto al schema y no exponer aún `financialSettings`. En ese caso
-  // devolvemos defaults seguros en lugar de romper analytics.
-  const anyPrisma = prisma as any
-
-  const [settingsRow, financialRow] = await Promise.all([
-    prisma.settings.findFirst(),
-    anyPrisma.financialSettings?.findUnique
-      ? anyPrisma.financialSettings.findUnique({ where: { id: 1 } })
-      : Promise.resolve(null),
-  ])
-
-  const usdArsRate = settingsRow?.usdArsRate ?? 0
-
-  return {
-    usdArsRate,
-    ingresosBrutosRate: financialRow?.ingresosBrutosRate ?? 0,
-    bankCreditRate: financialRow?.bankCreditRate ?? 0,
-    bankDebitRate: financialRow?.bankDebitRate ?? 0,
-    fixedMonthlyOverheadARS: financialRow?.fixedMonthlyOverheadARS ?? 0,
-  }
+  return getFinancialSettingsCached()
 }
 
 export async function saveFinancialSettings(input: Omit<FinancialSettings, 'usdArsRate'>) {
@@ -56,6 +70,7 @@ export async function saveFinancialSettings(input: Omit<FinancialSettings, 'usdA
       fixedMonthlyOverheadARS: input.fixedMonthlyOverheadARS,
     },
   })
+  revalidateTag(FINANCIAL_SETTINGS_TAG)
 }
 
 

@@ -1,17 +1,42 @@
 import Link from 'next/link'
+import { auth } from '@/auth'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { btnSecondary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { CancelSaleButton } from '@/components/sales/CancelSaleButton'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const SALES_LIST_LIMIT = 500
 
+const PAID_EPS = 0.01
+
+function saleCanBeVoided(s: {
+  status: string
+  receivable: null | {
+    amountPaid: number
+    _count: { payments: number }
+    installments: Array<{ amountPaid: number }>
+  }
+}) {
+  if ((s.status || '').trim().toUpperCase() === 'CANCELLED') return false
+  if (!s.receivable) return true
+  if (s.receivable._count.payments > 0) return false
+  if (s.receivable.amountPaid > PAID_EPS) return false
+  if (s.receivable.installments.some((i) => i.amountPaid > PAID_EPS)) {
+    return false
+  }
+  return true
+}
+
 export default async function SalesListPage() {
+  const session = await auth()
+  const isAdmin = session?.user?.role === 'ADMIN'
+
   const { prisma } = await import('@/lib/prisma')
   const sales = await prisma.sale.findMany({
     take: SALES_LIST_LIMIT,
@@ -38,6 +63,13 @@ export default async function SalesListPage() {
         select: {
           id: true,
           quoteNumber: true,
+        },
+      },
+      receivable: {
+        select: {
+          amountPaid: true,
+          _count: { select: { payments: true } },
+          installments: { select: { amountPaid: true } },
         },
       },
     },
@@ -127,8 +159,17 @@ export default async function SalesListPage() {
                     ? fmtMoneyUSD(s.totalWithDiscount)
                     : null
 
+                const isCancelled =
+                  (s.status || '').trim().toUpperCase() === 'CANCELLED'
+                const showVoid = isAdmin && saleCanBeVoided(s)
+
                 return (
-                  <tr key={s.id}>
+                  <tr
+                    key={s.id}
+                    className={
+                      isCancelled ? 'bg-slate-50/80 text-slate-600' : ''
+                    }
+                  >
                     <td className="whitespace-nowrap px-4 py-2 font-mono text-xs text-gray-800">
                       {s.saleNumber}
                     </td>
@@ -168,9 +209,12 @@ export default async function SalesListPage() {
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2">
-                      <Link href={`/sales/${s.id}`} className={linkAccentXs}>
-                        Ver detalle
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <Link href={`/sales/${s.id}`} className={linkAccentXs}>
+                          Ver detalle
+                        </Link>
+                        {showVoid ? <CancelSaleButton saleId={s.id} /> : null}
+                      </div>
                     </td>
                   </tr>
                 )

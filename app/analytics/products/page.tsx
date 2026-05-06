@@ -4,7 +4,7 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { EmptyState } from '@/components/ui/EmptyState'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 120
 export const runtime = 'nodejs'
 
 type ProductAggRow = {
