@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Banknote,
   BarChart3,
+  Map,
   LayoutDashboard,
   Package,
   Settings,
@@ -65,6 +66,7 @@ const SECTIONS: Section[] = [
       { href: '/analytics/sales', label: 'Ventas', icon: BarChart3 },
       { href: '/analytics/products', label: 'Productos', icon: BarChart3 },
       { href: '/analytics/period', label: 'Períodos', icon: BarChart3 },
+      { href: '/comercial/mapa', label: 'Mapa ganadero', icon: Map },
     ],
   },
   {

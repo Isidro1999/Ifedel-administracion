@@ -14,6 +14,20 @@ const config: Config = {
           brown: "#835029", // Marrón secundario
           black: "#000000",
         },
+        ganadero: {
+          tier1: "#378ADD",
+          tier1bg: "#DDEEFF",
+          tier1text: "#0C447C",
+          tier2: "#5A9E2F",
+          tier2bg: "#D8EDCA",
+          tier2text: "#27500A",
+          tier3: "#E8973A",
+          tier3bg: "#FDECC8",
+          tier3text: "#633806",
+          tier4: "#9E9E94",
+          tier4bg: "#EAEAE6",
+          tier4text: "#444441",
+        },
       },
       fontFamily: {
         sans: ["var(--font-raleway)", "system-ui", "sans-serif"],
