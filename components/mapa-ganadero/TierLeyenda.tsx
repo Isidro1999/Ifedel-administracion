@@ -4,28 +4,37 @@ const TIERS: Tier[] = [1, 2, 3, 4]
 
 export function TierLeyenda() {
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Prioridad comercial
-      </h3>
-      <ul className="space-y-2">
-        {TIERS.map((tier) => {
-          const cfg = TIER_CONFIG[tier]
-          return (
-            <li key={tier} className="flex items-start gap-2.5 text-sm">
-              <span
-                className="mt-0.5 h-4 w-4 shrink-0 rounded-sm ring-1 ring-black/10"
-                style={{ backgroundColor: cfg.color }}
-                aria-hidden
-              />
-              <div>
-                <p className="font-medium text-slate-900">{cfg.label}</p>
-                <p className="text-xs text-slate-500">{cfg.desc}</p>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {TIERS.map((tier) => {
+        const cfg = TIER_CONFIG[tier]
+        return (
+          <li
+            key={tier}
+            className="flex items-start gap-2.5 rounded-xl border border-slate-200/80 px-3 py-2.5 ring-1 ring-slate-900/[0.02]"
+            style={{ backgroundColor: cfg.bg }}
+          >
+            <span
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full shadow-sm ring-2 ring-white"
+              style={{ backgroundColor: cfg.color }}
+              aria-hidden
+            />
+            <div className="min-w-0">
+              <p
+                className="text-xs font-bold leading-tight"
+                style={{ color: cfg.text }}
+              >
+                {cfg.label}
+              </p>
+              <p
+                className="mt-0.5 text-[11px] leading-snug opacity-80"
+                style={{ color: cfg.text }}
+              >
+                {cfg.desc}
+              </p>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
