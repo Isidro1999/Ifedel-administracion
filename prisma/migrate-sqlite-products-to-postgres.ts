@@ -421,9 +421,12 @@ async function main() {
         continue
       }
 
+      const { ensureUniqueProductSlug } = await import('../lib/product-slug')
+      const slug = await ensureUniqueProductSlug(prisma, p.title, p.sku)
       const created = await prisma.product.create({
         data: {
           sku: p.sku,
+          slug,
           ...commonData,
         },
       })

@@ -7,7 +7,7 @@ import { SessionProvider, useSession } from 'next-auth/react'
 import { UserProvider } from '@/components/layout/UserContext'
 import { sanitizeCallbackUrl } from '@/lib/sanitize-callback-url'
 
-const PUBLIC_PATHS = ['/api/auth', '/pending', '/login']
+const PUBLIC_PATHS = ['/api/auth', '/pending', '/login', '/catalogo']
 const isPublicPath = (path: string) =>
   PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))
 

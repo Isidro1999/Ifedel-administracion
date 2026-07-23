@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { ImportProduct } from '@/lib/import-schemas'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import { CatalogOnlineSection } from '@/components/admin/CatalogOnlineSection'
 
 interface ProductImage {
   id: number
@@ -23,6 +24,14 @@ interface ProductFromApi {
   costCurrency: string | null
   isActive: boolean
   isFeatured: boolean
+  slug?: string
+  catalogVisible?: boolean
+  publicTitle?: string | null
+  publicShortDescription?: string | null
+  publicDescription?: string | null
+  catalogSort?: number
+  showPrice?: boolean
+  catalogPriceList?: string | null
   brand: { name: string }
   category: { name: string }
   images: ProductImage[]
@@ -52,6 +61,14 @@ function productToForm(product: ProductFromApi): ImportProduct {
     costCurrency: product.costCurrency ?? undefined,
     isActive: product.isActive,
     isFeatured: product.isFeatured,
+    slug: product.slug ?? '',
+    catalogVisible: product.catalogVisible ?? false,
+    publicTitle: product.publicTitle ?? null,
+    publicShortDescription: product.publicShortDescription ?? null,
+    publicDescription: product.publicDescription ?? null,
+    catalogSort: product.catalogSort ?? 0,
+    showPrice: product.showPrice ?? false,
+    catalogPriceList: product.catalogPriceList ?? null,
     images: [],
     specs: product.specs.map((s) => ({
       label: s.label,
@@ -269,16 +286,16 @@ export default function EditProductPage() {
                 />
                 <span className="text-sm">Activo</span>
               </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.isFeatured}
-                  onChange={(e) => update({ isFeatured: e.target.checked })}
-                />
-                <span className="text-sm">Destacado</span>
-              </label>
             </div>
           </div>
+
+          <CatalogOnlineSection
+            form={form}
+            update={update}
+            priceListOptions={Array.from(
+              new Set(form.prices.map((p) => p.priceList).filter(Boolean)),
+            )}
+          />
 
           <div className="bg-white rounded-lg border p-4">
             <h2 className="text-lg font-semibold mb-3">Imágenes</h2>

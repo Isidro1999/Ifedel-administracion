@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
+import { requireApprovedSession } from '@/lib/session-auth'
+import { serializeProductsForApi } from '@/lib/product-api'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -68,6 +70,11 @@ function buildLatestPriceCteWhere(
 }
 
 export async function GET(request: NextRequest) {
+  const gate = await requireApprovedSession()
+  if (!gate.ok) return gate.response
+
+  const includeCost = gate.role === 'ADMIN'
+
   const { prisma } = await import('@/lib/prisma')
   try {
     const searchParams = request.nextUrl.searchParams
@@ -249,7 +256,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      items: products,
+      items: serializeProductsForApi(products, { includeCost }),
       pagination: {
         page: safePage,
         pageSize: safePageSize,

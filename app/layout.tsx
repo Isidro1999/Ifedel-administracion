@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
-import { AuthGuard } from "@/components/AuthGuard";
-import { AppShell } from "@/components/layout/AppShell";
+import { RootShell } from "@/components/layout/RootShell";
 import { IFEDelBrand } from "@/lib/ifedel-brand";
 import { auth } from "@/auth";
 
@@ -29,12 +29,15 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const headerList = headers();
+  const forceCatalog = headerList.get("x-ifedel-catalog") === "1";
+
   return (
     <html lang="es" className={raleway.variable}>
       <body className="antialiased font-sans">
-        <AuthGuard session={session}>
-          <AppShell>{children}</AppShell>
-        </AuthGuard>
+        <RootShell session={session} forceCatalog={forceCatalog}>
+          {children}
+        </RootShell>
       </body>
     </html>
   );

@@ -47,8 +47,29 @@ model Product {
   costCurrency  String?  @default("USD")
   isActive      Boolean  @default(true)
   isFeatured    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  /// Slug público único (SEO / URLs de catálogo). Backfilled desde title|sku.
+  slug String @unique
+
+  /// Si true, el producto aparece en el catálogo público.
+  catalogVisible Boolean @default(false)
+
+  /// Textos comerciales públicos (fallback a title/short/description en etapas de UI).
+  publicTitle            String?
+  publicShortDescription String?
+  publicDescription      String?
+
+  /// Orden en listados del catálogo (menor = primero).
+  catalogSort Int @default(0)
+
+  /// Si true y hay precio en catalogPriceList, el catálogo puede mostrar precio.
+  showPrice Boolean @default(false)
+
+  /// Nombre de lista de precios a usar cuando showPrice=true (ej. "PUBLICO").
+  catalogPriceList String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   brandId    Int
   brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -65,6 +86,7 @@ model Product {
   saleItems  SaleItem[]
   purchaseItems PurchaseItem[]
 
+  @@index([catalogVisible, catalogSort])
   @@map("products")
 }
 

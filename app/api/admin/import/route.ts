@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
 import { ImportProductSchema, ImportProduct } from '@/lib/import-schemas'
 import type { PrismaClient } from '@prisma/client'
+import { ensureUniqueProductSlug } from '@/lib/product-slug'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -121,10 +122,16 @@ async function processProduct(
       })
     } else {
       // CREATE: crear nuevo producto
+      const slug = await ensureUniqueProductSlug(
+        prisma,
+        validated.title,
+        validated.sku,
+      )
       await prisma.product.create({
         data: {
           sku: validated.sku,
           title: validated.title,
+          slug,
           short: validated.short,
           description: validated.description,
           cost: validated.cost,

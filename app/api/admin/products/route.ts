@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
 import { ImportProductSchema } from '@/lib/import-schemas'
+import { resolveProductSlugForSave } from '@/lib/product-slug'
+import { serializeProductForApi } from '@/lib/product-api'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -45,17 +47,41 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    let slug: string
+    try {
+      slug = await resolveProductSlugForSave(prisma, {
+        requestedSlug: data.slug,
+        title: data.title,
+        sku: data.sku,
+        requireSlug: Boolean(data.catalogVisible),
+      })
+    } catch (slugErr: unknown) {
+      const err = slugErr as { message?: string; status?: number }
+      return NextResponse.json(
+        { error: err.message || 'Slug inválido' },
+        { status: err.status || 400 },
+      )
+    }
+
     // Crear producto
     const product = await prisma.product.create({
       data: {
         sku: data.sku,
         title: data.title,
+        slug,
         short: data.short,
         description: data.description,
         cost: data.cost,
         costCurrency: data.cost != null ? (data.costCurrency ?? 'USD') : undefined,
         isActive: data.isActive,
         isFeatured: data.isFeatured,
+        catalogVisible: data.catalogVisible ?? false,
+        publicTitle: data.publicTitle?.trim() || null,
+        publicShortDescription: data.publicShortDescription?.trim() || null,
+        publicDescription: data.publicDescription?.trim() || null,
+        catalogSort: data.catalogSort ?? 0,
+        showPrice: data.showPrice ?? false,
+        catalogPriceList: data.catalogPriceList?.trim() || null,
         brandId: brand.id,
         categoryId: category.id,
         images: {
@@ -99,7 +125,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(product, { status: 201 })
+    return NextResponse.json(serializeProductForApi(product, { includeCost: true }), {
+      status: 201,
+    })
   } catch (error: any) {
     console.error('Error creating product:', error)
     if (error.name === 'ZodError') {
