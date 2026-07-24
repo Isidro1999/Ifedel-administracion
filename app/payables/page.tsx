@@ -7,6 +7,7 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,6 +16,7 @@ const PAYABLES_LIST_LIMIT = 500
 const openPayableStatuses = ['PENDING', 'PARTIAL'] as const
 
 export default async function PayablesListPage() {
+  await requireApprovedPage()
   const { prisma } = await import('@/lib/prisma')
   const today = new Date()
 

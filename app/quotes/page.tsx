@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { auth } from '@/auth'
 import { btnPrimary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
@@ -7,6 +6,7 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CancelQuoteButton } from '@/components/quotes/CancelQuoteButton'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -14,8 +14,8 @@ export const runtime = 'nodejs'
 const QUOTES_LIST_LIMIT = 500
 
 export default async function QuotesListPage() {
-  const session = await auth()
-  const isAdmin = session?.user?.role === 'ADMIN'
+  const sessionUser = await requireApprovedPage()
+  const isAdmin = sessionUser.role === 'ADMIN'
 
   const { prisma } = await import('@/lib/prisma')
   const quotes = await prisma.quote.findMany({

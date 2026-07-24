@@ -3,11 +3,13 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { computeSaleMarginForSale } from '@/lib/margin'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const revalidate = 120
 export const runtime = 'nodejs'
 
 export default async function PeriodAnalyticsPage() {
+  await requireApprovedPage()
   const [{ prisma }, { getFinancialSettings }] = await Promise.all([
     import('@/lib/prisma'),
     import('@/lib/financial-settings'),

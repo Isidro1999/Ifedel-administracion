@@ -1,21 +1,16 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { UserActions } from './UserActions'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
+import { requireAdminPage } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+/** Auth ADMIN: layout `app/admin/layout.tsx`. */
 export default async function AdminUsersPage() {
-  const [{ auth }, { prisma }] = await Promise.all([
-    import('@/auth'),
-    import('@/lib/prisma'),
-  ])
-  const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
-    redirect('/')
-  }
+  await requireAdminPage()
+  const { prisma } = await import('@/lib/prisma')
 
   const [pending, approved] = await Promise.all([
     prisma.user.findMany({

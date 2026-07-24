@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { RegisterPaymentForm } from '@/app/receivables/[id]/RegisterPaymentForm'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -12,6 +13,7 @@ interface SalesDetailPageProps {
 }
 
 export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
+  await requireApprovedPage()
   const { prisma } = await import('@/lib/prisma')
   const id = Number(params.id)
   if (!Number.isFinite(id) || id <= 0) {

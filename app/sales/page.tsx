@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { auth } from '@/auth'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { btnSecondary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -7,6 +6,7 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CancelSaleButton } from '@/components/sales/CancelSaleButton'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -34,8 +34,8 @@ function saleCanBeVoided(s: {
 }
 
 export default async function SalesListPage() {
-  const session = await auth()
-  const isAdmin = session?.user?.role === 'ADMIN'
+  const sessionUser = await requireApprovedPage()
+  const isAdmin = sessionUser.role === 'ADMIN'
 
   const { prisma } = await import('@/lib/prisma')
   const sales = await prisma.sale.findMany({

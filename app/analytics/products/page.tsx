@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const revalidate = 120
 export const runtime = 'nodejs'
@@ -24,6 +25,7 @@ type ProductAggRow = {
 const ANALYTICS_MONTHS = 12
 
 export default async function ProductsAnalyticsPage() {
+  await requireApprovedPage()
   const [{ prisma }, { getFinancialSettings }] = await Promise.all([
     import('@/lib/prisma'),
     import('@/lib/financial-settings'),

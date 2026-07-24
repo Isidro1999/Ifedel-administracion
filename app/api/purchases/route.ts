@@ -157,19 +157,13 @@ async function generatePurchaseNumber(tx: Prisma.TransactionClient): Promise<str
 }
 
 export async function POST(request: NextRequest) {
-  const [{ prisma }, { auth }] = await Promise.all([
+  const [{ prisma }, { requireApprovedSession }] = await Promise.all([
     import('@/lib/prisma'),
-    import('@/auth'),
+    import('@/lib/session-auth'),
   ])
-  const session = await auth()
-  const userId = (session?.user as { id?: string } | null)?.id
-
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'No autenticado' },
-      { status: 401 }
-    )
-  }
+  const gate = await requireApprovedSession()
+  if (!gate.ok) return gate.response
+  const userId = gate.userId
 
   let payload: PurchasePayload
 

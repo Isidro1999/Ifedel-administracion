@@ -4,6 +4,7 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { computeSaleMarginForSale, formatMarginPct } from '@/lib/margin'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const revalidate = 120
 export const runtime = 'nodejs'
@@ -11,6 +12,7 @@ export const runtime = 'nodejs'
 const ANALYTICS_MONTHS = 12
 
 export default async function SalesAnalyticsPage() {
+  await requireApprovedPage()
   const [{ prisma }, { getFinancialSettings }] = await Promise.all([
     import('@/lib/prisma'),
     import('@/lib/financial-settings'),

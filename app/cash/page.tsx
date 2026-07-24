@@ -8,6 +8,7 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,6 +16,7 @@ export const runtime = 'nodejs'
 const CASH_MOVEMENTS_LIST_LIMIT = 500
 
 export default async function CashPage() {
+  await requireApprovedPage()
   const { prisma } = await import('@/lib/prisma')
 
   const [sumCashIn, sumCashOut, movementCount, movements] = await Promise.all([

@@ -1,8 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { requireApprovedAction } from '@/lib/session-auth'
 
 export type RegisterCashOutResult =
   | { success: true }
@@ -14,8 +14,11 @@ export async function registerCashOut(params: {
   concept: string
   category?: string
 }): Promise<RegisterCashOutResult> {
-  const session = await auth()
-  const userId = (session?.user as { id?: string } | null)?.id ?? null
+  const gate = await requireApprovedAction()
+  if (!gate.ok) {
+    return { success: false, error: gate.error }
+  }
+  const userId = gate.userId
 
   const rawAmount = Number(params.amount)
   if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
@@ -51,4 +54,3 @@ export async function registerCashOut(params: {
 
   return { success: true }
 }
-
