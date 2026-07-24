@@ -1,0 +1,6 @@
+-- CreateTable
+CREATE TABLE "settings" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT DEFAULT 1,
+    "usdArsRate" REAL NOT NULL,
+    "updatedAt" DATETIME NOT NULL
+);

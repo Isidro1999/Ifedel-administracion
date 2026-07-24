@@ -5,9 +5,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Producción/staging: DATABASE_URL (pooler) + DIRECT_URL (conexión directa para migraciones).
+// En local sin pooler podés usar la misma URL en ambas variables.
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Brand {
@@ -44,8 +47,29 @@ model Product {
   costCurrency  String?  @default("USD")
   isActive      Boolean  @default(true)
   isFeatured    Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  /// Slug público único (SEO / URLs de catálogo). Backfilled desde title|sku.
+  slug String @unique
+
+  /// Si true, el producto aparece en el catálogo público.
+  catalogVisible Boolean @default(false)
+
+  /// Textos comerciales públicos (fallback a title/short/description en etapas de UI).
+  publicTitle            String?
+  publicShortDescription String?
+  publicDescription      String?
+
+  /// Orden en listados del catálogo (menor = primero).
+  catalogSort Int @default(0)
+
+  /// Si true y hay precio en catalogPriceList, el catálogo puede mostrar precio.
+  showPrice Boolean @default(false)
+
+  /// Nombre de lista de precios a usar cuando showPrice=true (ej. "PUBLICO").
+  catalogPriceList String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   brandId    Int
   brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -57,6 +81,18 @@ model Product {
   prices ProductPrice[]
   files  ProductFile[]
 
+  // Relaciones con documentos comerciales (trazabilidad)
+  quoteItems QuoteItem[]
+  saleItems  SaleItem[]
+  purchaseItems PurchaseItem[]
+
+  /// Listados / filtros del catálogo público
+  @@index([catalogVisible, catalogSort])
+  @@index([catalogVisible, isActive, catalogSort])
+  @@index([catalogVisible, isActive, isFeatured])
+  @@index([catalogVisible, isActive, categoryId])
+  @@index([catalogVisible, isActive, brandId])
+  @@index([catalogVisible, isActive, isFeatured, catalogSort])
   @@map("products")
 }
 
@@ -66,6 +102,8 @@ model ProductImage {
   isPrimary  Boolean  @default(false)
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
+
+  publicId   String?  @unique
 
   productId Int
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -113,4 +151,650 @@ model ProductFile {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@map("product_files")
+}
+
+model Settings {
+  id         Int      @id @default(1)
+  usdArsRate Float
+  updatedAt  DateTime @updatedAt
+
+  @@map("settings")
+}
+
+/// Configuración económica/financiera global de IFEDEL.
+/// Se usa una única fila con id = 1.
+model FinancialSettings {
+  id                      Int      @id
+  ingresosBrutosRate      Float   @default(0)
+  bankCreditRate          Float   @default(0)
+  bankDebitRate           Float   @default(0)
+  fixedMonthlyOverheadARS Float   @default(0)
+  updatedAt               DateTime @updatedAt
+
+  @@map("financial_settings")
+}
+
+model PaymentTerm {
+  id          Int                      @id @default(autoincrement())
+  code        String                   @unique
+  label       String
+  description String?
+  isActive    Boolean                  @default(true)
+  isDefault   Boolean                  @default(false)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  installments PaymentTermInstallment[]
+
+  @@map("payment_terms")
+}
+
+model PaymentTermInstallment {
+  id            Int         @id @default(autoincrement())
+  paymentTermId Int
+  order         Int         @default(0)
+  offsetDays    Int
+  percentage    Float
+
+  paymentTerm PaymentTerm @relation(fields: [paymentTermId], references: [id], onDelete: Cascade)
+
+  @@map("payment_term_installments")
+}
+
+/// Proveedores comerciales de IFEDEL
+model Supplier {
+  id      Int    @id @default(autoincrement())
+  name    String?
+  company String?
+  email   String?
+  phone   String?
+
+  vatCondition String?
+  province     String?
+
+  isActive Boolean @default(true)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchases Purchase[]
+  payables  Payable[]
+
+  @@map("suppliers")
+}
+
+/// Clientes comerciales de IFEDEL
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  company   String?
+  email     String?
+  phone     String?
+
+  // Datos fiscales / ubicación (opcionales, simples)
+  vatCondition String?
+  province     String?
+
+  isActive Boolean @default(true)
+
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  quotes       Quote[]
+  sales        Sale[]
+  receivables  Receivable[]
+
+  @@map("customers")
+}
+
+/// Cotizaciones (cabecera)
+model Quote {
+  id          Int    @id @default(autoincrement())
+  quoteNumber String @unique
+
+  /// Status de negocio (string; valores habituales):
+  /// - DRAFT: borrador en edición
+  /// - SAVED: persistida desde el flujo web (cabecera guardada)
+  /// - SENT: enviada al cliente
+  /// - CONFIRMED: confirmada comercialmente
+  /// - CANCELLED: anulada (soft delete; no borrar filas)
+  /// Legado / otros: APPROVED, REJECTED, EXPIRED
+  status String @default("DRAFT")
+
+  // Cliente (FK opcional) + snapshot embebido
+  customerId      Int?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+
+  customerName    String?
+  customerCompany String?
+  customerEmail   String?
+  customerPhone   String?
+
+  // Tiempos
+  issuedAt  DateTime @default(now()) // fecha del documento
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime?
+
+  // Parámetros comerciales
+  currency        String  @default("USD")
+  exchangeRateARS Float?
+  validityDays    Int     @default(7)
+  discountPct     Float   @default(0)
+
+  // Condición de pago
+  paymentTermId              Int?
+  paymentTermCodeSnapshot    String?
+  paymentTermLabelSnapshot   String?
+  paymentTermInstallmentsRaw String? // JSON con offsetDays/percentage para resiliencia histórica
+
+  // Totales genéricos (en currency)
+  subtotal          Float
+  taxAmount         Float
+  total             Float
+  discountAmount    Float
+  totalWithDiscount Float
+  totalARS          Float?
+
+  notes String?
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("QuoteCreatedBy", fields: [createdByUserId], references: [id])
+
+  // Relación 0..1 con Sale
+  sale Sale? @relation("QuoteSale")
+
+  // Líneas
+  items QuoteItem[]
+
+  @@map("quotes")
+  @@index([customerId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+/// Líneas de cotización
+model QuoteItem {
+  id Int @id @default(autoincrement())
+
+  quoteId Int
+  quote   Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  // Relación opcional con Product (trazabilidad)
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Snapshot de producto
+  sku         String
+  title       String
+  description String?
+  imageUrl    String?
+
+  // Precios y cantidades en moneda de la Quote
+  currency  String @default("USD")
+  unitPrice Float  // sin IVA
+  taxRate   Float  @default(0)
+  qty       Int    @default(1)
+
+  // Totales por ítem (en currency)
+  subtotal  Float
+  taxAmount Float
+  total     Float
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("quote_items")
+  @@index([quoteId])
+  @@index([productId])
+}
+
+/// Ventas (cabecera)
+model Sale {
+  id         Int    @id @default(autoincrement())
+  saleNumber String @unique
+
+  /// Status de negocio esperados:
+  /// - DRAFT: venta en borrador
+  /// - CONFIRMED: venta confirmada
+  /// - CANCELLED: anulada (sólo registro histórico)
+  status String @default("DRAFT")
+
+  // Relación opcional a la cotización origen
+  quoteId Int? @unique
+  quote   Quote? @relation("QuoteSale", fields: [quoteId], references: [id])
+
+  // Cliente (FK opcional) + snapshot embebido
+  customerId      Int?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+
+  customerName    String?
+  customerCompany String?
+  customerEmail   String?
+  customerPhone   String?
+
+  // Tiempos
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Parámetros comerciales
+  currency        String  @default("USD")
+  exchangeRateARS Float?
+  discountPct     Float   @default(0)
+
+  // Condición de pago congelada al momento de la venta
+  paymentTermId              Int?
+  paymentTermCodeSnapshot    String?
+  paymentTermLabelSnapshot   String?
+  paymentTermInstallmentsRaw String?
+
+  // Totales genéricos (en currency)
+  subtotal          Float
+  taxAmount         Float
+  total             Float
+  discountAmount    Float
+  totalWithDiscount Float
+  totalARS          Float?
+
+  notes String?
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("SaleCreatedBy", fields: [createdByUserId], references: [id])
+
+  // Cuenta por cobrar (0..1 por venta)
+  receivable Receivable?
+
+  // Líneas
+  items SaleItem[]
+
+  @@map("sales")
+  @@index([customerId])
+  @@index([quoteId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+/// Líneas de venta
+model SaleItem {
+  id Int @id @default(autoincrement())
+
+  saleId Int
+  sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  // Relación opcional con Product
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Snapshot de producto
+  sku         String
+  title       String
+  description String?
+  imageUrl    String?
+
+  // Precios/cantidades en moneda de la venta
+  currency  String @default("USD")
+  unitPrice Float  // sin IVA
+  taxRate   Float  @default(0)
+  qty       Int    @default(1)
+
+  // Totales por ítem
+  subtotal  Float
+  taxAmount Float
+  total     Float
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sale_items")
+  @@index([saleId])
+  @@index([productId])
+}
+
+/// Cuenta por cobrar asociada a una venta (1:1). Base para cobros parciales/totales y proyección de ingresos.
+/// OVERDUE no se persiste: se calcula en consultas cuando dueDate < hoy y status es PENDING o PARTIAL.
+model Receivable {
+  id     Int @id @default(autoincrement())
+  saleId Int @unique
+  sale   Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
+  // Cliente: FK + snapshot mínimo para legibilidad histórica y reporting
+  customerId      Int?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  customerName    String?
+  customerCompany String?
+
+  // Montos en moneda de la venta
+  totalAmount Float
+  currency    String  @default("USD")
+  amountPaid  Float   @default(0)
+  balance    Float   // totalAmount - amountPaid; se mantiene en sync al registrar cobros
+
+  dueDate  DateTime
+  issuedAt DateTime @default(now())
+
+  /// Estados esperados (String):
+  /// - PENDING: sin cobros (amountPaid == 0)
+  /// - PARTIAL: cobro parcial (0 < amountPaid < totalAmount)
+  /// - PAID: totalmente cobrada (amountPaid >= totalAmount)
+  /// - CANCELLED: anulada (no se esperan más cobros)
+  /// OVERDUE se deriva: dueDate < hoy y status in (PENDING, PARTIAL)
+  status String @default("PENDING")
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments ReceivablePayment[]
+  installments ReceivableInstallment[]
+
+  @@map("receivables")
+  @@index([customerId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model ReceivableInstallment {
+  id           Int         @id @default(autoincrement())
+  receivableId Int
+  receivable   Receivable  @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  order     Int      @default(0)
+  dueDate   DateTime
+  amount    Float
+  amountPaid Float   @default(0)
+  balance   Float
+  status    String   @default("PENDING")
+  label     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("receivable_installments")
+  @@index([receivableId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+/// Cobro aplicado a una cuenta por cobrar. Un registro por cada pago recibido.
+model ReceivablePayment {
+  id            Int   @id @default(autoincrement())
+  receivableId  Int
+  receivable    Receivable @relation(fields: [receivableId], references: [id], onDelete: Restrict)
+
+  amount   Float   // Monto cobrado, en la moneda de la Receivable (ARS)
+  paidAt   DateTime @default(now())
+  reference String?
+  notes    String?
+
+  createdByUserId String?
+  createdBy       User? @relation("ReceivablePaymentCreatedBy", fields: [createdByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  cashMovement CashMovement?
+
+  @@map("receivable_payments")
+  @@index([receivableId])
+  @@index([paidAt])
+  @@index([createdByUserId])
+}
+
+/// Movimientos de caja (ingresos/egresos) en ARS.
+/// Fuente de verdad para el flujo de caja simple.
+model CashMovement {
+  id Int @id @default(autoincrement())
+
+  /// IN: ingreso de caja | OUT: egreso de caja
+  type String
+
+  /// Monto positivo en ARS.
+  amount Float
+
+  /// Moneda de la caja. En v1 se usa siempre ARS.
+  currency String @default("ARS")
+
+  /// Fecha en que ocurrió el movimiento.
+  occurredAt DateTime
+
+  /// Concepto descriptivo del movimiento.
+  concept String
+
+  /// Categoría opcional para agrupación: \"COBRO_CLIENTE\", \"SUELDO\", etc.
+  category String?
+
+  /// Vínculo opcional al cobro de una cuenta por cobrar (1:1).
+  receivablePaymentId Int? @unique
+  receivablePayment   ReceivablePayment? @relation(fields: [receivablePaymentId], references: [id], onDelete: SetNull)
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("CashMovementCreatedBy", fields: [createdByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("cash_movements")
+  @@index([type])
+  @@index([occurredAt])
+  @@index([category])
+  @@index([createdByUserId])
+}
+
+/// Compras a proveedores (cabecera)
+model Purchase {
+  id             Int    @id @default(autoincrement())
+  purchaseNumber String @unique
+
+  /// Status de negocio esperados:
+  /// - DRAFT: en borrador
+  /// - CONFIRMED: compra confirmada/registrada
+  /// - CANCELLED: anulada
+  status String @default("DRAFT")
+
+  // Proveedor (FK opcional) + snapshot embebido
+  supplierId      Int?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+
+  supplierName    String?
+  supplierCompany String?
+  supplierEmail   String?
+  supplierPhone   String?
+
+  // Tiempos
+  issuedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Parámetros comerciales
+  currency        String  @default("USD")
+  exchangeRateARS Float?
+  discountPct     Float   @default(0)
+
+  // Totales en moneda de la compra
+  subtotal          Float
+  taxAmount         Float
+  total             Float
+  discountAmount    Float
+  totalWithDiscount Float
+  totalARS          Float?
+
+  notes String?
+
+  // Trazabilidad
+  createdByUserId String?
+  createdBy       User? @relation("PurchaseCreatedBy", fields: [createdByUserId], references: [id])
+
+  // Relación 0..1 con cuenta por pagar
+  payable Payable?
+
+  // Líneas
+  items PurchaseItem[]
+
+  @@map("purchases")
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+/// Líneas de compra
+model PurchaseItem {
+  id Int @id @default(autoincrement())
+
+  purchaseId Int
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  // Relación opcional con Product
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Snapshot de producto
+  sku         String
+  title       String
+  description String?
+  imageUrl    String?
+
+  // Precios/cantidades en moneda de la compra
+  currency String @default("USD")
+  unitCost Float  // sin IVA
+  taxRate  Float  @default(0)
+  qty      Int    @default(1)
+
+  // Totales por ítem (en currency)
+  subtotal  Float
+  taxAmount Float
+  total     Float
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("purchase_items")
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+/// Cuentas por pagar (deuda con proveedores) asociadas a una compra (1:1).
+/// OVERDUE no se persiste; se calcula cuando dueDate < hoy y status es PENDING o PARTIAL.
+model Payable {
+  id         Int @id @default(autoincrement())
+  purchaseId Int @unique
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  // Proveedor: FK + snapshot mínimo
+  supplierId      Int?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  supplierName    String?
+  supplierCompany String?
+
+  // Montos en moneda real de pago (ARS)
+  totalAmount Float
+  currency    String @default("ARS")
+  amountPaid  Float @default(0)
+  balance     Float
+
+  dueDate  DateTime
+  issuedAt DateTime @default(now())
+
+  /// Estados esperados:
+  /// - PENDING: sin pagos
+  /// - PARTIAL: pagos parciales
+  /// - PAID: totalmente pagada
+  /// - CANCELLED: anulada (no se esperan más pagos)
+  status String @default("PENDING")
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Futuro: pagos aplicados a esta cuenta por pagar
+  // payments PayablePayment[]
+
+  @@map("payables")
+  @@index([supplierId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// --- Auth.js (NextAuth v5) + aprobación manual ---
+// SQLite no soporta enums; usamos String. Valores: PENDING, APPROVED, REJECTED / USER, ADMIN
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  image         String?
+  emailVerified DateTime?
+  role          String    @default("USER")   // USER | ADMIN
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  approvedAt    DateTime?
+  approvedById  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  approvedBy   User?   @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedUsers User[] @relation("ApprovedBy")
+
+  // Documentos comerciales creados por el usuario
+  quotesCreated              Quote[]             @relation("QuoteCreatedBy")
+  salesCreated               Sale[]              @relation("SaleCreatedBy")
+  receivablePaymentsCreated  ReceivablePayment[] @relation("ReceivablePaymentCreatedBy")
+  cashMovementsCreated       CashMovement[]      @relation("CashMovementCreatedBy")
+  purchasesCreated           Purchase[]          @relation("PurchaseCreatedBy")
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }

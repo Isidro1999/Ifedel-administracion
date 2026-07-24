@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { verifyAdminKey, unauthorizedResponse } from '@/lib/admin-auth'
 import { slugify } from '@/lib/utils'
 import { ImportProductSchema } from '@/lib/import-schemas'
+import { resolveProductSlugForSave } from '@/lib/product-slug'
+import { serializeProductForApi } from '@/lib/product-api'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (!verifyAdminKey(request)) {
-    return unauthorizedResponse()
-  }
+  const [{ prisma }, { requireAdminSession }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/admin-auth'),
+  ])
+  const gate = await requireAdminSession()
+  if (!gate.ok) return gate.response
 
   try {
     const id = parseInt(params.id)
@@ -64,32 +70,50 @@ export async function PUT(
       })
     }
 
-    // Actualizar producto (eliminar relaciones existentes y recrear)
-    await prisma.productImage.deleteMany({ where: { productId: id } })
+    // Actualizar producto (especificaciones, precios, archivos, pero no imágenes:
+    // las imágenes se gestionan por endpoints dedicados con Cloudinary)
     await prisma.productSpec.deleteMany({ where: { productId: id } })
     await prisma.productPrice.deleteMany({ where: { productId: id } })
     await prisma.productFile.deleteMany({ where: { productId: id } })
+
+    let slug: string
+    try {
+      slug = await resolveProductSlugForSave(prisma, {
+        requestedSlug: data.slug ?? existingProduct.slug,
+        title: data.title,
+        sku: data.sku,
+        excludeProductId: id,
+        requireSlug: Boolean(data.catalogVisible),
+      })
+    } catch (slugErr: unknown) {
+      const err = slugErr as { message?: string; status?: number }
+      return NextResponse.json(
+        { error: err.message || 'Slug inválido' },
+        { status: err.status || 400 },
+      )
+    }
 
     const product = await prisma.product.update({
       where: { id },
       data: {
         sku: data.sku,
         title: data.title,
+        slug,
         short: data.short,
         description: data.description,
         cost: data.cost,
         costCurrency: data.cost != null ? (data.costCurrency ?? 'USD') : undefined,
         isActive: data.isActive,
         isFeatured: data.isFeatured,
+        catalogVisible: data.catalogVisible ?? false,
+        publicTitle: data.publicTitle?.trim() || null,
+        publicShortDescription: data.publicShortDescription?.trim() || null,
+        publicDescription: data.publicDescription?.trim() || null,
+        catalogSort: data.catalogSort ?? 0,
+        showPrice: data.showPrice ?? false,
+        catalogPriceList: data.catalogPriceList?.trim() || null,
         brandId: brand.id,
         categoryId: category.id,
-        images: {
-          create: data.images.map((img) => ({
-            url: img.url,
-            isPrimary: img.isPrimary,
-            sortOrder: img.sortOrder,
-          })),
-        },
         specs: {
           create: data.specs.map((spec) => ({
             label: spec.label,
@@ -117,14 +141,16 @@ export async function PUT(
       include: {
         brand: true,
         category: true,
-        images: true,
+        images: {
+          orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
+        },
         specs: true,
         prices: true,
         files: true,
       },
     })
 
-    return NextResponse.json(product)
+    return NextResponse.json(serializeProductForApi(product, { includeCost: true }))
   } catch (error: any) {
     console.error('Error updating product:', error)
     if (error.name === 'ZodError') {
@@ -144,9 +170,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (!verifyAdminKey(request)) {
-    return unauthorizedResponse()
-  }
+  const [{ prisma }, { requireAdminSession }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/admin-auth'),
+  ])
+  const gate = await requireAdminSession()
+  if (!gate.ok) return gate.response
 
   try {
     const id = parseInt(params.id)

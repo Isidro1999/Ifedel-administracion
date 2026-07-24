@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
+import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 
 interface Product {
   id: number
@@ -35,6 +36,8 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -72,7 +75,7 @@ export default function ProductDetailPage() {
       <div className="min-h-screen p-8">
         <div className="max-w-6xl mx-auto text-center py-12">
           <p className="text-gray-500 mb-4">Producto no encontrado</p>
-          <Link href="/products" className="text-blue-600 hover:underline">
+          <Link href="/products" className="text-ifedel-primary hover:underline font-medium">
             Volver al catálogo
           </Link>
         </div>
@@ -91,12 +94,43 @@ export default function ProductDetailPage() {
     return netPrice * (1 + taxRate / 100)
   }
 
+  const handleDelete = async () => {
+    if (!confirm(`¿Eliminar el producto "${product.title}" (${product.sku})? Esta acción no se puede deshacer.`)) {
+      return
+    }
+    setDeleteError('')
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Error al eliminar')
+      }
+      router.push('/products')
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Error al eliminar el producto')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
-        <Link href="/products" className="text-blue-600 hover:underline mb-4 inline-block">
-          ← Volver al catálogo
-        </Link>
+        <div className="flex items-center gap-4 mb-4">
+          <Link href="/products" className="text-ifedel-primary hover:underline font-medium">
+            ← Volver al catálogo
+          </Link>
+          <Link
+            href={`/admin/products/${product.id}/edit`}
+            className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            Editar producto
+          </Link>
+        </div>
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
@@ -106,7 +140,10 @@ export default function ProductDetailPage() {
                 <>
                   <div className="aspect-square bg-gray-100 rounded-lg mb-4 overflow-hidden">
                     <img
-                      src={sortedImages[selectedImageIndex]?.url || sortedImages[0].url}
+                      src={getOptimizedImageUrl(
+                        sortedImages[selectedImageIndex]?.url || sortedImages[0]?.url,
+                        1200
+                      )}
                       alt={product.title}
                       className="w-full h-full object-cover"
                     />
@@ -118,11 +155,11 @@ export default function ProductDetailPage() {
                           key={img.id}
                           onClick={() => setSelectedImageIndex(idx)}
                           className={`aspect-square bg-gray-100 rounded overflow-hidden border-2 ${
-                            selectedImageIndex === idx ? 'border-blue-500' : 'border-transparent'
+                            selectedImageIndex === idx ? 'border-ifedel-primary' : 'border-transparent'
                           }`}
                         >
                           <img
-                            src={img.url}
+                            src={getOptimizedImageUrl(img.url, 400)}
                             alt={`${product.title} ${idx + 1}`}
                             className="w-full h-full object-cover"
                           />
@@ -238,6 +275,27 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* Acciones de administrador */}
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h2 className="text-xl font-semibold mb-3 text-gray-700">Eliminar producto</h2>
+                <p className="text-sm text-gray-500 mb-3">
+                  Solo usuarios administradores autenticados pueden eliminar. Se usa tu sesión actual.
+                </p>
+                <div className="flex flex-wrap items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+                  >
+                    {deleting ? 'Eliminando...' : 'Eliminar producto'}
+                  </button>
+                </div>
+                {deleteError && (
+                  <p className="mt-2 text-sm text-red-600">{deleteError}</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

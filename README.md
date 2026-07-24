@@ -35,14 +35,24 @@ Copia el archivo `.env.example` a `.env`:
 cp .env.example .env
 ```
 
-Edita `.env` y configura:
+Edita `.env` y configura **PostgreSQL** (local con Docker, Supabase, Neon, etc.):
 
 ```env
-DATABASE_URL="file:./dev.db"
-ADMIN_KEY="tu-clave-secreta-aqui"
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
 ```
 
-**Importante:** Cambia `ADMIN_KEY` por una clave segura en producción.
+En local sin pooler podés usar la **misma URL** en `DATABASE_URL` y `DIRECT_URL`. En **Vercel + Supabase/Neon**, `DATABASE_URL` suele ser la URL con **pooler** y `DIRECT_URL` la conexión **directa** (necesaria para migraciones).
+
+**Autenticación (Auth.js / NextAuth v5):**
+
+- `AUTH_SECRET`: secreto para firmar cookies/sesiones (generar con `openssl rand -base64 32`).
+- `AUTH_GOOGLE_ID` y `AUTH_GOOGLE_SECRET`: credenciales de Google OAuth (consola de Google Cloud).
+- `AUTH_URL` / `AUTH_TRUST_HOST`: ver `.env.example` para despliegue en Vercel.
+
+Las rutas `/api/admin/*` requieren **sesión** de usuario con rol **ADMIN** (no se usa `ADMIN_KEY` ni el header `x-admin-key`).
+
+Solo usuarios con estado **APPROVED** pueden usar la app; los **PENDING** ven `/pending`. El usuario con email `isidroballestrin@gmail.com` se crea como **ADMIN** y **APPROVED** automáticamente.
 
 4. **Generar el cliente de Prisma:**
 
@@ -56,7 +66,7 @@ npm run db:generate
 npm run db:migrate
 ```
 
-O si prefieres usar `db push` (útil para desarrollo):
+Opcional en desarrollo (evitar en producción): sincronizar el schema sin historial de migraciones:
 
 ```bash
 npm run db:push
@@ -110,6 +120,19 @@ El schema incluye las siguientes tablas:
 - **product_specs**: Especificaciones técnicas
 - **product_prices**: Precios (soporta múltiples listas y monedas)
 - **product_files**: Archivos asociados (manuales, fichas, etc.)
+
+El schema también incluye tablas para **Auth.js (NextAuth v5)** y aprobación manual:
+
+- **users**: Usuarios (Google); campos `role` (USER/ADMIN), `status` (PENDING/APPROVED/REJECTED), `approvedAt`, `approvedById`.
+- **accounts**, **sessions**, **verification_tokens**: Uso interno de Auth.js.
+
+### Autenticación y acceso
+
+- **Login:** Google OAuth. Sin sesión se redirige a la pantalla de inicio de sesión de Auth.js.
+- **Pendientes:** Usuarios nuevos tienen `status = PENDING` y solo pueden ver `/pending` hasta ser aprobados.
+- **Aprobados:** Solo usuarios con `status = APPROVED` acceden al resto de la app.
+- **Admin:** El usuario con email `isidroballestrin@gmail.com` se crea/actualiza como `role = ADMIN` y `status = APPROVED`. Solo **ADMIN** puede entrar a `/admin/*` (import, settings, users).
+- **Panel de usuarios:** `/admin/users` permite ver usuarios PENDING, aprobar o rechazar, y listar APPROVED.
 
 ### Migraciones
 
@@ -190,16 +213,13 @@ Obtiene los detalles completos de un producto.
 curl "http://localhost:3000/api/products/1"
 ```
 
-### Administrativos (requieren header `x-admin-key`)
+### Administrativos (requieren sesión: usuario **APPROVED** con rol **ADMIN**)
+
+Iniciá sesión en la aplicación y enviá la **cookie de sesión** en las peticiones (desde el navegador las rutas admin ya están autenticadas). Con `curl`, usá `-b` con la cookie copiada del navegador.
 
 #### POST `/api/admin/products`
 
 Crea un nuevo producto.
-
-**Headers:**
-```
-x-admin-key: tu-clave-admin
-```
 
 **Body:** Ver formato en `/docs/import-format.md`
 
@@ -208,7 +228,7 @@ x-admin-key: tu-clave-admin
 ```bash
 curl -X POST http://localhost:3000/api/admin/products \
   -H "Content-Type: application/json" \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -d '{
     "sku": "PROD-001",
     "title": "Laptop Dell",
@@ -232,7 +252,7 @@ Actualiza un producto existente.
 ```bash
 curl -X PUT http://localhost:3000/api/admin/products/1 \
   -H "Content-Type: application/json" \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -d '{...}'
 ```
 
@@ -244,17 +264,47 @@ Elimina un producto.
 
 ```bash
 curl -X DELETE http://localhost:3000/api/admin/products/1 \
-  -H "x-admin-key: tu-clave-admin"
+  -b "tu-cookie-de-sesion"
 ```
+
+#### POST `/api/admin/products/[id]/images`
+
+Sube una imagen a Cloudinary y la asocia al producto.
+
+**Body (FormData):**
+- `file`: archivo de imagen (máx 8MB)
+
+Guarda en `product_images`:
+- `url`: `secure_url` de Cloudinary
+- `publicId`: `public_id` de Cloudinary
+- `isPrimary`: `true` si es la primera imagen del producto
+- `sortOrder`: correlativo (`0,1,2,...`)
+
+#### PATCH `/api/admin/products/[id]/images/[imageId]`
+
+Actualiza metadatos de una imagen:
+
+Body (JSON, todos opcionales):
+
+```json
+{
+  "isPrimary": true,
+  "sortOrder": 1
+}
+```
+
+- `isPrimary: true`: marca esa imagen como principal y desmarca el resto.
+- `sortOrder`: actualiza el orden de la imagen.
+
+#### DELETE `/api/admin/products/[id]/images/[imageId]`
+
+Elimina una imagen:
+- Borra en Cloudinary usando `publicId` (si existe).
+- Borra el registro de `product_images`.
 
 #### POST `/api/admin/import`
 
 Importa productos masivamente desde JSON o CSV.
-
-**Headers:**
-```
-x-admin-key: tu-clave-admin
-```
 
 **Body (FormData):**
 - `file`: Archivo JSON o CSV
@@ -264,7 +314,7 @@ x-admin-key: tu-clave-admin
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.json" \
   -F "format=json"
 ```
@@ -339,24 +389,23 @@ PROD-001,Laptop Dell XPS 15,Dell,Computadoras,"[{""priceList"":""minorista"",""c
 
 ### Importar desde la UI
 
-1. Ve a `/admin/import`
-2. Ingresa tu clave de administrador
-3. Selecciona el formato (JSON o CSV)
-4. Sube el archivo
-5. Haz clic en "Importar Productos"
+1. Ve a `/admin/import` (con sesión de usuario ADMIN)
+2. Selecciona el formato (JSON o CSV)
+3. Sube el archivo
+4. Haz clic en "Importar Productos"
 
 ### Importar desde línea de comandos
 
 ```bash
 # JSON
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.json" \
   -F "format=json"
 
 # CSV
 curl -X POST http://localhost:3000/api/admin/import \
-  -H "x-admin-key: tu-clave-admin" \
+  -b "tu-cookie-de-sesion" \
   -F "file=@data/sample-products.csv" \
   -F "format=csv"
 ```
@@ -369,6 +418,7 @@ curl -X POST http://localhost:3000/api/admin/import \
 - `/products`: Catálogo de productos con filtros, búsqueda y paginación
 - `/products/[id]`: Detalle completo de un producto
 - `/admin/import`: Página de importación masiva
+- `/admin/settings`: Configuración de tipo de cambio USD → ARS
 
 ### Características de la UI
 
@@ -393,42 +443,113 @@ curl -X POST http://localhost:3000/api/admin/import \
   - Reporte de errores detallado
   - Estadísticas de importación
 
-## 🔒 Seguridad
+- **Settings:**
+  - Configuración de tipo de cambio USD → ARS
+  - Visualización de última actualización
 
-Las rutas administrativas (`/api/admin/*`) están protegidas con una clave de administrador:
+## 💱 Tipo de cambio USD → ARS
 
-1. Configura `ADMIN_KEY` en `.env`
-2. Incluye el header `x-admin-key` en todas las peticiones admin
-3. Si la clave no coincide, recibirás un error 401
+El sistema permite definir un tipo de cambio USD → ARS para mostrar precios aproximados en pesos cuando los precios están en USD.
 
-**Importante:** En producción, usa una clave segura y no la compartas públicamente.
+### Tabla `settings`
 
-## 🚀 Producción
+Se agregó una tabla `settings` (singleton) con:
 
-### Base de Datos PostgreSQL
+- `id` (Int, fijo en 1)
+- `usdArsRate` (Float): tipo de cambio (ARS por 1 USD)
+- `updatedAt` (DateTime): fecha de última actualización
 
-Para usar PostgreSQL en producción:
+### Endpoints
 
-1. Cambia `DATABASE_URL` en `.env`:
+#### GET `/api/settings/exchange-rate`
 
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/dbname?schema=public"
-```
+Endpoint público que devuelve el tipo de cambio actual:
 
-2. Cambia el provider en `prisma/schema.prisma`:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+```json
+{
+  "usdArsRate": 1085.5,
+  "updatedAt": "2026-02-27T19:15:00.000Z"
 }
 ```
 
-3. Ejecuta las migraciones:
+Si aún no se configuró, devuelve:
+
+```json
+{
+  "usdArsRate": null,
+  "updatedAt": null
+}
+```
+
+#### PUT `/api/admin/settings/exchange-rate`
+
+Endpoint admin (sesión **ADMIN**) para actualizar el tipo de cambio.
+
+**Headers:**
+
+```
+Content-Type: application/json
+```
+
+**Body:**
+
+```json
+{
+  "usdArsRate": 1085.5
+}
+```
+
+**Ejemplo:**
 
 ```bash
-npx prisma migrate deploy
+curl -X PUT http://localhost:3000/api/admin/settings/exchange-rate \
+  -H "Content-Type: application/json" \
+  -b "tu-cookie-de-sesion" \
+  -d '{"usdArsRate":1085.5}'
 ```
+
+### UI de Settings
+
+En `/admin/settings`:
+
+- Campo numérico para `usdArsRate` (ej: 1085.50).
+- Muestra el último valor guardado y la fecha/hora de actualización.
+- Usa el endpoint admin para guardar.
+
+### Cálculo de precios en ARS
+
+En el catálogo `/products`, si el producto tiene un precio en USD, se muestra:
+
+- **netPrice**: precio sin IVA
+- **ivaAmount**: `netPrice * (taxRate / 100)`
+- **totalUsd**: `netPrice + ivaAmount`
+- **totalArs**: `totalUsd * usdArsRate`
+
+En la UI se ve, por ejemplo:
+
+- Línea principal: precio final en USD (según `netPrice` + IVA)
+- Debajo: `≈ $ XXXX,XX (al tipo de cambio NNNN.NN ARS/USD)` cuando hay tipo de cambio configurado.
+
+## 🔒 Seguridad
+
+Las rutas administrativas (`/api/admin/*`) exigen **sesión NextAuth** de un usuario con rol **ADMIN** y estado **APPROVED**. Sin sesión válida recibirás **401**; sin permisos de admin, **403**.
+
+## 🚀 Producción
+
+### Base de datos (Vercel + Supabase / Neon)
+
+El proyecto usa **PostgreSQL** en producción. Configurá en Vercel (y en tu proveedor):
+
+- **`DATABASE_URL`**: URL con **pooler** (conexiones limitadas para serverless).
+- **`DIRECT_URL`**: conexión **directa** al Postgres; Prisma la usa para **`prisma migrate deploy`** (no uses `db push` en producción).
+
+Tras el despliegue o en CI, aplicá migraciones:
+
+```bash
+npm run db:deploy
+```
+
+Asegurate de que el build ejecute `prisma generate` (p. ej. `postinstall` o paso de build) y que las variables de Auth y Cloudinary estén definidas en el panel de Vercel.
 
 ### Build para Producción
 
@@ -444,15 +565,16 @@ npm start
 - `npm start`: Inicia el servidor de producción
 - `npm run lint`: Ejecuta el linter
 - `npm run db:generate`: Genera el cliente de Prisma
-- `npm run db:push`: Sincroniza el schema con la base de datos (desarrollo)
-- `npm run db:migrate`: Crea y aplica migraciones
+- `npm run db:push`: Sincroniza el schema con la base de datos (solo desarrollo; no en producción)
+- `npm run db:migrate`: Crea y aplica migraciones en desarrollo
+- `npm run db:deploy`: Aplica migraciones pendientes (staging/producción)
 - `npm run db:studio`: Abre Prisma Studio
 
 ## 🐛 Solución de Problemas
 
-### Error: "ADMIN_KEY no está configurada"
+### Error: variables `DATABASE_URL` / `DIRECT_URL`
 
-Asegúrate de tener un archivo `.env` con `ADMIN_KEY` definida.
+Definí ambas en `.env` apuntando a tu instancia PostgreSQL (en local pueden ser la misma URL).
 
 ### Error: "Prisma Client not generated"
 

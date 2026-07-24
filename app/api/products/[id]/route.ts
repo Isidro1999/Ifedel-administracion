@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { requireApprovedSession } from '@/lib/session-auth'
+import { serializeProductForApi } from '@/lib/product-api'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const gate = await requireApprovedSession()
+  if (!gate.ok) return gate.response
+
+  const includeCost = gate.role === 'ADMIN'
+
+  const { prisma } = await import('@/lib/prisma')
   try {
     const id = parseInt(params.id)
 
@@ -46,7 +56,7 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(product)
+    return NextResponse.json(serializeProductForApi(product, { includeCost }))
   } catch (error) {
     console.error('Error fetching product:', error)
     return NextResponse.json(

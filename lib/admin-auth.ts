@@ -1,20 +1,57 @@
-import { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import { auth } from '@/auth'
 
-export function verifyAdminKey(request: NextRequest): boolean {
-  const adminKey = request.headers.get('x-admin-key')
-  const expectedKey = process.env.ADMIN_KEY
+export type RequireAdminResult =
+  | { ok: true; userId: string }
+  | { ok: false; response: NextResponse }
 
-  if (!expectedKey) {
-    console.error('ADMIN_KEY no está configurada en las variables de entorno')
-    return false
+/**
+ * Valida sesión NextAuth: usuario autenticado, APPROVED y role ADMIN.
+ * Usar en rutas `app/api/admin/**`.
+ */
+export async function requireAdminSession(): Promise<RequireAdminResult> {
+  const session = await auth()
+  const user = session?.user
+
+  if (!user) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'No autenticado' }, { status: 401 }),
+    }
   }
 
-  return adminKey === expectedKey
+  const status = (user as { status?: string }).status
+  const role = (user as { role?: string }).role
+  const userId = (user as { id?: string }).id
+
+  if (!userId) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Sesión inválida' }, { status: 401 }),
+    }
+  }
+
+  if (status !== 'APPROVED') {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Cuenta no aprobada' }, { status: 403 }),
+    }
+  }
+
+  if (role !== 'ADMIN') {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'No autorizado' }, { status: 403 }),
+    }
+  }
+
+  return { ok: true, userId }
 }
 
-export function unauthorizedResponse() {
-  return Response.json(
-    { error: 'No autorizado. Se requiere header x-admin-key válido.' },
-    { status: 401 }
+/** Respuesta genérica cuando falla una comprobación manual (poco usada). */
+export function forbiddenAdminResponse() {
+  return NextResponse.json(
+    { error: 'No autorizado. Se requiere sesión de administrador.' },
+    { status: 403 }
   )
 }
