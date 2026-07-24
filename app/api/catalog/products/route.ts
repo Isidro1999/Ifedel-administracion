@@ -6,18 +6,19 @@
  * Whitelist vía serializeCatalogProductListItem.
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { CATALOG_API_CACHE_CONTROL } from '@/lib/catalog-cache'
 import {
   CatalogQueryError,
-  queryCatalogProducts,
+  getCatalogProducts,
 } from '@/lib/catalog-queries'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams
-    const data = await queryCatalogProducts({
+    const data = await getCatalogProducts({
       q: sp.get('q') || undefined,
       brand: sp.get('brand') || undefined,
       category: sp.get('category') || undefined,
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest) {
       page: sp.get('page') || undefined,
       pageSize: sp.get('pageSize') || undefined,
     })
-    return NextResponse.json(data)
+    return NextResponse.json(data, {
+      headers: { 'Cache-Control': CATALOG_API_CACHE_CONTROL },
+    })
   } catch (error) {
     if (error instanceof CatalogQueryError) {
       return NextResponse.json({ error: error.message }, { status: error.status })

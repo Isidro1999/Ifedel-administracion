@@ -86,7 +86,13 @@ model Product {
   saleItems  SaleItem[]
   purchaseItems PurchaseItem[]
 
+  /// Listados / filtros del catálogo público
   @@index([catalogVisible, catalogSort])
+  @@index([catalogVisible, isActive, catalogSort])
+  @@index([catalogVisible, isActive, isFeatured])
+  @@index([catalogVisible, isActive, categoryId])
+  @@index([catalogVisible, isActive, brandId])
+  @@index([catalogVisible, isActive, isFeatured, catalogSort])
   @@map("products")
 }
 

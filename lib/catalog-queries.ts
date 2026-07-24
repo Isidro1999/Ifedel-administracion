@@ -4,10 +4,16 @@
  * Nunca expone cost, márgenes ni precios internos.
  */
 
+import { unstable_cache } from 'next/cache'
 import {
   serializeCatalogProductDetail,
   serializeCatalogProductListItem,
 } from '@/lib/catalog-api'
+import {
+  CATALOG_CACHE_TAGS,
+  CATALOG_REVALIDATE_SECONDS,
+} from '@/lib/catalog-cache'
+import { withPerf } from '@/lib/perf'
 import type {
   CatalogBrand,
   CatalogCategory,
@@ -17,6 +23,88 @@ import type {
 
 const MAX_PAGE_SIZE = 48
 const DEFAULT_PAGE_SIZE = 12
+
+const listItemSelect = {
+  id: true,
+  sku: true,
+  title: true,
+  short: true,
+  slug: true,
+  publicTitle: true,
+  publicShortDescription: true,
+  catalogSort: true,
+  showPrice: true,
+  catalogPriceList: true,
+  isFeatured: true,
+  brand: { select: { id: true, name: true, slug: true } },
+  category: { select: { id: true, name: true, slug: true } },
+  images: {
+    orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
+    take: 1,
+    select: {
+      id: true,
+      url: true,
+      isPrimary: true,
+      sortOrder: true,
+    },
+  },
+}
+
+const detailSelect = {
+  id: true,
+  sku: true,
+  title: true,
+  short: true,
+  description: true,
+  slug: true,
+  publicTitle: true,
+  publicShortDescription: true,
+  publicDescription: true,
+  catalogSort: true,
+  showPrice: true,
+  catalogPriceList: true,
+  isFeatured: true,
+  brand: { select: { id: true, name: true, slug: true } },
+  category: { select: { id: true, name: true, slug: true } },
+  images: {
+    orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
+    select: {
+      id: true,
+      url: true,
+      isPrimary: true,
+      sortOrder: true,
+    },
+  },
+  specs: {
+    orderBy: { sortOrder: 'asc' as const },
+    select: {
+      id: true,
+      label: true,
+      value: true,
+      sortOrder: true,
+    },
+  },
+  files: {
+    orderBy: { createdAt: 'desc' as const },
+    select: {
+      id: true,
+      type: true,
+      url: true,
+    },
+  },
+}
+
+const priceSelect = {
+  id: true,
+  productId: true,
+  priceList: true,
+  currency: true,
+  netPrice: true,
+  taxRate: true,
+  validFrom: true,
+  validTo: true,
+  createdAt: true,
+}
 
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
   if (raw == null || raw === '') return fallback
@@ -48,143 +136,147 @@ function logCatalogError(scope: string, error: unknown) {
   console.error(scope, error)
 }
 
-export async function queryCatalogProducts(
+function normalizeListParams(params: CatalogProductListParams = {}) {
+  const q = (params.q || '').trim()
+  const brand = (params.brand || '').trim()
+  const category = (params.category || '').trim()
+  const featuredRaw = (params.featured || '').trim().toLowerCase()
+
+  if (
+    featuredRaw &&
+    !['1', 'true', 'yes', '0', 'false', 'no'].includes(featuredRaw)
+  ) {
+    throw new CatalogQueryError(
+      'Parámetro featured inválido (usar true|false)',
+      400,
+    )
+  }
+
+  const featuredOnly =
+    featuredRaw === '1' || featuredRaw === 'true' || featuredRaw === 'yes'
+
+  const page = parsePositiveInt(params.page, 1)
+  const pageSize = Math.min(
+    parsePositiveInt(params.pageSize, DEFAULT_PAGE_SIZE),
+    MAX_PAGE_SIZE,
+  )
+
+  return { q, brand, category, featuredOnly, page, pageSize }
+}
+
+type PriceRow = {
+  productId: number
+  priceList: string
+  currency: string
+  netPrice: number
+  taxRate: number
+  validFrom: Date | null
+  validTo: Date | null
+  createdAt: Date
+}
+
+async function loadPublicPricesForProducts(
+  products: Array<{
+    id: number
+    showPrice: boolean
+    catalogPriceList: string | null
+  }>,
+): Promise<Map<number, PriceRow[]>> {
+  const map = new Map<number, PriceRow[]>()
+  const needPrice = products.filter(
+    (p) => p.showPrice && Boolean(p.catalogPriceList?.trim()),
+  )
+  if (needPrice.length === 0) return map
+
+  const { prisma } = await import('@/lib/prisma')
+  const prices = await prisma.productPrice.findMany({
+    where: {
+      OR: needPrice.map((p) => ({
+        productId: p.id,
+        priceList: p.catalogPriceList!.trim(),
+      })),
+    },
+    orderBy: { createdAt: 'desc' },
+    select: priceSelect,
+  })
+
+  for (const pr of prices) {
+    const list = map.get(pr.productId) ?? []
+    list.push(pr)
+    map.set(pr.productId, list)
+  }
+  return map
+}
+
+async function getCatalogProductsUncached(
   params: CatalogProductListParams = {},
 ): Promise<CatalogProductsResponse> {
   const { prisma } = await import('@/lib/prisma')
+  const { q, brand, category, featuredOnly, page, pageSize } =
+    normalizeListParams(params)
+  const skip = (page - 1) * pageSize
 
-  try {
-    const q = (params.q || '').trim()
-    const brand = (params.brand || '').trim()
-    const category = (params.category || '').trim()
-    const featuredRaw = (params.featured || '').trim().toLowerCase()
+  const where: Record<string, unknown> = {
+    catalogVisible: true,
+    isActive: true,
+    ...(featuredOnly ? { isFeatured: true } : {}),
+  }
 
-    if (
-      featuredRaw &&
-      !['1', 'true', 'yes', '0', 'false', 'no'].includes(featuredRaw)
-    ) {
-      throw new CatalogQueryError(
-        'Parámetro featured inválido (usar true|false)',
-        400,
-      )
-    }
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: 'insensitive' } },
+      { publicTitle: { contains: q, mode: 'insensitive' } },
+      { sku: { contains: q, mode: 'insensitive' } },
+      { slug: { contains: q, mode: 'insensitive' } },
+    ]
+  }
 
-    const featuredOnly =
-      featuredRaw === '1' || featuredRaw === 'true' || featuredRaw === 'yes'
+  if (brand) {
+    where.brand = { slug: brand }
+  }
 
-    const page = parsePositiveInt(params.page, 1)
-    const pageSize = Math.min(
-      parsePositiveInt(params.pageSize, DEFAULT_PAGE_SIZE),
-      MAX_PAGE_SIZE,
-    )
-    const skip = (page - 1) * pageSize
+  if (category) {
+    where.category = { slug: category }
+  }
 
-    const where: Record<string, unknown> = {
-      catalogVisible: true,
-      isActive: true,
-      ...(featuredOnly ? { isFeatured: true } : {}),
-    }
+  // Secuencial (no Promise.all): con PgBouncer evita choques de prepared statements.
+  const total = await prisma.product.count({ where })
+  const products = await prisma.product.findMany({
+    where,
+    orderBy: [
+      { isFeatured: 'desc' },
+      { catalogSort: 'asc' },
+      { title: 'asc' },
+    ],
+    skip,
+    take: pageSize,
+    select: listItemSelect,
+  })
 
-    if (q) {
-      where.OR = [
-        { title: { contains: q, mode: 'insensitive' } },
-        { publicTitle: { contains: q, mode: 'insensitive' } },
-        { sku: { contains: q, mode: 'insensitive' } },
-        { slug: { contains: q, mode: 'insensitive' } },
-      ]
-    }
+  const priceMap = await loadPublicPricesForProducts(products)
 
-    if (brand) {
-      where.brand = { slug: brand }
-    }
+  const items = products.map((p) =>
+    serializeCatalogProductListItem({
+      ...p,
+      brand: p.brand ?? null,
+      category: p.category ?? null,
+      images: p.images ?? [],
+      prices: priceMap.get(p.id) ?? [],
+    }),
+  )
 
-    if (category) {
-      where.category = { slug: category }
-    }
-
-    // Secuencial (no Promise.all): con PgBouncer evita choques de prepared statements.
-    const total = await prisma.product.count({ where })
-    const products = await prisma.product.findMany({
-      where,
-      orderBy: [
-        { isFeatured: 'desc' },
-        { catalogSort: 'asc' },
-        { title: 'asc' },
-      ],
-      skip,
-      take: pageSize,
-      select: {
-        id: true,
-        sku: true,
-        title: true,
-        short: true,
-        slug: true,
-        catalogVisible: true,
-        publicTitle: true,
-        publicShortDescription: true,
-        catalogSort: true,
-        showPrice: true,
-        catalogPriceList: true,
-        isFeatured: true,
-        brand: { select: { id: true, name: true, slug: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        images: {
-          orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
-          take: 1,
-          select: {
-            id: true,
-            url: true,
-            isPrimary: true,
-            sortOrder: true,
-          },
-        },
-        // Solo se lee si showPrice; se filtra abajo. Nunca se serializa el array crudo.
-        prices: {
-          orderBy: { createdAt: 'desc' },
-          select: {
-            priceList: true,
-            currency: true,
-            netPrice: true,
-            taxRate: true,
-            validFrom: true,
-            validTo: true,
-            createdAt: true,
-          },
-        },
-      },
-    })
-
-    const items = products.map((p) => {
-      const listName = p.catalogPriceList?.trim()
-      const prices =
-        p.showPrice && listName
-          ? (p.prices ?? []).filter((pr) => pr.priceList === listName)
-          : []
-      return serializeCatalogProductListItem({
-        ...p,
-        brand: p.brand ?? null,
-        category: p.category ?? null,
-        images: p.images ?? [],
-        prices,
-      })
-    })
-
-    return {
-      items,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize) || 0,
-      },
-    }
-  } catch (error) {
-    logCatalogError('[catalog.products]', error)
-    throw error
+  return {
+    items,
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize) || 0,
+    },
   }
 }
 
-export async function queryCatalogProductBySlug(
+async function getCatalogProductBySlugUncached(
   slugRaw: string,
 ): Promise<CatalogProductDetail | null> {
   const { prisma } = await import('@/lib/prisma')
@@ -193,166 +285,203 @@ export async function queryCatalogProductBySlug(
     throw new CatalogQueryError('Slug inválido', 400)
   }
 
-  try {
-    const product = await prisma.product.findFirst({
-      where: {
-        slug,
-        catalogVisible: true,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        sku: true,
-        title: true,
-        short: true,
-        description: true,
-        slug: true,
-        catalogVisible: true,
-        publicTitle: true,
-        publicShortDescription: true,
-        publicDescription: true,
-        catalogSort: true,
-        showPrice: true,
-        catalogPriceList: true,
-        isFeatured: true,
-        brand: { select: { id: true, name: true, slug: true } },
-        category: { select: { id: true, name: true, slug: true } },
-        images: {
-          orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
-          select: {
-            id: true,
-            url: true,
-            isPrimary: true,
-            sortOrder: true,
-          },
-        },
-        specs: {
-          orderBy: { sortOrder: 'asc' },
-          select: {
-            id: true,
-            label: true,
-            value: true,
-            sortOrder: true,
-          },
-        },
-        files: {
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            type: true,
-            url: true,
-          },
-        },
-        prices: {
-          orderBy: { createdAt: 'desc' },
-          select: {
-            priceList: true,
-            currency: true,
-            netPrice: true,
-            taxRate: true,
-            validFrom: true,
-            validTo: true,
-            createdAt: true,
-          },
-        },
-      },
-    })
+  const product = await prisma.product.findFirst({
+    where: {
+      slug,
+      catalogVisible: true,
+      isActive: true,
+    },
+    select: detailSelect,
+  })
 
-    if (!product) return null
+  if (!product) return null
 
-    const listName = product.catalogPriceList?.trim()
-    const prices =
-      product.showPrice && listName
-        ? (product.prices ?? []).filter((pr) => pr.priceList === listName)
-        : []
+  const priceMap = await loadPublicPricesForProducts([product])
 
-    return serializeCatalogProductDetail({
-      ...product,
-      brand: product.brand ?? null,
-      category: product.category ?? null,
-      images: product.images ?? [],
-      specs: product.specs ?? [],
-      files: product.files ?? [],
-      prices,
-    }) as CatalogProductDetail
-  } catch (error) {
-    logCatalogError('[catalog.products.slug]', error)
-    throw error
-  }
+  return serializeCatalogProductDetail({
+    ...product,
+    brand: product.brand ?? null,
+    category: product.category ?? null,
+    images: product.images ?? [],
+    specs: product.specs ?? [],
+    files: product.files ?? [],
+    prices: priceMap.get(product.id) ?? [],
+  }) as CatalogProductDetail
 }
 
-export async function queryCatalogCategories(): Promise<CatalogCategory[]> {
+async function getCatalogCategoriesUncached(): Promise<CatalogCategory[]> {
   const { prisma } = await import('@/lib/prisma')
 
-  try {
-    const categories = await prisma.category.findMany({
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        _count: {
-          select: {
-            products: {
-              where: {
-                catalogVisible: true,
-                isActive: true,
-              },
-            },
-          },
-        },
-      },
-    })
+  // groupBy sobre Product evita traer productos y escala mejor que _count por fila.
+  const grouped = await prisma.product.groupBy({
+    by: ['categoryId'],
+    where: { catalogVisible: true, isActive: true },
+    _count: { _all: true },
+  })
 
-    return categories
-      .filter((c) => c._count.products > 0)
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        slug: c.slug,
-        count: c._count.products,
-      }))
-  } catch (error) {
-    logCatalogError('[catalog.categories]', error)
-    throw error
-  }
+  if (grouped.length === 0) return []
+
+  const counts = new Map(
+    grouped.map((g) => [g.categoryId, g._count._all] as const),
+  )
+  const categories = await prisma.category.findMany({
+    where: { id: { in: [...counts.keys()] } },
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true, slug: true },
+  })
+
+  return categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    count: counts.get(c.id) ?? 0,
+  }))
 }
 
-export async function queryCatalogBrands(): Promise<CatalogBrand[]> {
+async function getCatalogBrandsUncached(): Promise<CatalogBrand[]> {
   const { prisma } = await import('@/lib/prisma')
 
-  try {
-    // Misma forma que categories (findMany + _count filtrado).
-    // No usar groupBy: con pooler es más frágil.
-    const brands = await prisma.brand.findMany({
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        _count: {
-          select: {
-            products: {
-              where: {
-                catalogVisible: true,
-                isActive: true,
-              },
-            },
-          },
-        },
-      },
-    })
+  const grouped = await prisma.product.groupBy({
+    by: ['brandId'],
+    where: { catalogVisible: true, isActive: true },
+    _count: { _all: true },
+  })
 
-    return brands
-      .filter((b) => b._count.products > 0)
-      .map((b) => ({
-        id: b.id,
-        name: b.name,
-        slug: b.slug,
-        count: b._count.products,
-      }))
-  } catch (error) {
-    logCatalogError('[catalog.brands]', error)
-    throw error
+  if (grouped.length === 0) return []
+
+  const counts = new Map(
+    grouped.map((g) => [g.brandId, g._count._all] as const),
+  )
+  const brands = await prisma.brand.findMany({
+    where: { id: { in: [...counts.keys()] } },
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true, slug: true },
+  })
+
+  return brands.map((b) => ({
+    id: b.id,
+    name: b.name,
+    slug: b.slug,
+    count: counts.get(b.id) ?? 0,
+  }))
+}
+
+function cacheKeyForListParams(params: CatalogProductListParams): string {
+  try {
+    const n = normalizeListParams(params)
+    return JSON.stringify(n)
+  } catch {
+    return JSON.stringify(params)
   }
 }
+
+/** Listado público de productos (con caché Data Cache). */
+export async function getCatalogProducts(
+  params: CatalogProductListParams = {},
+): Promise<CatalogProductsResponse> {
+  return withPerf(
+    'getCatalogProducts',
+    async () => {
+      try {
+        const key = cacheKeyForListParams(params)
+        const cached = unstable_cache(
+          () => getCatalogProductsUncached(params),
+          ['catalog-products', key],
+          {
+            revalidate: CATALOG_REVALIDATE_SECONDS,
+            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.products],
+          },
+        )
+        return await cached()
+      } catch (error) {
+        logCatalogError('[catalog.products]', error)
+        throw error
+      }
+    },
+    (r) => r.items.length,
+  )
+}
+
+/** Detalle público por slug. */
+export async function getCatalogProductBySlug(
+  slugRaw: string,
+): Promise<CatalogProductDetail | null> {
+  return withPerf(
+    'getCatalogProductBySlug',
+    async () => {
+      try {
+        const slug = decodeURIComponent(slugRaw || '').trim()
+        if (!slug) {
+          throw new CatalogQueryError('Slug inválido', 400)
+        }
+        const cached = unstable_cache(
+          () => getCatalogProductBySlugUncached(slug),
+          ['catalog-product', slug],
+          {
+            revalidate: CATALOG_REVALIDATE_SECONDS,
+            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.product],
+          },
+        )
+        return await cached()
+      } catch (error) {
+        logCatalogError('[catalog.products.slug]', error)
+        throw error
+      }
+    },
+    (r) => (r ? 1 : 0),
+  )
+}
+
+/** Categorías con al menos un producto visible en catálogo. */
+export async function getCatalogCategories(): Promise<CatalogCategory[]> {
+  return withPerf(
+    'getCatalogCategories',
+    async () => {
+      try {
+        const cached = unstable_cache(
+          () => getCatalogCategoriesUncached(),
+          ['catalog-categories'],
+          {
+            revalidate: CATALOG_REVALIDATE_SECONDS,
+            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.categories],
+          },
+        )
+        return await cached()
+      } catch (error) {
+        logCatalogError('[catalog.categories]', error)
+        throw error
+      }
+    },
+    (r) => r.length,
+  )
+}
+
+/** Marcas con al menos un producto visible en catálogo. */
+export async function getCatalogBrands(): Promise<CatalogBrand[]> {
+  return withPerf(
+    'getCatalogBrands',
+    async () => {
+      try {
+        const cached = unstable_cache(
+          () => getCatalogBrandsUncached(),
+          ['catalog-brands'],
+          {
+            revalidate: CATALOG_REVALIDATE_SECONDS,
+            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.brands],
+          },
+        )
+        return await cached()
+      } catch (error) {
+        logCatalogError('[catalog.brands]', error)
+        throw error
+      }
+    },
+    (r) => r.length,
+  )
+}
+
+/** Aliases legacy (APIs / client). */
+export const queryCatalogProducts = getCatalogProducts
+export const queryCatalogProductBySlug = getCatalogProductBySlug
+export const queryCatalogCategories = getCatalogCategories
+export const queryCatalogBrands = getCatalogBrands

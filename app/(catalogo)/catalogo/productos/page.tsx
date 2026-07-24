@@ -15,7 +15,7 @@ import { ProductFilters } from '@/components/catalog/ProductFilters'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Productos',

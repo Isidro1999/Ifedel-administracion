@@ -13,8 +13,17 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   const requestHeaders = new Headers(req.headers)
+  requestHeaders.set('x-pathname', pathname)
   if (catalogHost) {
     requestHeaders.set('x-ifedel-catalog', '1')
+  }
+  // Ruta de catálogo en dominio principal (para saltar auth en layout).
+  if (
+    catalogHost ||
+    pathname === '/catalogo' ||
+    pathname.startsWith('/catalogo/')
+  ) {
+    requestHeaders.set('x-ifedel-catalog-route', '1')
   }
 
   // Assets / API / estáticos

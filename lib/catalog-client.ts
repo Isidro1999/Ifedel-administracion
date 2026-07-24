@@ -79,8 +79,8 @@ function isServer(): boolean {
 
 async function catalogFetch(pathWithQuery: string): Promise<Response> {
   // Solo browser: rutas relativas (mismo origen que la UI).
+  // Sin no-store: permite aprovechar Cache-Control de `/api/catalog/*`.
   const res = await fetch(pathWithQuery, {
-    cache: 'no-store',
     headers: { Accept: 'application/json' },
   })
 
@@ -129,8 +129,8 @@ export async function fetchCatalogProducts(
   params: Record<string, string | undefined> = {},
 ): Promise<CatalogProductsResponse> {
   if (isServer()) {
-    const { queryCatalogProducts } = await import('@/lib/catalog-queries')
-    return queryCatalogProducts(params)
+    const { getCatalogProducts } = await import('@/lib/catalog-queries')
+    return getCatalogProducts(params)
   }
 
   const sp = new URLSearchParams()
@@ -149,8 +149,8 @@ export async function fetchCatalogProduct(
   slug: string,
 ): Promise<CatalogProductDetail | null> {
   if (isServer()) {
-    const { queryCatalogProductBySlug } = await import('@/lib/catalog-queries')
-    return queryCatalogProductBySlug(slug)
+    const { getCatalogProductBySlug } = await import('@/lib/catalog-queries')
+    return getCatalogProductBySlug(slug)
   }
 
   const res = await catalogFetch(
@@ -163,8 +163,8 @@ export async function fetchCatalogProduct(
 
 export async function fetchCatalogCategories(): Promise<CatalogCategory[]> {
   if (isServer()) {
-    const { queryCatalogCategories } = await import('@/lib/catalog-queries')
-    return queryCatalogCategories()
+    const { getCatalogCategories } = await import('@/lib/catalog-queries')
+    return getCatalogCategories()
   }
 
   const res = await catalogFetch('/api/catalog/categories')
@@ -177,8 +177,8 @@ export async function fetchCatalogCategories(): Promise<CatalogCategory[]> {
 
 export async function fetchCatalogBrands(): Promise<CatalogBrand[]> {
   if (isServer()) {
-    const { queryCatalogBrands } = await import('@/lib/catalog-queries')
-    return queryCatalogBrands()
+    const { getCatalogBrands } = await import('@/lib/catalog-queries')
+    return getCatalogBrands()
   }
 
   const res = await catalogFetch('/api/catalog/brands')
