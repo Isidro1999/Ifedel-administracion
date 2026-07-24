@@ -21,17 +21,29 @@ export const metadata: Metadata = {
   },
 };
 
+function isCatalogUiRequest(headerList: Headers): boolean {
+  const pathname = headerList.get("x-pathname") || "";
+  // Nunca tratar /api/* como catálogo UI (incluye /api/products).
+  if (pathname.startsWith("/api")) return false;
+
+  const forceCatalog = headerList.get("x-ifedel-catalog") === "1";
+  const catalogRoute = headerList.get("x-ifedel-catalog-route") === "1";
+  const isCatalogPath =
+    pathname === "/catalogo" || pathname.startsWith("/catalogo/");
+
+  return forceCatalog || catalogRoute || isCatalogPath;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const headerList = headers();
-  const forceCatalog = headerList.get("x-ifedel-catalog") === "1";
-  const isCatalogRoute =
-    forceCatalog || headerList.get("x-ifedel-catalog-route") === "1";
+  const isCatalogRoute = isCatalogUiRequest(headerList);
 
-  // Catálogo público: no resolver sesión (ahorra roundtrip Auth/DB).
+  // Catálogo público UI: no resolver sesión (ahorra roundtrip Auth/DB).
+  // Las APIs /api/products* NO pasan por este bypass: usan requireApprovedSession().
   const session = isCatalogRoute ? null : await auth();
 
   return (
