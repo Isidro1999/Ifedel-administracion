@@ -3,32 +3,34 @@ import type { NextRequest } from 'next/server'
 import { isCatalogHostName } from '@/lib/catalog-paths'
 
 /**
- * - catalogo.ifedel.com → reescribe `/productos` → `/catalogo/productos`, etc.
- * - Dominio principal → sin cambios (catálogo en `/catalogo`).
- * - No toca `/api`, `_next`, estáticos.
+ * - catalogo.ifedel.com → reescribe UI a `/catalogo/*`.
+ * - Dominio principal → catálogo en `/catalogo`.
+ * - `/api/*` nunca se reescribe ni se marca como ruta de catálogo UI.
+ * - La excepción pública es solo `/catalogo/*` y `/api/catalog/*` (estas últimas
+ *   son públicas por diseño en sus route handlers; NO vía este flag).
  */
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || ''
   const catalogHost = isCatalogHostName(host)
   const { pathname } = req.nextUrl
+  const isApi = pathname.startsWith('/api')
+  const isCatalogUiPath =
+    pathname === '/catalogo' || pathname.startsWith('/catalogo/')
 
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set('x-pathname', pathname)
-  if (catalogHost) {
-    requestHeaders.set('x-ifedel-catalog', '1')
-  }
-  // Ruta de catálogo en dominio principal (para saltar auth en layout).
-  if (
-    catalogHost ||
-    pathname === '/catalogo' ||
-    pathname.startsWith('/catalogo/')
-  ) {
+
+  // Flags SOLO para UI del catálogo. Nunca para /api/products ni ningún /api/*.
+  if (!isApi && (catalogHost || isCatalogUiPath)) {
     requestHeaders.set('x-ifedel-catalog-route', '1')
   }
+  if (!isApi && catalogHost) {
+    requestHeaders.set('x-ifedel-catalog', '1')
+  }
 
-  // Assets / API / estáticos
+  // Assets / API / estáticos — sin rewrite
   if (
-    pathname.startsWith('/api') ||
+    isApi ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/brand') ||
     pathname.startsWith('/favicon') ||
@@ -46,11 +48,10 @@ export function middleware(req: NextRequest) {
   }
 
   // En subdominio, URLs con prefijo /catalogo → redirect limpio (SEO / UX)
-  if (pathname === '/catalogo' || pathname.startsWith('/catalogo/')) {
+  if (isCatalogUiPath) {
     const url = req.nextUrl.clone()
     const rest =
       pathname === '/catalogo' ? '/' : pathname.slice('/catalogo'.length) || '/'
-    // Evitar /catalogo/catalogo
     const clean =
       rest === '/catalogo' || rest.startsWith('/catalogo/')
         ? rest.replace(/^\/catalogo/, '') || '/'
@@ -67,7 +68,6 @@ export function middleware(req: NextRequest) {
     url.pathname = `/catalogo${pathname}`
   }
 
-  // Guard contra doble prefijo
   if (url.pathname.startsWith('/catalogo/catalogo')) {
     url.pathname = url.pathname.replace(/^\/catalogo\/catalogo/, '/catalogo')
   }

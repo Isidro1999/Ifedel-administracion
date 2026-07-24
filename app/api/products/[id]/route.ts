@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApprovedSession } from '@/lib/session-auth'
+import {
+  privateApiHeaders,
+  requireApprovedSession,
+} from '@/lib/session-auth'
 import { serializeProductForApi } from '@/lib/product-api'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+/**
+ * API INTERNA — requiere sesión APPROVED.
+ * No es pública. El catálogo público usa `/api/catalog/*`.
+ */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: { id: string } },
 ) {
   const gate = await requireApprovedSession()
   if (!gate.ok) return gate.response
@@ -21,7 +28,7 @@ export async function GET(
     if (isNaN(id)) {
       return NextResponse.json(
         { error: 'ID inválido' },
-        { status: 400 }
+        { status: 400, headers: privateApiHeaders() },
       )
     }
 
@@ -52,16 +59,18 @@ export async function GET(
     if (!product) {
       return NextResponse.json(
         { error: 'Producto no encontrado' },
-        { status: 404 }
+        { status: 404, headers: privateApiHeaders() },
       )
     }
 
-    return NextResponse.json(serializeProductForApi(product, { includeCost }))
+    return NextResponse.json(serializeProductForApi(product, { includeCost }), {
+      headers: privateApiHeaders(),
+    })
   } catch (error) {
     console.error('Error fetching product:', error)
     return NextResponse.json(
       { error: 'Error al obtener producto' },
-      { status: 500 }
+      { status: 500, headers: privateApiHeaders() },
     )
   }
 }

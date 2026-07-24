@@ -1,6 +1,17 @@
+/**
+ * GET /api/products
+ *
+ * API INTERNA — requiere sesión APPROVED.
+ * Nunca pública. Datos sensibles (cost, prices) solo para usuarios autenticados;
+ * `cost`/`costCurrency` solo ADMIN.
+ * Catálogo público: `/api/catalog/*`.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { requireApprovedSession } from '@/lib/session-auth'
+import {
+  privateApiHeaders,
+  requireApprovedSession,
+} from '@/lib/session-auth'
 import { serializeProductsForApi } from '@/lib/product-api'
 
 export const dynamic = 'force-dynamic'
@@ -255,21 +266,24 @@ export async function GET(request: NextRequest) {
         .map((c) => ({ name: c.name, count: c._count.products })),
     }
 
-    return NextResponse.json({
-      items: serializeProductsForApi(products, { includeCost }),
-      pagination: {
-        page: safePage,
-        pageSize: safePageSize,
-        total,
-        totalPages: Math.ceil(total / safePageSize),
+    return NextResponse.json(
+      {
+        items: serializeProductsForApi(products, { includeCost }),
+        pagination: {
+          page: safePage,
+          pageSize: safePageSize,
+          total,
+          totalPages: Math.ceil(total / safePageSize),
+        },
+        facets,
       },
-      facets,
-    })
+      { headers: privateApiHeaders() },
+    )
   } catch (error) {
     console.error('Error fetching products:', error)
     return NextResponse.json(
       { error: 'Error al obtener productos' },
-      { status: 500 },
+      { status: 500, headers: privateApiHeaders() },
     )
   }
 }
