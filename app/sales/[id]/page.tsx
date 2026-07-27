@@ -4,6 +4,7 @@ import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { RegisterPaymentForm } from '@/app/receivables/[id]/RegisterPaymentForm'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -20,21 +21,71 @@ export default async function SaleDetailPage({ params }: SalesDetailPageProps) {
     notFound()
   }
 
-  const sale = await prisma.sale.findUnique({
-    where: { id },
-    include: {
-      quote: true,
-      receivable: {
-        include: {
-          installments: {
-            orderBy: { order: 'asc' },
+  const sale = await withPerf('sale.detail', () =>
+    prisma.sale.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        saleNumber: true,
+        status: true,
+        customerName: true,
+        customerCompany: true,
+        customerEmail: true,
+        customerPhone: true,
+        issuedAt: true,
+        currency: true,
+        exchangeRateARS: true,
+        discountPct: true,
+        paymentTermCodeSnapshot: true,
+        paymentTermLabelSnapshot: true,
+        subtotal: true,
+        taxAmount: true,
+        total: true,
+        discountAmount: true,
+        totalWithDiscount: true,
+        totalARS: true,
+        notes: true,
+        quote: { select: { id: true, quoteNumber: true } },
+        createdBy: { select: { email: true, name: true } },
+        receivable: {
+          select: {
+            id: true,
+            balance: true,
+            status: true,
+            dueDate: true,
+            totalAmount: true,
+            amountPaid: true,
+            installments: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                order: true,
+                dueDate: true,
+                amount: true,
+                amountPaid: true,
+                balance: true,
+                status: true,
+              },
+            },
+          },
+        },
+        items: {
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            sku: true,
+            title: true,
+            description: true,
+            qty: true,
+            unitPrice: true,
+            taxRate: true,
+            subtotal: true,
+            total: true,
           },
         },
       },
-      createdBy: true,
-      items: { orderBy: { sortOrder: 'asc' } },
-    },
-  })
+    }),
+  )
 
   if (!sale) {
     notFound()

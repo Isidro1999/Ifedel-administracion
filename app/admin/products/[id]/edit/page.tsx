@@ -102,7 +102,7 @@ export default function EditProductPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`/api/products/${id}`)
+        const res = await fetch(`/api/products/${id}?view=edit`)
         if (!res.ok) {
           setError('Producto no encontrado')
           setLoading(false)
@@ -359,10 +359,13 @@ export default function EditProductPage() {
                     className="flex items-center gap-3 border rounded-md p-2 bg-gray-50"
                   >
                     <div className="w-16 h-16 rounded bg-white overflow-hidden border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={getOptimizedImageUrl(img.url, 400)}
+                        src={getOptimizedImageUrl(img.url, 160)}
                         alt={form.title}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </div>
                     <div className="flex-1 min-w-[150px]">

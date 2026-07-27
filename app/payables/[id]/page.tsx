@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { RegisterPayablePaymentForm } from './RegisterPayablePaymentForm'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -21,13 +22,28 @@ export default async function PayableDetailPage({
     notFound()
   }
 
-  const payable = await prisma.payable.findUnique({
-    where: { id },
-    include: {
-      supplier: true,
-      purchase: true,
-    },
-  })
+  const payable = await withPerf('payable.detail', () =>
+    prisma.payable.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        currency: true,
+        issuedAt: true,
+        dueDate: true,
+        totalAmount: true,
+        amountPaid: true,
+        balance: true,
+        notes: true,
+        supplierName: true,
+        supplierCompany: true,
+        supplier: {
+          select: { name: true, company: true, email: true, phone: true },
+        },
+        purchase: { select: { id: true, purchaseNumber: true } },
+      },
+    }),
+  )
 
   if (!payable) {
     notFound()
@@ -192,4 +208,3 @@ export default async function PayableDetailPage({
     </div>
   )
 }
-

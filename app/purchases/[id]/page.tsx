@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -20,15 +21,48 @@ export default async function PurchaseDetailPage({
     notFound()
   }
 
-  const purchase = await prisma.purchase.findUnique({
-    where: { id },
-    include: {
-      supplier: true,
-      createdBy: true,
-      items: { orderBy: { sortOrder: 'asc' } },
-      payable: true,
-    },
-  })
+  const purchase = await withPerf('purchase.detail', () =>
+    prisma.purchase.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        purchaseNumber: true,
+        status: true,
+        supplierName: true,
+        supplierCompany: true,
+        supplierEmail: true,
+        supplierPhone: true,
+        issuedAt: true,
+        currency: true,
+        exchangeRateARS: true,
+        discountPct: true,
+        subtotal: true,
+        taxAmount: true,
+        total: true,
+        discountAmount: true,
+        totalWithDiscount: true,
+        totalARS: true,
+        notes: true,
+        supplier: { select: { name: true, company: true } },
+        createdBy: { select: { email: true, name: true } },
+        payable: { select: { id: true } },
+        items: {
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            sku: true,
+            title: true,
+            description: true,
+            qty: true,
+            unitCost: true,
+            taxRate: true,
+            subtotal: true,
+            total: true,
+          },
+        },
+      },
+    }),
+  )
 
   if (!purchase) {
     notFound()
@@ -283,4 +317,3 @@ export default async function PurchaseDetailPage({
     </div>
   )
 }
-

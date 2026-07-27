@@ -4,6 +4,7 @@ import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ConvertToSaleButton } from './ConvertToSaleButton'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -20,15 +21,52 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
     notFound()
   }
 
-  const quote = await prisma.quote.findUnique({
-    where: { id },
-    include: {
-      customer: true,
-      createdBy: true,
-      items: true,
-      sale: true,
-    },
-  })
+  // Snapshots de cliente en Quote; no hace falta customer: true.
+  const quote = await withPerf('quote.detail', () =>
+    prisma.quote.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        quoteNumber: true,
+        status: true,
+        customerName: true,
+        customerCompany: true,
+        customerEmail: true,
+        customerPhone: true,
+        issuedAt: true,
+        expiresAt: true,
+        currency: true,
+        exchangeRateARS: true,
+        discountPct: true,
+        paymentTermCodeSnapshot: true,
+        paymentTermLabelSnapshot: true,
+        subtotal: true,
+        taxAmount: true,
+        total: true,
+        discountAmount: true,
+        totalWithDiscount: true,
+        totalARS: true,
+        notes: true,
+        createdBy: { select: { email: true, name: true } },
+        items: {
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            sku: true,
+            title: true,
+            description: true,
+            qty: true,
+            unitPrice: true,
+            taxRate: true,
+            subtotal: true,
+            total: true,
+            sortOrder: true,
+          },
+        },
+        sale: { select: { id: true, saleNumber: true } },
+      },
+    }),
+  )
 
   if (!quote) {
     notFound()
@@ -260,10 +298,7 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {quote.items
-                    .slice()
-                    .sort((a, b) => a.sortOrder - b.sortOrder)
-                    .map((item) => (
+                  {quote.items.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-800">
                           {item.sku}
@@ -302,4 +337,3 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
     </div>
   )
 }
-

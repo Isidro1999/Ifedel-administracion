@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { RegisterPaymentForm } from './RegisterPaymentForm'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -21,17 +22,50 @@ export default async function ReceivableDetailPage({
     notFound()
   }
 
-  const receivable = await prisma.receivable.findUnique({
-    where: { id },
-    include: {
-      sale: true,
-      customer: true,
-      payments: { orderBy: { paidAt: 'desc' } },
-      installments: {
-        orderBy: { order: 'asc' },
+  const receivable = await withPerf('receivable.detail', () =>
+    prisma.receivable.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        currency: true,
+        issuedAt: true,
+        dueDate: true,
+        totalAmount: true,
+        amountPaid: true,
+        balance: true,
+        notes: true,
+        customerName: true,
+        customerCompany: true,
+        sale: { select: { id: true, saleNumber: true } },
+        customer: {
+          select: { name: true, company: true, email: true, phone: true },
+        },
+        payments: {
+          orderBy: { paidAt: 'desc' },
+          select: {
+            id: true,
+            paidAt: true,
+            amount: true,
+            reference: true,
+            notes: true,
+          },
+        },
+        installments: {
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            order: true,
+            dueDate: true,
+            amount: true,
+            amountPaid: true,
+            balance: true,
+            status: true,
+          },
+        },
       },
-    },
-  })
+    }),
+  )
 
   if (!receivable) {
     notFound()
@@ -347,4 +381,3 @@ export default async function ReceivableDetailPage({
     </div>
   )
 }
-
