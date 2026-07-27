@@ -132,6 +132,7 @@ model ProductPrice {
   productId Int
   product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@index([productId, priceList, createdAt])
   @@map("product_prices")
 }
 
@@ -311,6 +312,7 @@ model Quote {
   @@index([customerId])
   @@index([status])
   @@index([createdByUserId])
+  @@index([createdAt])
 }
 
 /// Líneas de cotización
@@ -416,6 +418,8 @@ model Sale {
   @@index([quoteId])
   @@index([status])
   @@index([createdByUserId])
+  @@index([createdAt])
+  @@index([status, issuedAt])
 }
 
 /// Líneas de venta
@@ -520,6 +524,7 @@ model ReceivableInstallment {
   @@index([receivableId])
   @@index([dueDate])
   @@index([status])
+  @@index([status, dueDate])
 }
 
 /// Cobro aplicado a una cuenta por cobrar. Un registro por cada pago recibido.
@@ -640,6 +645,7 @@ model Purchase {
   @@index([supplierId])
   @@index([status])
   @@index([createdByUserId])
+  @@index([issuedAt])
 }
 
 /// Líneas de compra

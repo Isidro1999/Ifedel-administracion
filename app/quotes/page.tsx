@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CancelQuoteButton } from '@/components/quotes/CancelQuoteButton'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -18,29 +19,34 @@ export default async function QuotesListPage() {
   const isAdmin = sessionUser.role === 'ADMIN'
 
   const { prisma } = await import('@/lib/prisma')
-  const quotes = await prisma.quote.findMany({
-    take: QUOTES_LIST_LIMIT,
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      quoteNumber: true,
-      status: true,
-      customerCompany: true,
-      customerName: true,
-      customerEmail: true,
-      customerPhone: true,
-      totalWithDiscount: true,
-      currency: true,
-      issuedAt: true,
-      sale: { select: { id: true } },
-      createdBy: {
+  const quotes = await withPerf(
+    'quotes.list',
+    () =>
+      prisma.quote.findMany({
+        take: QUOTES_LIST_LIMIT,
+        orderBy: { createdAt: 'desc' },
         select: {
-          email: true,
-          name: true,
+          id: true,
+          quoteNumber: true,
+          status: true,
+          customerCompany: true,
+          customerName: true,
+          customerEmail: true,
+          customerPhone: true,
+          totalWithDiscount: true,
+          currency: true,
+          issuedAt: true,
+          sale: { select: { id: true } },
+          createdBy: {
+            select: {
+              email: true,
+              name: true,
+            },
+          },
         },
-      },
-    },
-  })
+      }),
+    (rows) => rows.length,
+  )
 
   return (
     <div className="space-y-6">

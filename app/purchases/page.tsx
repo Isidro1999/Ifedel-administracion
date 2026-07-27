@@ -7,6 +7,7 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -16,26 +17,31 @@ const PURCHASES_LIST_LIMIT = 500
 export default async function PurchasesListPage() {
   await requireApprovedPage()
   const { prisma } = await import('@/lib/prisma')
-  const purchases = await prisma.purchase.findMany({
-    take: PURCHASES_LIST_LIMIT,
-    orderBy: { issuedAt: 'desc' },
-    select: {
-      id: true,
-      purchaseNumber: true,
-      issuedAt: true,
-      currency: true,
-      totalWithDiscount: true,
-      status: true,
-      supplierCompany: true,
-      supplierName: true,
-      supplier: {
+  const purchases = await withPerf(
+    'purchases.list',
+    () =>
+      prisma.purchase.findMany({
+        take: PURCHASES_LIST_LIMIT,
+        orderBy: { issuedAt: 'desc' },
         select: {
-          name: true,
-          company: true,
+          id: true,
+          purchaseNumber: true,
+          issuedAt: true,
+          currency: true,
+          totalWithDiscount: true,
+          status: true,
+          supplierCompany: true,
+          supplierName: true,
+          supplier: {
+            select: {
+              name: true,
+              company: true,
+            },
+          },
         },
-      },
-    },
-  })
+      }),
+    (rows) => rows.length,
+  )
 
   return (
     <div className="space-y-6">

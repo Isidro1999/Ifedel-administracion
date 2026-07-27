@@ -1,7 +1,17 @@
+/**
+ * GET /api/products
+ *
+ * API INTERNA — requiere sesión APPROVED.
+ * Catálogo público: `/api/catalog/*`.
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { requireApprovedSession } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 import { serializeProductsForApi } from '@/lib/product-api'
+import {
+  privateApiHeaders,
+  requireApprovedSession,
+} from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -13,9 +23,6 @@ function escapeLikePattern(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
-/**
- * Fragmentos WHERE (AND) alineados con el objeto `where` de Prisma usado en count/listado normal.
- */
 function buildProductListWhereSql(
   q: string,
   brand: string,
@@ -69,6 +76,66 @@ function buildLatestPriceCteWhere(
   return Prisma.sql`AND ${Prisma.join(ppConds, ' AND ')}`
 }
 
+function listProductSelect(priceList: string, currency: string, includeCost: boolean) {
+  return {
+    id: true,
+    sku: true,
+    title: true,
+    short: true,
+    description: true,
+    isActive: true,
+    isFeatured: true,
+    slug: true,
+    catalogVisible: true,
+    publicTitle: true,
+    publicShortDescription: true,
+    publicDescription: true,
+    catalogSort: true,
+    showPrice: true,
+    catalogPriceList: true,
+    brandId: true,
+    categoryId: true,
+    createdAt: true,
+    updatedAt: true,
+    ...(includeCost
+      ? { cost: true, costCurrency: true }
+      : {}),
+    brand: { select: { id: true, name: true, slug: true } },
+    category: { select: { id: true, name: true, slug: true } },
+    images: {
+      orderBy: [
+        { isPrimary: 'desc' as const },
+        { sortOrder: 'asc' as const },
+      ],
+      take: 1,
+      select: {
+        id: true,
+        url: true,
+        isPrimary: true,
+        sortOrder: true,
+      },
+    },
+    prices: {
+      where: {
+        ...(priceList && { priceList }),
+        ...(currency && { currency }),
+      },
+      orderBy: { createdAt: 'desc' as const },
+      take: 1,
+      select: {
+        id: true,
+        priceList: true,
+        currency: true,
+        netPrice: true,
+        taxRate: true,
+        validFrom: true,
+        validTo: true,
+        createdAt: true,
+      },
+    },
+  } satisfies Prisma.ProductSelect
+}
+
 export async function GET(request: NextRequest) {
   const gate = await requireApprovedSession()
   if (!gate.ok) return gate.response
@@ -87,7 +154,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10)
     const pageSize = parseInt(searchParams.get('pageSize') || '12', 10)
 
-    const where: Record<string, unknown> = {
+    const where: Prisma.ProductWhereInput = {
       isActive: true,
     }
 
@@ -116,7 +183,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let orderBy: Record<string, 'asc' | 'desc'> = { title: 'asc' }
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { title: 'asc' }
     const needsPriceSort = sort === 'price_asc' || sort === 'price_desc'
     switch (sort) {
       case 'name_desc':
@@ -128,148 +195,165 @@ export async function GET(request: NextRequest) {
         break
     }
 
-    const total = await prisma.product.count({ where })
+    const total = await withPerf(
+      'api.products.count',
+      () => prisma.product.count({ where }),
+      (n) => n,
+    )
 
     const safePage = Number.isFinite(page) && page > 0 ? page : 1
-    const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 12
+    const safePageSize =
+      Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 12
     const skip = (safePage - 1) * safePageSize
 
-    const productInclude: Prisma.ProductInclude = {
-      brand: true,
-      category: true,
-      images: {
-        orderBy: [
-          { isPrimary: 'desc' as const },
-          { sortOrder: 'asc' as const },
-        ],
-        take: 1,
-      },
-      prices: {
-        where: {
-          ...(priceList && { priceList }),
-          ...(currency && { currency }),
-        },
-        orderBy: { createdAt: 'desc' as const },
-      },
-    }
+    const productSelect = listProductSelect(priceList, currency, includeCost)
 
-    let products: Awaited<ReturnType<typeof prisma.product.findMany>>
+    type ListRow = Prisma.ProductGetPayload<{ select: typeof productSelect }>
+    let products: ListRow[]
 
     if (needsPriceSort) {
-      const whereParts = buildProductListWhereSql(q, brand, category, priceList, currency)
-      const ctePriceFilter = buildLatestPriceCteWhere(priceList, currency)
+      products = await withPerf(
+        'api.products.list',
+        async () => {
+          const whereParts = buildProductListWhereSql(
+            q,
+            brand,
+            category,
+            priceList,
+            currency,
+          )
+          const ctePriceFilter = buildLatestPriceCteWhere(priceList, currency)
 
-      const orderSql =
-        sort === 'price_asc'
-          ? Prisma.sql`ORDER BY COALESCE(lp."netPrice", ${NO_PRICE_ASC_SENTINEL}) ASC, p."id" ASC`
-          : Prisma.sql`ORDER BY lp."netPrice" DESC NULLS FIRST, p."id" DESC`
+          const orderSql =
+            sort === 'price_asc'
+              ? Prisma.sql`ORDER BY COALESCE(lp."netPrice", ${NO_PRICE_ASC_SENTINEL}) ASC, p."id" ASC`
+              : Prisma.sql`ORDER BY lp."netPrice" DESC NULLS FIRST, p."id" DESC`
 
-      const idRows = await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`
-        WITH latest_price AS (
-          SELECT DISTINCT ON (pp."productId")
-            pp."productId",
-            pp."netPrice"
-          FROM "product_prices" pp
-          WHERE 1 = 1
-            ${ctePriceFilter}
-          ORDER BY pp."productId", pp."createdAt" DESC
-        )
-        SELECT p."id"
-        FROM "products" p
-        INNER JOIN "brands" br ON br."id" = p."brandId"
-        INNER JOIN "categories" ca ON ca."id" = p."categoryId"
-        LEFT JOIN latest_price lp ON lp."productId" = p."id"
-        WHERE ${Prisma.join(whereParts, ' AND ')}
-        ${orderSql}
-        LIMIT ${safePageSize} OFFSET ${skip}
-      `)
+          const idRows = await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`
+            WITH latest_price AS (
+              SELECT DISTINCT ON (pp."productId")
+                pp."productId",
+                pp."netPrice"
+              FROM "product_prices" pp
+              WHERE 1 = 1
+                ${ctePriceFilter}
+              ORDER BY pp."productId", pp."createdAt" DESC
+            )
+            SELECT p."id"
+            FROM "products" p
+            INNER JOIN "brands" br ON br."id" = p."brandId"
+            INNER JOIN "categories" ca ON ca."id" = p."categoryId"
+            LEFT JOIN latest_price lp ON lp."productId" = p."id"
+            WHERE ${Prisma.join(whereParts, ' AND ')}
+            ${orderSql}
+            LIMIT ${safePageSize} OFFSET ${skip}
+          `)
 
-      const orderedIds = idRows.map((r) => r.id)
-      if (orderedIds.length === 0) {
-        products = []
-      } else {
-        const fetched = await prisma.product.findMany({
-          where: { id: { in: orderedIds } },
-          include: productInclude,
-        })
-        const byId = new Map(fetched.map((p) => [p.id, p]))
-        products = orderedIds
-          .map((id) => byId.get(id))
-          .filter((p): p is NonNullable<typeof p> => p != null)
-          .map((p) => ({
-            ...p,
-            prices: p.prices.slice(0, 1),
-          }))
-      }
+          const orderedIds = idRows.map((r) => r.id)
+          if (orderedIds.length === 0) return []
+
+          const fetched = await prisma.product.findMany({
+            where: { id: { in: orderedIds } },
+            select: productSelect,
+          })
+          const byId = new Map(fetched.map((p) => [p.id, p]))
+          return orderedIds
+            .map((id) => byId.get(id))
+            .filter((p): p is NonNullable<typeof p> => p != null)
+        },
+        (rows) => rows.length,
+      )
     } else {
-      products = await prisma.product.findMany({
-        where,
-        include: productInclude,
-        orderBy,
-        skip,
-        take: safePageSize,
-      })
+      products = await withPerf(
+        'api.products.list',
+        () =>
+          prisma.product.findMany({
+            where,
+            select: productSelect,
+            orderBy,
+            skip,
+            take: safePageSize,
+          }),
+        (rows) => rows.length,
+      )
     }
 
-    const [brandFacets, categoryFacets] = await Promise.all([
-      prisma.brand.findMany({
-        include: {
-          _count: {
+    const facets = await withPerf(
+      'api.products.facets',
+      async () => {
+        const [brandFacets, categoryFacets] = await Promise.all([
+          prisma.brand.findMany({
             select: {
-              products: {
-                where: {
-                  isActive: true,
-                  ...(q && {
-                    OR: [{ title: { contains: q } }, { sku: { contains: q } }],
-                  }),
+              name: true,
+              _count: {
+                select: {
+                  products: {
+                    where: {
+                      isActive: true,
+                      ...(q && {
+                        OR: [
+                          { title: { contains: q } },
+                          { sku: { contains: q } },
+                        ],
+                      }),
+                    },
+                  },
                 },
               },
             },
-          },
-        },
-      }),
-      prisma.category.findMany({
-        include: {
-          _count: {
+          }),
+          prisma.category.findMany({
             select: {
-              products: {
-                where: {
-                  isActive: true,
-                  ...(q && {
-                    OR: [{ title: { contains: q } }, { sku: { contains: q } }],
-                  }),
+              name: true,
+              _count: {
+                select: {
+                  products: {
+                    where: {
+                      isActive: true,
+                      ...(q && {
+                        OR: [
+                          { title: { contains: q } },
+                          { sku: { contains: q } },
+                        ],
+                      }),
+                    },
+                  },
                 },
               },
             },
-          },
-        },
-      }),
-    ])
+          }),
+        ])
 
-    const facets = {
-      brands: brandFacets
-        .filter((b) => b._count.products > 0)
-        .map((b) => ({ name: b.name, count: b._count.products })),
-      categories: categoryFacets
-        .filter((c) => c._count.products > 0)
-        .map((c) => ({ name: c.name, count: c._count.products })),
-    }
-
-    return NextResponse.json({
-      items: serializeProductsForApi(products, { includeCost }),
-      pagination: {
-        page: safePage,
-        pageSize: safePageSize,
-        total,
-        totalPages: Math.ceil(total / safePageSize),
+        return {
+          brands: brandFacets
+            .filter((b) => b._count.products > 0)
+            .map((b) => ({ name: b.name, count: b._count.products })),
+          categories: categoryFacets
+            .filter((c) => c._count.products > 0)
+            .map((c) => ({ name: c.name, count: c._count.products })),
+        }
       },
-      facets,
-    })
+      (f) => f.brands.length + f.categories.length,
+    )
+
+    return NextResponse.json(
+      {
+        items: serializeProductsForApi(products, { includeCost }),
+        pagination: {
+          page: safePage,
+          pageSize: safePageSize,
+          total,
+          totalPages: Math.ceil(total / safePageSize),
+        },
+        facets,
+      },
+      { headers: privateApiHeaders() },
+    )
   } catch (error) {
     console.error('Error fetching products:', error)
     return NextResponse.json(
       { error: 'Error al obtener productos' },
-      { status: 500 },
+      { status: 500, headers: privateApiHeaders() },
     )
   }
 }

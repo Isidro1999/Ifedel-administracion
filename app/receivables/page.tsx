@@ -8,6 +8,7 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -51,52 +52,49 @@ export default async function ReceivablesListPage() {
       where: { status: 'PAID' },
     }),
     prisma.receivable.count(),
-    prisma.receivable.findMany({
-      take: RECEIVABLES_LIST_LIMIT,
-      orderBy: { dueDate: 'asc' },
-      select: {
-        id: true,
-        customerCompany: true,
-        customerName: true,
-        totalAmount: true,
-        amountPaid: true,
-        balance: true,
-        currency: true,
-        issuedAt: true,
-        dueDate: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        customer: {
-          select: {
-            company: true,
-            name: true,
-          },
-        },
-        sale: {
+    withPerf(
+      'receivables.list',
+      () =>
+        prisma.receivable.findMany({
+          take: RECEIVABLES_LIST_LIMIT,
+          orderBy: { dueDate: 'asc' },
           select: {
             id: true,
-            saleNumber: true,
-          },
-        },
-        installments: {
-          orderBy: [{ dueDate: 'asc' }, { order: 'asc' }],
-          select: {
-            id: true,
-            order: true,
-            dueDate: true,
-            amount: true,
+            customerCompany: true,
+            customerName: true,
+            totalAmount: true,
             amountPaid: true,
             balance: true,
+            currency: true,
+            issuedAt: true,
+            dueDate: true,
             status: true,
-            label: true,
-            receivableId: true,
-            createdAt: true,
-            updatedAt: true,
+            customer: {
+              select: {
+                company: true,
+                name: true,
+              },
+            },
+            sale: {
+              select: {
+                id: true,
+                saleNumber: true,
+              },
+            },
+            // Solo lo necesario para #cuotas y próximo vencimiento abierto.
+            installments: {
+              orderBy: [{ dueDate: 'asc' }, { order: 'asc' }],
+              select: {
+                order: true,
+                dueDate: true,
+                balance: true,
+                status: true,
+              },
+            },
           },
-        },
-      },
-    }),
+        }),
+      (rows) => rows.length,
+    ),
   ])
 
   const totalPending = totalPendingAgg._sum.balance ?? 0
@@ -241,17 +239,10 @@ export default async function ReceivablesListPage() {
                     ? r.installments
                     : [
                         {
-                          id: -1,
                           order: 0,
                           dueDate: r.dueDate,
-                          amount: r.totalAmount,
-                          amountPaid: r.amountPaid,
                           balance: r.balance,
                           status: r.status,
-                          label: 'Cuota única (legacy)',
-                          receivableId: r.id,
-                          createdAt: r.createdAt,
-                          updatedAt: r.updatedAt,
                         },
                       ]
                   )
