@@ -2,15 +2,19 @@
  * GET /api/catalog/categories — API pública (sin auth).
  */
 import { NextResponse } from 'next/server'
-import { queryCatalogCategories } from '@/lib/catalog-queries'
+import { CATALOG_API_CACHE_CONTROL } from '@/lib/catalog-cache'
+import { getCatalogCategories } from '@/lib/catalog-queries'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 export const runtime = 'nodejs'
 
 export async function GET() {
   try {
-    const items = await queryCatalogCategories()
-    return NextResponse.json({ items })
+    const items = await getCatalogCategories()
+    return NextResponse.json(
+      { items },
+      { headers: { 'Cache-Control': CATALOG_API_CACHE_CONTROL } },
+    )
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('[catalog.categories]', error)

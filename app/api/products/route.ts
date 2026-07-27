@@ -2,6 +2,8 @@
  * GET /api/products
  *
  * API INTERNA — requiere sesión APPROVED.
+ * Nunca pública. Datos sensibles (cost, prices) solo para usuarios autenticados;
+ * `cost`/`costCurrency` solo ADMIN.
  * Catálogo público: `/api/catalog/*`.
  */
 import { NextRequest, NextResponse } from 'next/server'

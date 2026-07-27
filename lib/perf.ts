@@ -1,5 +1,5 @@
 /**
- * Instrumentación mínima de performance (server).
+ * Instrumentación mínima de performance (catálogo / backoffice / server).
  * Solo loguea en development o con DEBUG_PERF / NEXT_PUBLIC_DEBUG_PERF=1.
  * Nunca loguea payloads ni datos sensibles.
  */

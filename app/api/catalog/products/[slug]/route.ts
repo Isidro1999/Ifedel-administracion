@@ -4,12 +4,13 @@
  * API PÚBLICA — detalle (sin auth). Whitelist de serializer público.
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { CATALOG_API_CACHE_CONTROL } from '@/lib/catalog-cache'
 import {
   CatalogQueryError,
-  queryCatalogProductBySlug,
+  getCatalogProductBySlug,
 } from '@/lib/catalog-queries'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 export const runtime = 'nodejs'
 
 export async function GET(
@@ -17,14 +18,21 @@ export async function GET(
   { params }: { params: { slug: string } },
 ) {
   try {
-    const product = await queryCatalogProductBySlug(params.slug)
+    const product = await getCatalogProductBySlug(params.slug)
     if (!product) {
       return NextResponse.json(
         { error: 'Producto no encontrado' },
-        { status: 404 },
+        {
+          status: 404,
+          headers: {
+            'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+          },
+        },
       )
     }
-    return NextResponse.json(product)
+    return NextResponse.json(product, {
+      headers: { 'Cache-Control': CATALOG_API_CACHE_CONTROL },
+    })
   } catch (error) {
     if (error instanceof CatalogQueryError) {
       return NextResponse.json({ error: error.message }, { status: error.status })

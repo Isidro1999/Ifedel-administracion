@@ -11,7 +11,7 @@ import { catalogPath } from '@/lib/catalog-paths'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
 type PageProps = {
   params: { slug: string }

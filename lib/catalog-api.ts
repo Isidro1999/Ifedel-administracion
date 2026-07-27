@@ -70,7 +70,7 @@ export type CatalogProductSource = {
   short?: string | null
   description?: string | null
   slug: string
-  catalogVisible: boolean
+  catalogVisible?: boolean
   publicTitle?: string | null
   publicShortDescription?: string | null
   publicDescription?: string | null

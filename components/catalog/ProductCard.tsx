@@ -9,12 +9,15 @@ import { useCatalogPath } from '@/components/catalog/CatalogPathProvider'
 
 type ProductCardProps = {
   product: CatalogProductListItem
+  /** Solo para las primeras cards above-the-fold. */
+  priority?: boolean
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, priority = false }: ProductCardProps) {
   const { path } = useCatalogPath()
   const img = product.primaryImage?.url
-  const src = img ? getOptimizedImageUrl(img, 640) : null
+  // Cards ~320–400px CSS; 480 cubre retina 1.5–2x sin pedir original.
+  const src = img ? getOptimizedImageUrl(img, 480) : null
   const detailHref = path(`productos/${product.slug}`)
 
   return (
@@ -30,6 +33,8 @@ export function ProductCard({ product }: ProductCardProps) {
             fill
             className="object-cover transition duration-500 group-hover:scale-[1.03]"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            priority={priority}
+            loading={priority ? undefined : 'lazy'}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">

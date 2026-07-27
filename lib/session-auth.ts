@@ -40,12 +40,18 @@ async function readSessionUser(): Promise<{
 /**
  * Valida sesión NextAuth: usuario autenticado y APPROVED.
  * Usar en Route Handlers internos (ej. /api/products*).
+ * Fail-closed: sin sesión → 401/403.
+ * Nunca es bypass por flags de catálogo (esos solo afectan layout UI).
  */
 export async function requireApprovedSession(): Promise<RequireApprovedResult> {
   const { userId, role, status, authenticated } = await readSessionUser()
 
-  if (!authenticated || !userId) {
+  if (!authenticated) {
     return { ok: false, response: jsonError('No autenticado', 401) }
+  }
+
+  if (!userId) {
+    return { ok: false, response: jsonError('Sesión inválida', 401) }
   }
 
   if (status !== 'APPROVED') {

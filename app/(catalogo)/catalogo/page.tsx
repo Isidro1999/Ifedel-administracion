@@ -11,7 +11,8 @@ import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 
-export const dynamic = 'force-dynamic'
+/** ISR 60s: demora de publicación 1–5 min aceptable en v1. */
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: { absolute: 'Catálogo IFEDEL' },

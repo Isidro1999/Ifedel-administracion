@@ -8,7 +8,7 @@ import { ProductGallery } from '@/components/catalog/ProductGallery'
 import { ProductDetailActions } from '@/components/catalog/ProductDetailActions'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
 type PageProps = {
   params: { slug: string }
