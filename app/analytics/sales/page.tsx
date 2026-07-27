@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
-import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { fmtMoneyARS } from '@/lib/format-money'
 import { computeSaleMarginForSale, formatMarginPct } from '@/lib/margin'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
+import { fetchSalesForSalesAnalytics } from '@/lib/analytics-queries'
 
 export const revalidate = 120
 export const runtime = 'nodejs'
@@ -24,74 +26,39 @@ export default async function SalesAnalyticsPage() {
 
   const [settings, sales] = await Promise.all([
     getFinancialSettings(),
-    prisma.sale.findMany({
-      orderBy: { issuedAt: 'desc' },
-      where: {
-        status: 'CONFIRMED',
-        issuedAt: {
-          gte: issuedFrom,
-          lte: issuedTo,
-        },
-      },
-      select: {
-        id: true,
-        saleNumber: true,
-        issuedAt: true,
-        customerCompany: true,
-        customerName: true,
-        exchangeRateARS: true,
-        totalARS: true,
-        totalWithDiscount: true,
-        customer: {
-          select: {
-            company: true,
-            name: true,
-          },
-        },
-        items: {
-          orderBy: { sortOrder: 'asc' },
-          select: {
-            qty: true,
-            product: {
-              select: {
-                cost: true,
-                costCurrency: true,
-              },
-            },
-          },
-        },
-      },
+    fetchSalesForSalesAnalytics(prisma, {
+      gte: issuedFrom,
+      lte: issuedTo,
     }),
   ])
 
-  const rows = sales.map((sale) => {
-    const margin = computeSaleMarginForSale(sale, settings)
+  const rows = await withPerf('analytics.sales.grouping', async () =>
+    sales.map((sale) => {
+      const margin = computeSaleMarginForSale(sale, settings)
 
-    const clientLabel =
-      sale.customerCompany ||
-      sale.customerName ||
-      sale.customer?.company ||
-      sale.customer?.name ||
-      '-'
+      const clientLabel =
+        sale.customerCompany ||
+        sale.customerName ||
+        sale.customer?.company ||
+        sale.customer?.name ||
+        '-'
 
-    return {
-      sale,
-      margin,
-      clientLabel,
-    }
-  })
-
-  const totalIncome = rows.reduce(
-    (acc, r) => acc + r.margin.incomeARS,
-    0
+      return {
+        sale,
+        margin,
+        clientLabel,
+      }
+    }),
   )
+
+  const totalIncome = rows.reduce((acc, r) => acc + r.margin.incomeARS, 0)
   const totalCost = rows.reduce(
     (acc, r) => acc + r.margin.estimatedCostARS,
-    0
+    0,
   )
   const totalGrossMargin = rows.reduce(
     (acc, r) => acc + r.margin.grossMarginARS,
-    0
+    0,
   )
 
   const anyMissingCosts = rows.some((r) => r.margin.hasMissingCosts)
@@ -196,7 +163,7 @@ export default async function SalesAnalyticsPage() {
 
                   const grossPctLabel = formatMarginPct(margin.grossMarginPct)
                   const operatingPctLabel = formatMarginPct(
-                    margin.operatingMarginPct
+                    margin.operatingMarginPct,
                   )
 
                   const isGrossLow = margin.grossMarginPct < 10
@@ -228,8 +195,8 @@ export default async function SalesAnalyticsPage() {
                             isGrossNegative
                               ? 'font-semibold text-red-700'
                               : isGrossLow
-                              ? 'font-semibold text-amber-700'
-                              : 'font-semibold text-gray-900'
+                                ? 'font-semibold text-amber-700'
+                                : 'font-semibold text-gray-900'
                           }
                         >
                           {fmtMoneyARS(margin.grossMarginARS)}
@@ -284,5 +251,3 @@ export default async function SalesAnalyticsPage() {
     </div>
   )
 }
-
-

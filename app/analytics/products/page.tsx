@@ -4,6 +4,11 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
+import {
+  fetchProductBrandCategoryMeta,
+  fetchSalesForProductsAnalytics,
+} from '@/lib/analytics-queries'
 
 export const revalidate = 120
 export const runtime = 'nodejs'
@@ -37,138 +42,112 @@ export default async function ProductsAnalyticsPage() {
 
   const [settings, sales] = await Promise.all([
     getFinancialSettings(),
-    prisma.sale.findMany({
-      where: {
-        status: 'CONFIRMED',
-        issuedAt: {
-          gte: issuedFrom,
-          lte: issuedTo,
-        },
-      },
-      orderBy: { issuedAt: 'desc' },
-      select: {
-        exchangeRateARS: true,
-        totalARS: true,
-        totalWithDiscount: true,
-        items: {
-          orderBy: { sortOrder: 'asc' },
-          select: {
-            productId: true,
-            sku: true,
-            title: true,
-            total: true,
-            qty: true,
-            product: {
-              select: {
-                cost: true,
-                costCurrency: true,
-                brand: { select: { name: true } },
-                category: { select: { name: true } },
-              },
-            },
-          },
-        },
-      },
+    fetchSalesForProductsAnalytics(prisma, {
+      gte: issuedFrom,
+      lte: issuedTo,
     }),
   ])
 
-  const productMap = new Map<number, ProductAggRow>()
+  const rows = await withPerf('analytics.products.grouping', async () => {
+    const productMap = new Map<number, ProductAggRow>()
 
-  for (const sale of sales) {
-    const rate =
-      sale.exchangeRateARS && sale.exchangeRateARS > 0
-        ? sale.exchangeRateARS
-        : settings.usdArsRate
+    for (const sale of sales) {
+      const rate =
+        sale.exchangeRateARS && sale.exchangeRateARS > 0
+          ? sale.exchangeRateARS
+          : settings.usdArsRate
 
-    const saleIncomeARS =
-      sale.totalARS ??
-      (rate && rate > 0
-        ? sale.totalWithDiscount * rate
-        : sale.totalWithDiscount)
+      const saleIncomeARS =
+        sale.totalARS ??
+        (rate && rate > 0
+          ? sale.totalWithDiscount * rate
+          : sale.totalWithDiscount)
 
-    const saleItemsTotal = sale.items.reduce(
-      (acc, i) => acc + i.total,
-      0
-    )
+      const saleItemsTotal = sale.items.reduce((acc, i) => acc + i.total, 0)
 
-    for (const item of sale.items) {
-      if (!item.productId || !item.product) continue
+      for (const item of sale.items) {
+        if (!item.productId || !item.product) continue
 
-      const existing = productMap.get(item.productId)
+        const existing = productMap.get(item.productId)
 
-      const itemShare =
-        saleItemsTotal > 0 ? item.total / saleItemsTotal : 0
-      const lineRevenueARS = saleIncomeARS * itemShare
+        const itemShare = saleItemsTotal > 0 ? item.total / saleItemsTotal : 0
+        const lineRevenueARS = saleIncomeARS * itemShare
 
-      let unitCostARS = 0
-      let missingCost = false
+        let unitCostARS = 0
+        let missingCost = false
 
-      if (item.product.cost != null) {
-        const currency = item.product.costCurrency || 'USD'
-        if (currency === 'ARS') {
-          unitCostARS = item.product.cost
-        } else {
-          const r = rate
-          if (r && r > 0) {
-            unitCostARS = item.product.cost * r
+        if (item.product.cost != null) {
+          const currency = item.product.costCurrency || 'USD'
+          if (currency === 'ARS') {
+            unitCostARS = item.product.cost
           } else {
-            missingCost = true
+            const r = rate
+            if (r && r > 0) {
+              unitCostARS = item.product.cost * r
+            } else {
+              missingCost = true
+            }
           }
+        } else {
+          missingCost = true
         }
-      } else {
-        missingCost = true
-      }
 
-      const lineCostARS = missingCost ? 0 : unitCostARS * item.qty
+        const lineCostARS = missingCost ? 0 : unitCostARS * item.qty
 
-      if (!existing) {
-        productMap.set(item.productId, {
-          productId: item.productId,
-          sku: item.sku,
-          title: item.title,
-          brandName: item.product.brand?.name ?? null,
-          categoryName: item.product.category?.name ?? null,
-          qty: item.qty,
-          revenueARS: lineRevenueARS,
-          costARS: lineCostARS,
-          grossMarginARS: lineRevenueARS - lineCostARS,
-          grossMarginPct:
-            lineRevenueARS > 0
-              ? ((lineRevenueARS - lineCostARS) / lineRevenueARS) * 100
-              : 0,
-          hasMissingCosts: missingCost,
-        })
-      } else {
-        const newRevenue = existing.revenueARS + lineRevenueARS
-        const newCost = existing.costARS + lineCostARS
-        const newGross = newRevenue - newCost
-        productMap.set(item.productId, {
-          ...existing,
-          qty: existing.qty + item.qty,
-          revenueARS: newRevenue,
-          costARS: newCost,
-          grossMarginARS: newGross,
-          grossMarginPct:
-            newRevenue > 0 ? (newGross / newRevenue) * 100 : 0,
-          hasMissingCosts: existing.hasMissingCosts || missingCost,
-        })
+        if (!existing) {
+          productMap.set(item.productId, {
+            productId: item.productId,
+            sku: item.sku,
+            title: item.title,
+            brandName: null,
+            categoryName: null,
+            qty: item.qty,
+            revenueARS: lineRevenueARS,
+            costARS: lineCostARS,
+            grossMarginARS: lineRevenueARS - lineCostARS,
+            grossMarginPct:
+              lineRevenueARS > 0
+                ? ((lineRevenueARS - lineCostARS) / lineRevenueARS) * 100
+                : 0,
+            hasMissingCosts: missingCost,
+          })
+        } else {
+          const newRevenue = existing.revenueARS + lineRevenueARS
+          const newCost = existing.costARS + lineCostARS
+          const newGross = newRevenue - newCost
+          productMap.set(item.productId, {
+            ...existing,
+            qty: existing.qty + item.qty,
+            revenueARS: newRevenue,
+            costARS: newCost,
+            grossMarginARS: newGross,
+            grossMarginPct: newRevenue > 0 ? (newGross / newRevenue) * 100 : 0,
+            hasMissingCosts: existing.hasMissingCosts || missingCost,
+          })
+        }
       }
     }
-  }
 
-  const rows = Array.from(productMap.values()).sort(
-    (a, b) => b.revenueARS - a.revenueARS
-  )
+    const meta = await fetchProductBrandCategoryMeta(
+      prisma,
+      Array.from(productMap.keys()),
+    )
 
-  const totalRevenue = rows.reduce(
-    (acc, r) => acc + r.revenueARS,
-    0
-  )
+    return Array.from(productMap.values())
+      .map((row) => {
+        const m = meta.get(row.productId)
+        return {
+          ...row,
+          brandName: m?.brandName ?? null,
+          categoryName: m?.categoryName ?? null,
+        }
+      })
+      .sort((a, b) => b.revenueARS - a.revenueARS)
+  })
+
+  const totalRevenue = rows.reduce((acc, r) => acc + r.revenueARS, 0)
   const totalCost = rows.reduce((acc, r) => acc + r.costARS, 0)
-  const totalGrossMargin = rows.reduce(
-    (acc, r) => acc + r.grossMarginARS,
-    0
-  )
+  const totalGrossMargin = rows.reduce((acc, r) => acc + r.grossMarginARS, 0)
 
   const anyMissingCosts = rows.some((r) => r.hasMissingCosts)
 
@@ -299,8 +278,8 @@ export default async function ProductsAnalyticsPage() {
                             isNegative
                               ? 'font-semibold text-red-700'
                               : isLow
-                              ? 'font-semibold text-amber-700'
-                              : 'font-semibold text-gray-900'
+                                ? 'font-semibold text-amber-700'
+                                : 'font-semibold text-gray-900'
                           }
                         >
                           {fmtMoneyARS(row.grossMarginARS)}
@@ -329,5 +308,3 @@ export default async function ProductsAnalyticsPage() {
     </div>
   )
 }
-
-
