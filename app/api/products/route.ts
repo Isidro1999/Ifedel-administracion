@@ -14,6 +14,11 @@ import {
   privateApiHeaders,
   requireApprovedSession,
 } from '@/lib/session-auth'
+import {
+  PRODUCTS_DEFAULT_PAGE_SIZE,
+  parsePaginationParams,
+  resolvePagination,
+} from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -153,8 +158,9 @@ export async function GET(request: NextRequest) {
     const priceList = searchParams.get('priceList') || ''
     const currency = searchParams.get('currency') || ''
     const sort = searchParams.get('sort') || 'name_asc'
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const pageSize = parseInt(searchParams.get('pageSize') || '12', 10)
+    const { page, pageSize } = parsePaginationParams(searchParams, {
+      defaultPageSize: PRODUCTS_DEFAULT_PAGE_SIZE,
+    })
 
     const where: Prisma.ProductWhereInput = {
       isActive: true,
@@ -198,15 +204,18 @@ export async function GET(request: NextRequest) {
     }
 
     const total = await withPerf(
-      'api.products.count',
+      'products.count',
       () => prisma.product.count({ where }),
       (n) => n,
     )
 
-    const safePage = Number.isFinite(page) && page > 0 ? page : 1
-    const safePageSize =
-      Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 12
-    const skip = (safePage - 1) * safePageSize
+    const {
+      page: safePage,
+      pageSize: safePageSize,
+      skip,
+      take,
+      totalPages,
+    } = resolvePagination(page, pageSize, total)
 
     const productSelect = listProductSelect(priceList, currency, includeCost)
 
@@ -215,7 +224,7 @@ export async function GET(request: NextRequest) {
 
     if (needsPriceSort) {
       products = await withPerf(
-        'api.products.list',
+        'products.list',
         async () => {
           const whereParts = buildProductListWhereSql(
             q,
@@ -248,7 +257,7 @@ export async function GET(request: NextRequest) {
             LEFT JOIN latest_price lp ON lp."productId" = p."id"
             WHERE ${Prisma.join(whereParts, ' AND ')}
             ${orderSql}
-            LIMIT ${safePageSize} OFFSET ${skip}
+            LIMIT ${take} OFFSET ${skip}
           `)
 
           const orderedIds = idRows.map((r) => r.id)
@@ -267,14 +276,14 @@ export async function GET(request: NextRequest) {
       )
     } else {
       products = await withPerf(
-        'api.products.list',
+        'products.list',
         () =>
           prisma.product.findMany({
             where,
             select: productSelect,
             orderBy,
             skip,
-            take: safePageSize,
+            take,
           }),
         (rows) => rows.length,
       )
@@ -345,7 +354,7 @@ export async function GET(request: NextRequest) {
           page: safePage,
           pageSize: safePageSize,
           total,
-          totalPages: Math.ceil(total / safePageSize),
+          totalPages,
         },
         facets,
       },

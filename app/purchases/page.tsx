@@ -6,22 +6,44 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { PaginationNav } from '@/components/ui/PaginationNav'
 import { requireApprovedPage } from '@/lib/session-auth'
 import { withPerf } from '@/lib/perf'
+import {
+  parsePaginationParams,
+  resolvePagination,
+} from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const PURCHASES_LIST_LIMIT = 500
+type PageProps = {
+  searchParams?: { page?: string; pageSize?: string }
+}
 
-export default async function PurchasesListPage() {
+export default async function PurchasesListPage({ searchParams }: PageProps) {
   await requireApprovedPage()
+  const { page: rawPage, pageSize: rawPageSize } =
+    parsePaginationParams(searchParams)
+
   const { prisma } = await import('@/lib/prisma')
+  const total = await withPerf(
+    'purchases.count',
+    () => prisma.purchase.count(),
+    (n) => n,
+  )
+  const { page, pageSize, skip, take, totalPages } = resolvePagination(
+    rawPage,
+    rawPageSize,
+    total,
+  )
+
   const purchases = await withPerf(
     'purchases.list',
     () =>
       prisma.purchase.findMany({
-        take: PURCHASES_LIST_LIMIT,
+        skip,
+        take,
         orderBy: { issuedAt: 'desc' },
         select: {
           id: true,
@@ -55,7 +77,7 @@ export default async function PurchasesListPage() {
         }
       />
 
-      {purchases.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           title="Todavía no hay compras registradas"
           description="Cuando registres tus primeras compras a proveedores, van a aparecer listadas acá con sus totales y estado."
@@ -140,6 +162,13 @@ export default async function PurchasesListPage() {
               </tbody>
             </table>
           </DataTableShell>
+          <PaginationNav
+            pathname="/purchases"
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            searchParams={{ page: String(page), pageSize: String(pageSize) }}
+          />
         </SectionCard>
       )}
     </div>
