@@ -5,6 +5,10 @@ import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { computeSaleMarginForSale } from '@/lib/margin'
 import { withPerf } from '@/lib/perf'
 import { requireApprovedPage } from '@/lib/session-auth'
+import {
+  fetchPeriodReceivableMetrics,
+  fetchSalesForPeriodMargin,
+} from '@/lib/analytics-queries'
 
 export const revalidate = 120
 export const runtime = 'nodejs'
@@ -19,83 +23,33 @@ export default async function PeriodAnalyticsPage() {
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
 
-  const [settings, sales, installments] = await Promise.all([
+  const [settings, sales, receivableMetrics] = await Promise.all([
     getFinancialSettings(),
-    withPerf(
-      'analytics.period.sales',
-      () =>
-        prisma.sale.findMany({
-          where: {
-            status: 'CONFIRMED',
-            issuedAt: {
-              gte: startOfMonth,
-              lte: today,
-            },
-          },
-          select: {
-            exchangeRateARS: true,
-            totalARS: true,
-            totalWithDiscount: true,
-            items: {
-              orderBy: { sortOrder: 'asc' },
-              select: {
-                qty: true,
-                product: {
-                  select: { cost: true, costCurrency: true },
-                },
-              },
-            },
-          },
-        }),
-      (rows) => rows.length,
-    ),
-    withPerf(
-      'analytics.period.installments',
-      () =>
-        prisma.receivableInstallment.findMany({
-          where: {
-            dueDate: {
-              gte: startOfMonth,
-              lte: endOfMonth,
-            },
-          },
-          select: {
-            status: true,
-            balance: true,
-            dueDate: true,
-          },
-        }),
-      (rows) => rows.length,
-    ),
+    fetchSalesForPeriodMargin(prisma, {
+      gte: startOfMonth,
+      lte: today,
+    }),
+    fetchPeriodReceivableMetrics(prisma, startOfMonth, endOfMonth, today),
   ])
 
-  const margins = sales.map((sale) =>
-    computeSaleMarginForSale(sale, settings)
+  const margins = await withPerf('analytics.period.margin', async () =>
+    sales.map((sale) => computeSaleMarginForSale(sale, settings)),
   )
 
-  const totalIncome = margins.reduce(
-    (acc, m) => acc + m.incomeARS,
-    0
-  )
-  const totalCost = margins.reduce(
-    (acc, m) => acc + m.estimatedCostARS,
-    0
-  )
+  const totalIncome = margins.reduce((acc, m) => acc + m.incomeARS, 0)
+  const totalCost = margins.reduce((acc, m) => acc + m.estimatedCostARS, 0)
   const totalGrossMargin = margins.reduce(
     (acc, m) => acc + m.grossMarginARS,
-    0
+    0,
   )
-  const totalIIBB = margins.reduce(
-    (acc, m) => acc + m.estimatedIIBB,
-    0
-  )
+  const totalIIBB = margins.reduce((acc, m) => acc + m.estimatedIIBB, 0)
   const totalBankCreditCost = margins.reduce(
     (acc, m) => acc + m.estimatedBankCreditCost,
-    0
+    0,
   )
   const totalBankDebitCost = margins.reduce(
     (acc, m) => acc + m.estimatedBankDebitCost,
-    0
+    0,
   )
 
   const grossMarginPct =
@@ -105,7 +59,7 @@ export default async function PeriodAnalyticsPage() {
   const daysInMonth = new Date(
     today.getFullYear(),
     today.getMonth() + 1,
-    0
+    0,
   ).getDate()
   const elapsedDays = today.getDate()
   const fixedCostsYtd =
@@ -122,24 +76,16 @@ export default async function PeriodAnalyticsPage() {
 
   const operatingMarginBase =
     totalIncome > 0 ? totalIncome : Math.abs(operatingResult) || 1
-  const operatingMarginPct =
-    (operatingResult / operatingMarginBase) * 100
+  const operatingMarginPct = (operatingResult / operatingMarginBase) * 100
 
   const analyzedSalesCount = sales.length
   const anyMissingCosts = margins.some((m) => m.hasMissingCosts)
 
-  const openInstallments = installments.filter(
-    (inst) =>
-      (inst.status === 'PENDING' || inst.status === 'PARTIAL') && inst.balance > 0
-  )
-  const projectedCollectionsMonth = openInstallments.reduce(
-    (acc, inst) => acc + inst.balance,
-    0
-  )
-  const overdueInstallments = openInstallments.filter((inst) => {
-    const due = inst.dueDate instanceof Date ? inst.dueDate : new Date(inst.dueDate as any)
-    return due < today
-  }).length
+  const {
+    projectedCollectionsMonth,
+    openInstallmentsCount,
+    overdueInstallmentsCount,
+  } = receivableMetrics
 
   const periodLabel = `${startOfMonth
     .toISOString()
@@ -331,7 +277,7 @@ export default async function PeriodAnalyticsPage() {
                   Cuotas abiertas del mes
                 </dt>
                 <dd className="mt-1 text-lg font-semibold text-ifedel-black">
-                  {openInstallments.length}
+                  {openInstallmentsCount}
                 </dd>
               </div>
               <div>
@@ -339,7 +285,7 @@ export default async function PeriodAnalyticsPage() {
                   Cuotas vencidas
                 </dt>
                 <dd className="mt-1 text-lg font-semibold text-ifedel-black">
-                  {overdueInstallments}
+                  {overdueInstallmentsCount}
                 </dd>
               </div>
             </dl>
@@ -349,5 +295,3 @@ export default async function PeriodAnalyticsPage() {
     </div>
   )
 }
-
-
