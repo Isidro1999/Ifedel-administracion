@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { auth } from '@/auth'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { btnSecondary, linkAccentXs } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -7,6 +6,8 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CancelSaleButton } from '@/components/sales/CancelSaleButton'
+import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -34,46 +35,56 @@ function saleCanBeVoided(s: {
 }
 
 export default async function SalesListPage() {
-  const session = await auth()
-  const isAdmin = session?.user?.role === 'ADMIN'
+  const sessionUser = await requireApprovedPage()
+  const isAdmin = sessionUser.role === 'ADMIN'
 
   const { prisma } = await import('@/lib/prisma')
-  const sales = await prisma.sale.findMany({
-    take: SALES_LIST_LIMIT,
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      saleNumber: true,
-      status: true,
-      customerCompany: true,
-      customerName: true,
-      customerEmail: true,
-      customerPhone: true,
-      issuedAt: true,
-      totalARS: true,
-      currency: true,
-      totalWithDiscount: true,
-      createdBy: {
-        select: {
-          email: true,
-          name: true,
-        },
-      },
-      quote: {
+  const sales = await withPerf(
+    'sales.list',
+    () =>
+      prisma.sale.findMany({
+        take: SALES_LIST_LIMIT,
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          quoteNumber: true,
+          saleNumber: true,
+          status: true,
+          customerCompany: true,
+          customerName: true,
+          customerEmail: true,
+          customerPhone: true,
+          issuedAt: true,
+          totalARS: true,
+          currency: true,
+          totalWithDiscount: true,
+          createdBy: {
+            select: {
+              email: true,
+              name: true,
+            },
+          },
+          quote: {
+            select: {
+              id: true,
+              quoteNumber: true,
+            },
+          },
+          // Solo admin usa esto para mostrar "Anular"; usuarios normales no lo necesitan.
+          ...(isAdmin
+            ? {
+                receivable: {
+                  select: {
+                    amountPaid: true,
+                    _count: { select: { payments: true } },
+                    installments: { select: { amountPaid: true } },
+                  },
+                },
+              }
+            : {}),
         },
-      },
-      receivable: {
-        select: {
-          amountPaid: true,
-          _count: { select: { payments: true } },
-          installments: { select: { amountPaid: true } },
-        },
-      },
-    },
-  })
+      }),
+    (rows) => rows.length,
+  )
 
   return (
     <div className="space-y-6">
@@ -161,7 +172,23 @@ export default async function SalesListPage() {
 
                 const isCancelled =
                   (s.status || '').trim().toUpperCase() === 'CANCELLED'
-                const showVoid = isAdmin && saleCanBeVoided(s)
+                const showVoid =
+                  isAdmin &&
+                  saleCanBeVoided({
+                    status: s.status,
+                    receivable:
+                      'receivable' in s
+                        ? (
+                            s as {
+                              receivable: {
+                                amountPaid: number
+                                _count: { payments: number }
+                                installments: Array<{ amountPaid: number }>
+                              } | null
+                            }
+                          ).receivable
+                        : null,
+                  })
 
                 return (
                   <tr

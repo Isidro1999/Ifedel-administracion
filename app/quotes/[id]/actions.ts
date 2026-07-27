@@ -1,13 +1,16 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { RECEIVABLE_DEFAULT_DUE_DAYS } from '@/lib/receivable-config'
+import { requireApprovedAction } from '@/lib/session-auth'
 
 export async function convertQuoteToSale(quoteId: number) {
-  const session = await auth()
-  const userId = (session?.user as { id?: string } | null)?.id ?? null
+  const gate = await requireApprovedAction()
+  if (!gate.ok) {
+    return { error: gate.error }
+  }
+  const userId = gate.userId
 
   const quote = await prisma.quote.findUnique({
     where: { id: quoteId },

@@ -1,8 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { requireApprovedAction } from '@/lib/session-auth'
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100
@@ -19,8 +19,11 @@ export async function registerPayablePayment(
   reference?: string | null,
   notes?: string | null
 ): Promise<RegisterPayablePaymentResult> {
-  const session = await auth()
-  const userId = (session?.user as { id?: string } | null)?.id ?? null
+  const gate = await requireApprovedAction()
+  if (!gate.ok) {
+    return { success: false, error: gate.error }
+  }
+  const userId = gate.userId
 
   const payable = await prisma.payable.findUnique({
     where: { id: payableId },

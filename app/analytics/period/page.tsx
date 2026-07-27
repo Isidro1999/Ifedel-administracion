@@ -3,11 +3,14 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
 import { fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { computeSaleMarginForSale } from '@/lib/margin'
+import { withPerf } from '@/lib/perf'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const revalidate = 120
 export const runtime = 'nodejs'
 
 export default async function PeriodAnalyticsPage() {
+  await requireApprovedPage()
   const [{ prisma }, { getFinancialSettings }] = await Promise.all([
     import('@/lib/prisma'),
     import('@/lib/financial-settings'),
@@ -18,29 +21,52 @@ export default async function PeriodAnalyticsPage() {
 
   const [settings, sales, installments] = await Promise.all([
     getFinancialSettings(),
-    prisma.sale.findMany({
-      where: {
-        status: 'CONFIRMED',
-        issuedAt: {
-          gte: startOfMonth,
-          lte: today,
-        },
-      },
-      include: {
-        items: { include: { product: true }, orderBy: { sortOrder: 'asc' } },
-      },
-    }),
-    prisma.receivableInstallment.findMany({
-      where: {
-        dueDate: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-      },
-      include: {
-        receivable: true,
-      },
-    }),
+    withPerf(
+      'analytics.period.sales',
+      () =>
+        prisma.sale.findMany({
+          where: {
+            status: 'CONFIRMED',
+            issuedAt: {
+              gte: startOfMonth,
+              lte: today,
+            },
+          },
+          select: {
+            exchangeRateARS: true,
+            totalARS: true,
+            totalWithDiscount: true,
+            items: {
+              orderBy: { sortOrder: 'asc' },
+              select: {
+                qty: true,
+                product: {
+                  select: { cost: true, costCurrency: true },
+                },
+              },
+            },
+          },
+        }),
+      (rows) => rows.length,
+    ),
+    withPerf(
+      'analytics.period.installments',
+      () =>
+        prisma.receivableInstallment.findMany({
+          where: {
+            dueDate: {
+              gte: startOfMonth,
+              lte: endOfMonth,
+            },
+          },
+          select: {
+            status: true,
+            balance: true,
+            dueDate: true,
+          },
+        }),
+      (rows) => rows.length,
+    ),
   ])
 
   const margins = sales.map((sale) =>

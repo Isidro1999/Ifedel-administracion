@@ -1,15 +1,15 @@
 /**
- * Instrumentación mínima de performance (catálogo / server).
+ * Instrumentación mínima de performance (catálogo / backoffice / server).
  * Solo loguea en development o con DEBUG_PERF / NEXT_PUBLIC_DEBUG_PERF=1.
  * Nunca loguea payloads ni datos sensibles.
  */
 
 function perfEnabled(): boolean {
   if (process.env.NODE_ENV === 'development') return true
-  const flag =
+  return (
     process.env.DEBUG_PERF === '1' ||
     process.env.NEXT_PUBLIC_DEBUG_PERF === '1'
-  return flag
+  )
 }
 
 export async function withPerf<T>(

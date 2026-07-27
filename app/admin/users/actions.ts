@@ -1,22 +1,21 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { requireAdminAction } from '@/lib/admin-auth'
 
 export async function approveUser(userId: string) {
-  const [{ prisma }, { auth }] = await Promise.all([
-    import('@/lib/prisma'),
-    import('@/auth'),
-  ])
-  const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
-    return { error: 'No autorizado' }
+  const gate = await requireAdminAction()
+  if (!gate.ok) {
+    return { error: gate.error }
   }
+
+  const { prisma } = await import('@/lib/prisma')
   await prisma.user.update({
     where: { id: userId },
     data: {
       status: 'APPROVED',
       approvedAt: new Date(),
-      approvedById: session.user.id,
+      approvedById: gate.userId,
     },
   })
   revalidatePath('/admin/users')
@@ -24,14 +23,12 @@ export async function approveUser(userId: string) {
 }
 
 export async function rejectUser(userId: string) {
-  const [{ prisma }, { auth }] = await Promise.all([
-    import('@/lib/prisma'),
-    import('@/auth'),
-  ])
-  const session = await auth()
-  if (session?.user?.role !== 'ADMIN') {
-    return { error: 'No autorizado' }
+  const gate = await requireAdminAction()
+  if (!gate.ok) {
+    return { error: gate.error }
   }
+
+  const { prisma } = await import('@/lib/prisma')
   await prisma.user.update({
     where: { id: userId },
     data: { status: 'REJECTED' },

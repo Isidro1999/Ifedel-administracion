@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -12,6 +13,7 @@ interface PurchaseDetailPageProps {
 export default async function PurchaseDetailPage({
   params,
 }: PurchaseDetailPageProps) {
+  await requireApprovedPage()
   const { prisma } = await import('@/lib/prisma')
   const id = Number(params.id)
   if (!Number.isFinite(id) || id <= 0) {

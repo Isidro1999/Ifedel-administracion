@@ -4,11 +4,13 @@ import { btnSecondarySm } from '@/lib/ui-classes'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { MetricCard } from '@/components/layout/MetricCard'
 import { SectionCard } from '@/components/layout/SectionCard'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export default async function FinancePage() {
+  await requireApprovedPage()
   const { prisma } = await import('@/lib/prisma')
   const today = new Date()
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { fmtMoneyARS } from '@/lib/format-money'
 import { RegisterPaymentForm } from './RegisterPaymentForm'
+import { requireApprovedPage } from '@/lib/session-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -13,6 +14,7 @@ interface ReceivableDetailPageProps {
 export default async function ReceivableDetailPage({
   params,
 }: ReceivableDetailPageProps) {
+  await requireApprovedPage()
   const { prisma } = await import('@/lib/prisma')
   const id = Number(params.id)
   if (!Number.isFinite(id) || id <= 0) {

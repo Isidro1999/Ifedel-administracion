@@ -47,9 +47,9 @@ function QuickLink({
 }
 
 export default async function Home() {
-  const { auth } = await import('@/auth')
-  const session = await auth()
-  const isAdmin = session?.user?.role === 'ADMIN'
+  const { requireApprovedPage } = await import('@/lib/session-auth')
+  const sessionUser = await requireApprovedPage()
+  const isAdmin = sessionUser.role === 'ADMIN'
 
   return (
     <div className="space-y-8">
