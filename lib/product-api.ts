@@ -76,6 +76,12 @@ export type ProductApiSource = {
 export type SerializeProductOptions = {
   /** Solo ADMIN: incluye cost / costCurrency para edición. */
   includeCost?: boolean
+  /**
+   * `detail` = consulta (/products/[id]): sin campos de catálogo/costo ni metadatos pesados.
+   * `edit` = edición admin: incluye catálogo + relaciones completas necesarias para el form.
+   * Por defecto `edit` para no romper consumidores existentes.
+   */
+  view?: 'detail' | 'edit'
 }
 
 /**
@@ -86,7 +92,8 @@ export function serializeProductForApi(
   product: ProductApiSource,
   options: SerializeProductOptions = {},
 ) {
-  const { includeCost = false } = options
+  const { includeCost = false, view = 'edit' } = options
+  const isDetail = view === 'detail'
 
   const base: Record<string, unknown> = {
     id: product.id,
@@ -96,21 +103,24 @@ export function serializeProductForApi(
     description: product.description ?? null,
     isActive: product.isActive,
     isFeatured: product.isFeatured,
-    slug: product.slug,
-    catalogVisible: product.catalogVisible,
-    publicTitle: product.publicTitle ?? null,
-    publicShortDescription: product.publicShortDescription ?? null,
-    publicDescription: product.publicDescription ?? null,
-    catalogSort: product.catalogSort,
-    showPrice: product.showPrice,
-    catalogPriceList: product.catalogPriceList ?? null,
-    brandId: product.brandId,
-    categoryId: product.categoryId,
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt,
   }
 
-  if (includeCost) {
+  if (!isDetail) {
+    base.slug = product.slug
+    base.catalogVisible = product.catalogVisible
+    base.publicTitle = product.publicTitle ?? null
+    base.publicShortDescription = product.publicShortDescription ?? null
+    base.publicDescription = product.publicDescription ?? null
+    base.catalogSort = product.catalogSort
+    base.showPrice = product.showPrice
+    base.catalogPriceList = product.catalogPriceList ?? null
+    base.brandId = product.brandId
+    base.categoryId = product.categoryId
+    base.createdAt = product.createdAt
+    base.updatedAt = product.updatedAt
+  }
+
+  if (includeCost && !isDetail) {
     base.cost = product.cost ?? null
     base.costCurrency = product.costCurrency ?? null
   }
@@ -132,49 +142,64 @@ export function serializeProductForApi(
   }
 
   if (product.images) {
-    base.images = product.images.map((img) => ({
-      id: img.id,
-      url: img.url,
-      isPrimary: img.isPrimary,
-      sortOrder: img.sortOrder,
-      publicId: img.publicId ?? null,
-      createdAt: img.createdAt,
-    }))
+    base.images = product.images.map((img) => {
+      const row: Record<string, unknown> = {
+        id: img.id,
+        url: img.url,
+        isPrimary: img.isPrimary,
+        sortOrder: img.sortOrder,
+      }
+      if (!isDetail) {
+        row.publicId = img.publicId ?? null
+        row.createdAt = img.createdAt
+      }
+      return row
+    })
   }
 
   if (product.specs) {
-    base.specs = product.specs.map((spec) => ({
-      id: spec.id,
-      label: spec.label,
-      value: spec.value,
-      sortOrder: spec.sortOrder,
-      createdAt: spec.createdAt,
-    }))
+    base.specs = product.specs.map((spec) => {
+      const row: Record<string, unknown> = {
+        id: spec.id,
+        label: spec.label,
+        value: spec.value,
+        sortOrder: spec.sortOrder,
+      }
+      if (!isDetail) row.createdAt = spec.createdAt
+      return row
+    })
   }
 
   if (product.prices) {
-    // Precios de lista: solo para usuarios autenticados del backoffice (cotizaciones).
-    // El catálogo público usará /api/catalog/* y showPrice + catalogPriceList.
-    base.prices = product.prices.map((price) => ({
-      id: price.id,
-      priceList: price.priceList,
-      currency: price.currency,
-      netPrice: price.netPrice,
-      taxRate: price.taxRate,
-      validFrom: price.validFrom ?? null,
-      validTo: price.validTo ?? null,
-      createdAt: price.createdAt,
-      updatedAt: price.updatedAt,
-    }))
+    // Precios de lista: solo para usuarios autenticados del backoffice.
+    base.prices = product.prices.map((price) => {
+      const row: Record<string, unknown> = {
+        id: price.id,
+        priceList: price.priceList,
+        currency: price.currency,
+        netPrice: price.netPrice,
+        taxRate: price.taxRate,
+        validFrom: price.validFrom ?? null,
+        validTo: price.validTo ?? null,
+      }
+      if (!isDetail) {
+        row.createdAt = price.createdAt
+        row.updatedAt = price.updatedAt
+      }
+      return row
+    })
   }
 
   if (product.files) {
-    base.files = product.files.map((file) => ({
-      id: file.id,
-      type: file.type,
-      url: file.url,
-      createdAt: file.createdAt,
-    }))
+    base.files = product.files.map((file) => {
+      const row: Record<string, unknown> = {
+        id: file.id,
+        type: file.type,
+        url: file.url,
+      }
+      if (!isDetail) row.createdAt = file.createdAt
+      return row
+    })
   }
 
   return base

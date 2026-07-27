@@ -42,7 +42,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`/api/products/${params.id}`)
+        const res = await fetch(`/api/products/${params.id}?view=detail`)
         if (!res.ok) {
           router.push('/products')
           return
@@ -139,13 +139,15 @@ export default function ProductDetailPage() {
               {sortedImages.length > 0 ? (
                 <>
                   <div className="aspect-square bg-gray-100 rounded-lg mb-4 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={getOptimizedImageUrl(
                         sortedImages[selectedImageIndex]?.url || sortedImages[0]?.url,
-                        1200
+                        800
                       )}
                       alt={product.title}
                       className="w-full h-full object-cover"
+                      decoding="async"
                     />
                   </div>
                   {sortedImages.length > 1 && (
@@ -158,10 +160,13 @@ export default function ProductDetailPage() {
                             selectedImageIndex === idx ? 'border-ifedel-primary' : 'border-transparent'
                           }`}
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={getOptimizedImageUrl(img.url, 400)}
+                            src={getOptimizedImageUrl(img.url, 200)}
                             alt={`${product.title} ${idx + 1}`}
                             className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                         </button>
                       ))}
