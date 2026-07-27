@@ -7,18 +7,41 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { PaginationNav } from '@/components/ui/PaginationNav'
 import { requireApprovedPage } from '@/lib/session-auth'
+import { withPerf } from '@/lib/perf'
+import {
+  parsePaginationParams,
+  resolvePagination,
+} from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const PAYABLES_LIST_LIMIT = 500
 const openPayableStatuses = ['PENDING', 'PARTIAL'] as const
 
-export default async function PayablesListPage() {
+type PageProps = {
+  searchParams?: { page?: string; pageSize?: string }
+}
+
+export default async function PayablesListPage({ searchParams }: PageProps) {
   await requireApprovedPage()
+  const { page: rawPage, pageSize: rawPageSize } =
+    parsePaginationParams(searchParams)
+
   const { prisma } = await import('@/lib/prisma')
   const today = new Date()
+
+  const payableCount = await withPerf(
+    'payables.count',
+    () => prisma.payable.count(),
+    (n) => n,
+  )
+  const { page, pageSize, skip, take, totalPages } = resolvePagination(
+    rawPage,
+    rawPageSize,
+    payableCount,
+  )
 
   const [
     totalPendingAgg,
@@ -26,7 +49,6 @@ export default async function PayablesListPage() {
     totalPaidAgg,
     openCountAgg,
     paidCountAgg,
-    payableCount,
     payables,
   ] = await Promise.all([
     prisma.payable.aggregate({
@@ -50,34 +72,39 @@ export default async function PayablesListPage() {
     prisma.payable.count({
       where: { status: 'PAID' },
     }),
-    prisma.payable.count(),
-    prisma.payable.findMany({
-      take: PAYABLES_LIST_LIMIT,
-      orderBy: { dueDate: 'asc' },
-      select: {
-        id: true,
-        purchaseId: true,
-        supplierCompany: true,
-        supplierName: true,
-        issuedAt: true,
-        dueDate: true,
-        totalAmount: true,
-        balance: true,
-        status: true,
-        supplier: {
-          select: {
-            company: true,
-            name: true,
-          },
-        },
-        purchase: {
+    withPerf(
+      'payables.list',
+      () =>
+        prisma.payable.findMany({
+          skip,
+          take,
+          orderBy: { dueDate: 'asc' },
           select: {
             id: true,
-            purchaseNumber: true,
+            purchaseId: true,
+            supplierCompany: true,
+            supplierName: true,
+            issuedAt: true,
+            dueDate: true,
+            totalAmount: true,
+            balance: true,
+            status: true,
+            supplier: {
+              select: {
+                company: true,
+                name: true,
+              },
+            },
+            purchase: {
+              select: {
+                id: true,
+                purchaseNumber: true,
+              },
+            },
           },
-        },
-      },
-    }),
+        }),
+      (rows) => rows.length,
+    ),
   ])
 
   const totalPending = totalPendingAgg._sum.balance ?? 0
@@ -255,6 +282,13 @@ export default async function PayablesListPage() {
               </tbody>
             </table>
           </DataTableShell>
+          <PaginationNav
+            pathname="/payables"
+            page={page}
+            totalPages={totalPages}
+            total={payableCount}
+            searchParams={{ page: String(page), pageSize: String(pageSize) }}
+          />
         </SectionCard>
       )}
     </div>

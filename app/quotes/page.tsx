@@ -6,24 +6,46 @@ import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CancelQuoteButton } from '@/components/quotes/CancelQuoteButton'
+import { PaginationNav } from '@/components/ui/PaginationNav'
 import { requireApprovedPage } from '@/lib/session-auth'
 import { withPerf } from '@/lib/perf'
+import {
+  parsePaginationParams,
+  resolvePagination,
+} from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const QUOTES_LIST_LIMIT = 500
+type PageProps = {
+  searchParams?: { page?: string; pageSize?: string }
+}
 
-export default async function QuotesListPage() {
+export default async function QuotesListPage({ searchParams }: PageProps) {
   const sessionUser = await requireApprovedPage()
   const isAdmin = sessionUser.role === 'ADMIN'
 
+  const { page: rawPage, pageSize: rawPageSize } =
+    parsePaginationParams(searchParams)
+
   const { prisma } = await import('@/lib/prisma')
+  const total = await withPerf(
+    'quotes.count',
+    () => prisma.quote.count(),
+    (n) => n,
+  )
+  const { page, pageSize, skip, take, totalPages } = resolvePagination(
+    rawPage,
+    rawPageSize,
+    total,
+  )
+
   const quotes = await withPerf(
     'quotes.list',
     () =>
       prisma.quote.findMany({
-        take: QUOTES_LIST_LIMIT,
+        skip,
+        take,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -48,6 +70,8 @@ export default async function QuotesListPage() {
     (rows) => rows.length,
   )
 
+  const empty = total === 0
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -60,7 +84,7 @@ export default async function QuotesListPage() {
         }
       />
 
-      {quotes.length === 0 ? (
+      {empty ? (
         <EmptyState
           title="Todavía no hay cotizaciones guardadas"
           description="Podés generar una nueva cotización desde el catálogo de productos o usando el flujo de creación rápida."
@@ -171,6 +195,13 @@ export default async function QuotesListPage() {
               </tbody>
             </table>
           </DataTableShell>
+          <PaginationNav
+            pathname="/quotes"
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            searchParams={{ page: String(page), pageSize: String(pageSize) }}
+          />
         </SectionCard>
       )}
     </div>

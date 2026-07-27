@@ -7,19 +7,41 @@ import { SectionCard } from '@/components/layout/SectionCard'
 import { DataTableShell } from '@/components/ui/DataTableShell'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { PaginationNav } from '@/components/ui/PaginationNav'
 import { requireApprovedPage } from '@/lib/session-auth'
 import { withPerf } from '@/lib/perf'
+import {
+  parsePaginationParams,
+  resolvePagination,
+} from '@/lib/pagination'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const RECEIVABLES_LIST_LIMIT = 500
 const openReceivableStatuses = ['PENDING', 'PARTIAL'] as const
 
-export default async function ReceivablesListPage() {
+type PageProps = {
+  searchParams?: { page?: string; pageSize?: string }
+}
+
+export default async function ReceivablesListPage({ searchParams }: PageProps) {
   await requireApprovedPage()
+  const { page: rawPage, pageSize: rawPageSize } =
+    parsePaginationParams(searchParams)
+
   const { prisma } = await import('@/lib/prisma')
   const today = new Date()
+
+  const receivableCount = await withPerf(
+    'receivables.count',
+    () => prisma.receivable.count(),
+    (n) => n,
+  )
+  const { page, pageSize, skip, take, totalPages } = resolvePagination(
+    rawPage,
+    rawPageSize,
+    receivableCount,
+  )
 
   const [
     totalPendingAgg,
@@ -27,7 +49,6 @@ export default async function ReceivablesListPage() {
     totalCollectedAgg,
     openCountAgg,
     paidCountAgg,
-    receivableCount,
     receivables,
   ] = await Promise.all([
     prisma.receivable.aggregate({
@@ -51,12 +72,12 @@ export default async function ReceivablesListPage() {
     prisma.receivable.count({
       where: { status: 'PAID' },
     }),
-    prisma.receivable.count(),
     withPerf(
       'receivables.list',
       () =>
         prisma.receivable.findMany({
-          take: RECEIVABLES_LIST_LIMIT,
+          skip,
+          take,
           orderBy: { dueDate: 'asc' },
           select: {
             id: true,
@@ -81,7 +102,6 @@ export default async function ReceivablesListPage() {
                 saleNumber: true,
               },
             },
-            // Solo lo necesario para #cuotas y próximo vencimiento abierto.
             installments: {
               orderBy: [{ dueDate: 'asc' }, { order: 'asc' }],
               select: {
@@ -219,7 +239,6 @@ export default async function ReceivablesListPage() {
                     '-'
 
                   const fmtMoneyGeneric = (amount: number) => {
-                    // Las cuentas por cobrar se expresan en ARS como moneda principal
                     return fmtMoneyARS(amount)
                   }
 
@@ -342,6 +361,13 @@ export default async function ReceivablesListPage() {
               </tbody>
             </table>
           </DataTableShell>
+          <PaginationNav
+            pathname="/receivables"
+            page={page}
+            totalPages={totalPages}
+            total={receivableCount}
+            searchParams={{ page: String(page), pageSize: String(pageSize) }}
+          />
         </SectionCard>
       )}
     </div>
