@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Command, Menu, Search } from 'lucide-react'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { useCurrentUser } from '@/components/layout/UserContext'
+import { SignOutButton } from '@/components/layout/SignOutButton'
 import { COMMAND_PALETTE_EVENT } from './command-palette-constants'
 
 type TopbarProps = {
@@ -86,9 +87,13 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
         <div className="hidden text-right text-[11px] leading-tight sm:block">
           <div className="font-semibold text-slate-900">{displayName}</div>
         </div>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-[11px] font-bold text-slate-700 ring-2 ring-white shadow-sm">
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-[11px] font-bold text-slate-700 ring-2 ring-white shadow-sm"
+          aria-hidden
+        >
           {displayName.charAt(0).toUpperCase()}
         </div>
+        <SignOutButton compact />
       </div>
     </header>
   )
