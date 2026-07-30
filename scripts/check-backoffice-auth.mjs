@@ -32,6 +32,21 @@ async function checkApi(path, expectStatus) {
   return res
 }
 
+async function checkApiAuthRequired(method, path) {
+  const res = await fetch(`${base}${path}`, {
+    method,
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: method === 'GET' || method === 'HEAD' ? undefined : '{}',
+    redirect: 'manual',
+  })
+  if (res.status === 401 || res.status === 403) {
+    ok(`${method} ${path} → ${res.status}`)
+  } else {
+    fail(`${method} ${path} → ${res.status} (esperaba 401/403)`)
+  }
+  return res
+}
+
 async function checkPageRedirectsToLogin(path) {
   const res = await fetch(`${base}${path}`, {
     redirect: 'manual',
@@ -67,6 +82,24 @@ async function checkPageRedirectsToLogin(path) {
   }
 }
 
+const CATALOG_SENSITIVE_KEYS = [
+  'cost',
+  'costCurrency',
+  'prices',
+  'netPrice',
+  'taxRate',
+  'margin',
+  'provider',
+  'supplier',
+  'notes',
+]
+
+function findSensitiveLeaks(text) {
+  return CATALOG_SENSITIVE_KEYS.filter((k) =>
+    new RegExp(`"${k}"\\s*:`).test(text),
+  )
+}
+
 async function checkCatalogPublic() {
   const res = await fetch(`${base}/api/catalog/products`, {
     headers: { Accept: 'application/json' },
@@ -78,9 +111,7 @@ async function checkCatalogPublic() {
   } catch {
     body = null
   }
-  const leaks = ['cost', 'costCurrency', '"prices"', 'netPrice', 'taxRate'].filter(
-    (k) => (k.startsWith('"') ? text.includes(k) : new RegExp(`"${k}"\\s*:`).test(text)),
-  )
+  const leaks = findSensitiveLeaks(text)
   if (res.status === 200 && leaks.length === 0 && body && Array.isArray(body.items)) {
     ok(`/api/catalog/products → 200 sin campos sensibles`)
   } else {
@@ -102,6 +133,12 @@ async function checkCatalogPublic() {
   } else {
     fail(`/catalogo/productos → ${page.status} Location=${loc}`)
   }
+}
+
+async function checkAdminCatalogApis() {
+  await checkApiAuthRequired('GET', '/api/admin/catalog/products')
+  await checkApiAuthRequired('POST', '/api/admin/catalog/validate')
+  await checkApiAuthRequired('POST', '/api/admin/catalog/bulk')
 }
 
 async function main() {
@@ -139,6 +176,8 @@ async function main() {
   await checkApi('/api/payment-terms', 401)
   await checkApi('/api/settings/exchange-rate', 401)
 
+  await checkAdminCatalogApis()
+
   await checkCatalogPublic()
 
   await checkPageRedirectsToLogin('/products')
@@ -147,6 +186,7 @@ async function main() {
   await checkPageRedirectsToLogin('/cash')
   await checkPageRedirectsToLogin('/finance')
   await checkPageRedirectsToLogin('/admin/users')
+  await checkPageRedirectsToLogin('/admin/catalog')
 
   if (failed > 0) {
     console.error(`\n${failed} verificación(es) fallaron.`)

@@ -6,6 +6,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Banknote,
   BarChart3,
+  Globe,
   Map,
   LayoutDashboard,
   Package,
@@ -73,6 +74,7 @@ const SECTIONS: Section[] = [
     title: 'Admin',
     items: [
       { href: '/admin/users', label: 'Usuarios', icon: Users },
+      { href: '/admin/catalog', label: 'Catálogo online', icon: Globe },
       { href: '/admin/settings', label: 'Configuración', icon: Settings },
       { href: '/admin/financial-settings', label: 'Parámetros financieros', icon: Settings },
       { href: '/admin/import', label: 'Importar datos', icon: Upload },
