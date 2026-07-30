@@ -7,7 +7,7 @@ export default async function PendingPage() {
 
   async function handleSignOut() {
     'use server'
-    await signOut({ redirectTo: '/' })
+    await signOut({ redirectTo: '/login' })
   }
 
   return (
