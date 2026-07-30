@@ -4,6 +4,7 @@ import {
   BarChart3,
   ChevronRight,
   FileSpreadsheet,
+  Globe,
   Package,
   Settings,
   ShoppingCart,
@@ -87,6 +88,7 @@ export default async function Home() {
         >
           {isAdmin ? (
             <div className="space-y-2">
+              <QuickLink href="/admin/catalog" label="Catálogo online" Icon={Globe} />
               <QuickLink href="/admin/import" label="Importar productos" Icon={Upload} />
               <QuickLink href="/admin/settings" label="Configuración general" Icon={Settings} />
               <QuickLink href="/admin/users" label="Usuarios" Icon={Users} />

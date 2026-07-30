@@ -30,8 +30,10 @@ export function AppShell({ children }: AppShellProps) {
       <Topbar onToggleSidebar={toggleSidebar} />
       <div className="flex min-h-[calc(100vh-3.5rem)]">
         <Sidebar activePath={pathname} isOpen={sidebarOpen} onClose={closeSidebar} />
-        <main className="flex-1 px-4 py-6 md:px-8 lg:py-8">
-          <div className="mx-auto max-w-7xl space-y-6">{children}</div>
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-8 lg:py-8">
+          <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6">
+            {children}
+          </div>
         </main>
       </div>
     </div>
