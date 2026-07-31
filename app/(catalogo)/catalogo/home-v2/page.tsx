@@ -6,6 +6,7 @@ import {
 } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
 import { HOME_BRANDS } from '@/components/catalog/home-v2/home-brands'
+import { toHomeCategoryItems } from '@/components/catalog/home-v2/home-categories'
 import { HomeV2Hero } from '@/components/catalog/home-v2/HomeV2Hero'
 import { HomeV2Brands } from '@/components/catalog/home-v2/HomeV2Brands'
 import { HomeV2Categories } from '@/components/catalog/home-v2/HomeV2Categories'
@@ -63,7 +64,10 @@ export default async function CatalogoHomeV2Page() {
     ? featuredSettled.data.items.slice(0, 6)
     : []
   const featuredError = !featuredSettled.ok
-  const categories = categoriesSettled.data
+  const homeCategories = toHomeCategoryItems(
+    categoriesSettled.data,
+    (slug) => p(`categorias/${slug}`),
+  )
 
   return (
     <div>
@@ -72,8 +76,7 @@ export default async function CatalogoHomeV2Page() {
 
       <div className="mx-auto max-w-6xl space-y-12 px-4 py-10 sm:space-y-14 sm:px-6 sm:py-12">
         <HomeV2Categories
-          categories={categories}
-          categoryHref={(slug) => p(`categorias/${slug}`)}
+          categories={homeCategories}
           productsHref={productsHref}
         />
         <HomeV2FeaturedProducts

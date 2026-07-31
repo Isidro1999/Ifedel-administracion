@@ -1,21 +1,25 @@
 import Link from 'next/link'
-import type { CatalogCategory } from '@/lib/catalog-client'
+import type { HomeCategoryItem } from '@/components/catalog/home-v2/home-categories'
 import { HomeV2SectionHeading } from '@/components/catalog/home-v2/HomeV2SectionHeading'
-
-const MAX_CATEGORIES = 8
+import { HomeV2CategoryCard } from '@/components/catalog/home-v2/HomeV2CategoryCard'
 
 type HomeV2CategoriesProps = {
-  categories: CatalogCategory[]
-  categoryHref: (slug: string) => string
+  categories: HomeCategoryItem[]
   productsHref: string
 }
 
 export function HomeV2Categories({
   categories,
-  categoryHref,
   productsHref,
 }: HomeV2CategoriesProps) {
-  const visible = categories.slice(0, MAX_CATEGORIES)
+  const productsCta = (
+    <Link
+      href={productsHref}
+      className="text-sm font-semibold text-ifedel-brown underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ifedel-primary"
+    >
+      Ver todos los productos
+    </Link>
+  )
 
   return (
     <section id="categorias" aria-labelledby="home-v2-categorias-heading">
@@ -23,48 +27,29 @@ export function HomeV2Categories({
         id="home-v2-categorias-heading"
         title="Categorías"
         description="Empezá por el rubro que te interesa."
-        action={
-          <Link
-            href={productsHref}
-            className="hidden text-sm font-semibold text-ifedel-brown hover:underline sm:inline"
-          >
-            Ver todos los productos
-          </Link>
-        }
+        action={<span className="hidden sm:inline">{productsCta}</span>}
       />
 
-      {visible.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-slate-300 bg-white/50 px-4 py-8 text-center text-sm text-slate-500">
-          Aún no hay categorías con productos publicados.
-        </p>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {visible.map((cat) => {
-            const count = cat.count ?? 0
-            return (
-              <Link
-                key={cat.id}
-                href={categoryHref(cat.slug)}
-                className="rounded-2xl border border-slate-200/80 bg-white px-4 py-5 shadow-sm transition hover:border-ifedel-primary/50 hover:shadow-md"
-              >
-                <p className="font-semibold text-slate-900">{cat.name}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {count} producto{count === 1 ? '' : 's'}
-                </p>
-              </Link>
-            )
-          })}
+      {categories.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 px-4 py-8 text-center">
+          <p className="text-sm text-slate-600">
+            Aún no hay categorías con productos publicados.
+          </p>
+          <div className="mt-4">{productsCta}</div>
         </div>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          {categories.map((cat) => (
+            <li key={cat.id} className="min-w-0">
+              <HomeV2CategoryCard category={cat} />
+            </li>
+          ))}
+        </ul>
       )}
 
-      <div className="mt-5 text-center sm:hidden">
-        <Link
-          href={productsHref}
-          className="text-sm font-semibold text-ifedel-brown hover:underline"
-        >
-          Ver todos los productos
-        </Link>
-      </div>
+      {categories.length > 0 ? (
+        <div className="mt-5 text-center sm:hidden">{productsCta}</div>
+      ) : null}
     </section>
   )
 }
