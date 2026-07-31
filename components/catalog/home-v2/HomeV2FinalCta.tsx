@@ -12,24 +12,24 @@ export function HomeV2FinalCta({
   return (
     <section
       aria-labelledby="home-v2-cta-heading"
-      className="rounded-3xl border border-slate-200/80 bg-white px-5 py-12 text-center sm:px-8"
+      className="rounded-2xl border border-slate-200/80 bg-white px-5 py-10 text-center sm:px-8 sm:py-11"
     >
       <h2
         id="home-v2-cta-heading"
-        className="text-2xl font-bold tracking-tight text-slate-900"
+        className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
       >
         ¿Listo para armar tu consulta?
       </h2>
-      <p className="mx-auto mt-2 max-w-lg text-sm text-slate-600">
+      <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-600">
         Explorá el catálogo, sumá productos a tu lista y envianos tu consulta
         por WhatsApp.
       </p>
-      <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+      <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Link
           href={productsHref}
           className="inline-flex w-full items-center justify-center rounded-full bg-ifedel-primary px-6 py-3 text-sm font-semibold text-black transition hover:brightness-105 sm:w-auto"
         >
-          Ver productos
+          Explorar productos
         </Link>
         <Link
           href={inquiryHref}

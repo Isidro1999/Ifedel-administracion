@@ -5,6 +5,7 @@ import {
   fetchCatalogProducts,
 } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
+import { HOME_BRANDS } from '@/components/catalog/home-v2/home-brands'
 import { HomeV2Hero } from '@/components/catalog/home-v2/HomeV2Hero'
 import { HomeV2Brands } from '@/components/catalog/home-v2/HomeV2Brands'
 import { HomeV2Categories } from '@/components/catalog/home-v2/HomeV2Categories'
@@ -67,8 +68,9 @@ export default async function CatalogoHomeV2Page() {
   return (
     <div>
       <HomeV2Hero productsHref={productsHref} inquiryHref={inquiryHref} />
-      <HomeV2Brands />
-      <div className="mx-auto max-w-6xl space-y-16 px-4 py-14 sm:px-6">
+      <HomeV2Brands brands={HOME_BRANDS} />
+
+      <div className="mx-auto max-w-6xl space-y-12 px-4 py-10 sm:space-y-14 sm:px-6 sm:py-12">
         <HomeV2Categories
           categories={categories}
           categoryHref={(slug) => p(`categorias/${slug}`)}

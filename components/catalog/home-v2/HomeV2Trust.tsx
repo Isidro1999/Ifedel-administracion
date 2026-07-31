@@ -10,11 +10,11 @@ export function HomeV2Trust() {
   return (
     <section
       aria-labelledby="home-v2-confianza-heading"
-      className="rounded-3xl border border-ifedel-brown/15 bg-[#0a0a0a] px-5 py-10 text-white sm:px-8"
+      className="rounded-2xl border border-ifedel-brown/15 bg-[#0a0a0a] px-5 py-8 text-white sm:px-8 sm:py-9"
     >
       <h2
         id="home-v2-confianza-heading"
-        className="text-2xl font-bold tracking-tight"
+        className="text-xl font-bold tracking-tight sm:text-2xl"
       >
         Trabajamos con vos
       </h2>

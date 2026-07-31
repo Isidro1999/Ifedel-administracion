@@ -23,19 +23,19 @@ export function HomeV2HowItWorks() {
   return (
     <section
       aria-labelledby="home-v2-como-funciona-heading"
-      className="rounded-3xl border border-slate-200/80 bg-white px-5 py-10 sm:px-8"
+      className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 sm:px-8 sm:py-9"
     >
       <h2
         id="home-v2-como-funciona-heading"
-        className="text-2xl font-bold tracking-tight text-slate-900"
+        className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
       >
         Cómo funciona la consulta
       </h2>
-      <p className="mt-1 max-w-2xl text-sm text-slate-600">
+      <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">
         No hay compra online. Armá tu lista y escribinos para recibir
         acompañamiento comercial.
       </p>
-      <ol className="mt-8 grid gap-6 sm:grid-cols-3">
+      <ol className="mt-7 grid gap-6 sm:grid-cols-3">
         {STEPS.map((item) => (
           <li key={item.step} className="flex flex-col gap-2">
             <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-ifedel-primary text-sm font-bold text-black">

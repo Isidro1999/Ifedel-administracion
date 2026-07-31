@@ -3,6 +3,7 @@ import type { CatalogProductListItem } from '@/lib/catalog-client'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
+import { HomeV2SectionHeading } from '@/components/catalog/home-v2/HomeV2SectionHeading'
 
 type HomeV2FeaturedProductsProps = {
   products: CatalogProductListItem[]
@@ -17,17 +18,11 @@ export function HomeV2FeaturedProducts({
 }: HomeV2FeaturedProductsProps) {
   return (
     <section aria-labelledby="home-v2-destacados-heading">
-      <div className="mb-6">
-        <h2
-          id="home-v2-destacados-heading"
-          className="text-2xl font-bold tracking-tight text-slate-900"
-        >
-          Productos destacados
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Selección comercial de {IFEDelBrand.companyName}.
-        </p>
-      </div>
+      <HomeV2SectionHeading
+        id="home-v2-destacados-heading"
+        title="Productos destacados"
+        description={`Selección comercial de ${IFEDelBrand.companyName}.`}
+      />
 
       {loadError ? (
         <EmptyCatalogState
