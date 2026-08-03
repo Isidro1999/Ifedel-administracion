@@ -84,12 +84,15 @@ export default async function CatalogoHomeV2Page() {
           productsHref={productsHref}
           loadError={featuredError}
         />
-        <HomeV2HowItWorks />
-        <HomeV2Trust />
-        <HomeV2FinalCta
-          productsHref={productsHref}
-          inquiryHref={inquiryHref}
-        />
+
+        <div className="space-y-8 sm:space-y-10">
+          <HomeV2HowItWorks />
+          <HomeV2Trust />
+          <HomeV2FinalCta
+            productsHref={productsHref}
+            inquiryHref={inquiryHref}
+          />
+        </div>
       </div>
     </div>
   )

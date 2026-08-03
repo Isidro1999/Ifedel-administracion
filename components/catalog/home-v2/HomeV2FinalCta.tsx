@@ -12,31 +12,38 @@ export function HomeV2FinalCta({
   return (
     <section
       aria-labelledby="home-v2-cta-heading"
-      className="rounded-2xl border border-slate-200/80 bg-white px-5 py-10 text-center sm:px-8 sm:py-11"
+      className="overflow-hidden rounded-2xl bg-ifedel-primary px-5 py-9 text-black sm:px-8 sm:py-10"
     >
-      <h2
-        id="home-v2-cta-heading"
-        className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
-      >
-        ¿Listo para armar tu consulta?
-      </h2>
-      <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-600">
-        Explorá el catálogo, sumá productos a tu lista y envianos tu consulta
-        por WhatsApp.
-      </p>
-      <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-        <Link
-          href={productsHref}
-          className="inline-flex w-full items-center justify-center rounded-full bg-ifedel-primary px-6 py-3 text-sm font-semibold text-black transition hover:brightness-105 sm:w-auto"
-        >
-          Explorar productos
-        </Link>
-        <Link
-          href={inquiryHref}
-          className="inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-800 transition hover:border-ifedel-primary hover:bg-ifedel-primary/10 sm:w-auto"
-        >
-          Armar consulta
-        </Link>
+      <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+        <div className="min-w-0 max-w-xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-black/65">
+            Tu consulta, en pocos pasos
+          </p>
+          <h2
+            id="home-v2-cta-heading"
+            className="mt-2 text-xl font-bold tracking-tight text-black sm:text-2xl"
+          >
+            Encontrá lo que necesitás y armá tu consulta
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-black/75">
+            Sumá productos a tu lista y envianos todo junto por WhatsApp.
+          </p>
+        </div>
+
+        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto lg:shrink-0">
+          <Link
+            href={productsHref}
+            className="inline-flex w-full items-center justify-center rounded-full bg-[#0a0a0a] px-6 py-3 text-sm font-semibold text-white transition hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black lg:w-auto"
+          >
+            Explorar productos
+          </Link>
+          <Link
+            href={inquiryHref}
+            className="inline-flex w-full items-center justify-center rounded-full border border-black/25 bg-white/90 px-6 py-3 text-sm font-semibold text-black transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black lg:w-auto"
+          >
+            Ver mi consulta
+          </Link>
+        </div>
       </div>
     </section>
   )
