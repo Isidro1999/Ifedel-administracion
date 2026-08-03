@@ -59,6 +59,22 @@ export const HOME_CATEGORY_ICONS: Record<string, HomeCategoryIconKey> = {
   'repuestos-heiniger': 'default',
 }
 
+/**
+ * Imágenes locales opcionales por slug (`public/catalog/categories/`).
+ * Solo rutas a archivos existentes. Sin imagen → card clásica.
+ */
+export const HOME_CATEGORY_IMAGES: Record<string, string> = {
+  'electrificacin-energizadores':
+    '/catalog/categories/pexels-seba-763269.jpg',
+  'electrificacin-accesorios':
+    '/catalog/categories/pexels-olivia-soares-85582606-36743439.jpg',
+  'pesaje-e-ide':
+    '/catalog/categories/pexels-yavuz-selim-korku-497065016-18320101.jpg',
+  lectores:
+    '/catalog/categories/pexels-julian-leonel-23517043-38365037.jpg',
+  identificacion: '/catalog/categories/pexels-philipp-441664-27579608.jpg',
+  gripple: '/catalog/categories/pexels-andyclipit-13143653.jpg',
+}
 export type HomeCategoryItem = {
   id: number
   name: string
@@ -66,6 +82,8 @@ export type HomeCategoryItem = {
   count: number
   href: string
   icon: HomeCategoryIconKey
+  /** Ruta pública opcional; si falta, la card no muestra imagen. */
+  image?: string
 }
 
 /**
@@ -105,12 +123,16 @@ export function toHomeCategoryItems(
   categories: CatalogCategory[],
   hrefForSlug: (slug: string) => string,
 ): HomeCategoryItem[] {
-  return selectHomeCategories(categories).map((cat) => ({
-    id: cat.id,
-    name: cat.name,
-    slug: cat.slug,
-    count: cat.count ?? 0,
-    href: hrefForSlug(cat.slug),
-    icon: HOME_CATEGORY_ICONS[cat.slug] ?? 'default',
-  }))
+  return selectHomeCategories(categories).map((cat) => {
+    const image = HOME_CATEGORY_IMAGES[cat.slug]
+    return {
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      count: cat.count ?? 0,
+      href: hrefForSlug(cat.slug),
+      icon: HOME_CATEGORY_ICONS[cat.slug] ?? 'default',
+      ...(image ? { image } : {}),
+    }
+  })
 }
