@@ -1,0 +1,53 @@
+.viewport {
+  overflow: hidden;
+  width: 100%;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.viewportManual {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  gap: 1rem;
+  animation: homeBrandsScroll 35s linear infinite;
+  will-change: transform;
+}
+
+.paused .track {
+  animation-play-state: paused;
+}
+
+.list {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 1rem;
+}
+
+@keyframes homeBrandsScroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+}

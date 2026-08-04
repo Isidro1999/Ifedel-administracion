@@ -15,6 +15,37 @@ const nextConfig = {
     },
   },
   /**
+   * Home V2 promovida: evitar contenido duplicado indexable.
+   * HTTP 308 real (mejor para crawlers que el soft-redirect de App Router).
+   */
+  async redirects() {
+    return [
+      {
+        source: '/catalogo/home-v2',
+        destination: '/catalogo',
+        permanent: true,
+      },
+      {
+        source: '/home-v2',
+        has: [{ type: 'host', value: 'catalogo.ifedel.com' }],
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/home-v2',
+        has: [{ type: 'host', value: 'www.catalogo.ifedel.com' }],
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/home-v2',
+        has: [{ type: 'host', value: 'catalogo.localhost' }],
+        destination: '/',
+        permanent: true,
+      },
+    ]
+  },
+  /**
    * En desarrollo, evita que el navegador conserve CSS/JS de un build viejo de `.next`
    * mientras el HTML ya apunta a otro hash (síntoma: página “sin Tailwind”, links violeta).
    */
