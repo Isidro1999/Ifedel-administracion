@@ -9,6 +9,7 @@ import {
 } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
+import { CatalogPagination } from '@/components/catalog/CatalogPagination'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 
 export const revalidate = 60
@@ -69,6 +70,8 @@ export default async function CatalogoCategoriaPage({
 
   if (missing) notFound()
 
+  const categoryBase = p(`categorias/${params.slug}`)
+
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6">
       <nav className="text-sm text-slate-500">
@@ -100,11 +103,22 @@ export default async function CatalogoCategoriaPage({
             showCta={false}
           />
         ) : products ? (
-          <ProductGrid
-            products={products.items}
-            emptyTitle="No hay productos en esta categoría"
-            emptyDescription="Pronto vamos a publicar más artículos aquí."
-          />
+          <>
+            <p className="text-sm text-slate-500">
+              {products.pagination.total} resultado
+              {products.pagination.total === 1 ? '' : 's'}
+            </p>
+            <ProductGrid
+              products={products.items}
+              emptyTitle="No hay productos en esta categoría"
+              emptyDescription="Pronto vamos a publicar más artículos aquí."
+            />
+            <CatalogPagination
+              basePath={categoryBase}
+              page={products.pagination.page}
+              totalPages={products.pagination.totalPages}
+            />
+          </>
         ) : null}
       </Suspense>
     </div>
