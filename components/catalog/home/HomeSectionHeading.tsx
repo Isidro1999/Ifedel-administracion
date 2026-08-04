@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-type HomeV2SectionHeadingProps = {
+type HomeSectionHeadingProps = {
   id: string
   title: string
   description?: string
@@ -8,12 +8,12 @@ type HomeV2SectionHeadingProps = {
 }
 
 /** Encabezado uniforme de secciones de la home V2. */
-export function HomeV2SectionHeading({
+export function HomeSectionHeading({
   id,
   title,
   description,
   action,
-}: HomeV2SectionHeadingProps) {
+}: HomeSectionHeadingProps) {
   return (
     <div className="mb-5 flex items-end justify-between gap-4 sm:mb-6">
       <div className="min-w-0">

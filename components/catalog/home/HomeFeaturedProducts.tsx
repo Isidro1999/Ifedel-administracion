@@ -3,23 +3,23 @@ import type { CatalogProductListItem } from '@/lib/catalog-client'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
-import { HomeV2SectionHeading } from '@/components/catalog/home-v2/HomeV2SectionHeading'
+import { HomeSectionHeading } from '@/components/catalog/home/HomeSectionHeading'
 
-type HomeV2FeaturedProductsProps = {
+type HomeFeaturedProductsProps = {
   products: CatalogProductListItem[]
   productsHref: string
   loadError?: boolean
 }
 
-export function HomeV2FeaturedProducts({
+export function HomeFeaturedProducts({
   products,
   productsHref,
   loadError = false,
-}: HomeV2FeaturedProductsProps) {
+}: HomeFeaturedProductsProps) {
   return (
-    <section aria-labelledby="home-v2-destacados-heading">
-      <HomeV2SectionHeading
-        id="home-v2-destacados-heading"
+    <section aria-labelledby="home-destacados-heading">
+      <HomeSectionHeading
+        id="home-destacados-heading"
         title="Productos destacados"
         description={`Selección comercial de ${IFEDelBrand.companyName}.`}
       />
@@ -36,13 +36,13 @@ export function HomeV2FeaturedProducts({
           description="Cuando publiquemos productos destacados van a aparecer acá. Mientras tanto podés explorar el catálogo completo."
         />
       ) : (
-        <ProductGrid products={products} priorityCount={3} />
+        <ProductGrid products={products} priorityCount={1} />
       )}
 
       <div className="mt-8 text-center">
         <Link
           href={productsHref}
-          className="inline-flex rounded-full bg-ifedel-brown px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+          className="inline-flex rounded-full bg-ifedel-brown px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ifedel-brown"
         >
           Ver todos los productos
         </Link>

@@ -5,11 +5,11 @@ import { useEffect, useRef, useState } from 'react'
 import {
   HOME_BRANDS,
   type HomeBrand,
-} from '@/components/catalog/home-v2/home-brands'
-import { HomeV2SectionHeading } from '@/components/catalog/home-v2/HomeV2SectionHeading'
-import styles from '@/components/catalog/home-v2/HomeV2Brands.module.css'
+} from '@/components/catalog/home/home-brands'
+import { HomeSectionHeading } from '@/components/catalog/home/HomeSectionHeading'
+import styles from '@/components/catalog/home/HomeBrands.module.css'
 
-type HomeV2BrandsProps = {
+type HomeBrandsProps = {
   brands?: HomeBrand[]
 }
 
@@ -31,6 +31,7 @@ function BrandCard({ brand }: { brand: HomeBrand }) {
         width={220}
         height={110}
         sizes="(max-width: 640px) 160px, 196px"
+        loading="lazy"
         className={`h-auto w-auto max-w-full object-contain ${SCALE_CLASS[scale]}`}
       />
     </span>
@@ -78,7 +79,7 @@ function BrandList({
  * Franja de marcas con carrusel continuo (CSS).
  * Loop por track duplicado + translateX(-50%), 35s por vuelta.
  */
-export function HomeV2Brands({ brands = HOME_BRANDS }: HomeV2BrandsProps) {
+export function HomeBrands({ brands = HOME_BRANDS }: HomeBrandsProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const touchResumeTimer = useRef<number | null>(null)
 
@@ -151,12 +152,12 @@ export function HomeV2Brands({ brands = HOME_BRANDS }: HomeV2BrandsProps) {
 
   return (
     <section
-      aria-labelledby="home-v2-marcas-heading"
+      aria-labelledby="home-marcas-heading"
       className="border-b border-slate-200/80 bg-white/80"
     >
       <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
-        <HomeV2SectionHeading
-          id="home-v2-marcas-heading"
+        <HomeSectionHeading
+          id="home-marcas-heading"
           title="Marcas con las que trabajamos"
           description="Productos y soluciones de marcas seleccionadas para el sector."
         />

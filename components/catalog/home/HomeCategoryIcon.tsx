@@ -1,4 +1,4 @@
-import type { HomeCategoryIconKey } from '@/components/catalog/home-v2/home-categories'
+import type { HomeCategoryIconKey } from '@/components/catalog/home/home-categories'
 
 type CategoryIconProps = {
   name: HomeCategoryIconKey
@@ -6,7 +6,7 @@ type CategoryIconProps = {
 }
 
 /** SVG decorativos de categoría (aria-hidden en el padre). */
-export function HomeV2CategoryIcon({ name, className }: CategoryIconProps) {
+export function HomeCategoryIcon({ name, className }: CategoryIconProps) {
   const common = {
     className,
     viewBox: '0 0 24 24',

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
-type HomeV2HeroProps = {
+type HomeHeroProps = {
   productsHref: string
   inquiryHref: string
 }
@@ -13,9 +13,12 @@ const RUBROS = [
   'Electrificación rural',
 ] as const
 
-export function HomeV2Hero({ productsHref, inquiryHref }: HomeV2HeroProps) {
+export function HomeHero({ productsHref, inquiryHref }: HomeHeroProps) {
   return (
-    <section className="relative overflow-hidden bg-[#0a0a0a] text-white">
+    <section
+      aria-labelledby="home-hero-heading"
+      className="relative overflow-hidden bg-[#0a0a0a] text-white"
+    >
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -30,7 +33,10 @@ export function HomeV2Hero({ productsHref, inquiryHref }: HomeV2HeroProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ifedel-primary sm:text-sm">
             {IFEDelBrand.companyName} · {IFEDelBrand.tagline}
           </p>
-          <h1 className="mt-3 max-w-xl text-[1.85rem] font-bold leading-[1.15] tracking-tight sm:mt-4 sm:text-4xl sm:leading-[1.12] lg:text-[2.75rem] lg:leading-[1.1]">
+          <h1
+            id="home-hero-heading"
+            className="mt-3 max-w-xl text-[1.85rem] font-bold leading-[1.15] tracking-tight sm:mt-4 sm:text-4xl sm:leading-[1.12] lg:text-[2.75rem] lg:leading-[1.1]"
+          >
             Soluciones para el campo, en un solo lugar
           </h1>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/75 sm:mt-5 sm:text-base">
@@ -39,15 +45,15 @@ export function HomeV2Hero({ productsHref, inquiryHref }: HomeV2HeroProps) {
             WhatsApp.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center">
-            <Link
+              <Link
               href={productsHref}
-              className="inline-flex items-center justify-center rounded-full bg-ifedel-primary px-6 py-3 text-sm font-semibold text-black transition hover:brightness-105"
+              className="inline-flex items-center justify-center rounded-full bg-ifedel-primary px-6 py-3 text-sm font-semibold text-black transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ifedel-primary"
             >
               Explorar productos
             </Link>
             <Link
               href={inquiryHref}
-              className="inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-ifedel-primary hover:text-ifedel-primary"
+              className="inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-ifedel-primary hover:text-ifedel-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ifedel-primary"
             >
               Armar consulta
             </Link>

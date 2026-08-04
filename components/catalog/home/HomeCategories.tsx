@@ -1,17 +1,17 @@
 import Link from 'next/link'
-import type { HomeCategoryItem } from '@/components/catalog/home-v2/home-categories'
-import { HomeV2SectionHeading } from '@/components/catalog/home-v2/HomeV2SectionHeading'
-import { HomeV2CategoryCard } from '@/components/catalog/home-v2/HomeV2CategoryCard'
+import type { HomeCategoryItem } from '@/components/catalog/home/home-categories'
+import { HomeSectionHeading } from '@/components/catalog/home/HomeSectionHeading'
+import { HomeCategoryCard } from '@/components/catalog/home/HomeCategoryCard'
 
-type HomeV2CategoriesProps = {
+type HomeCategoriesProps = {
   categories: HomeCategoryItem[]
   productsHref: string
 }
 
-export function HomeV2Categories({
+export function HomeCategories({
   categories,
   productsHref,
-}: HomeV2CategoriesProps) {
+}: HomeCategoriesProps) {
   const productsCta = (
     <Link
       href={productsHref}
@@ -22,9 +22,9 @@ export function HomeV2Categories({
   )
 
   return (
-    <section id="categorias" aria-labelledby="home-v2-categorias-heading">
-      <HomeV2SectionHeading
-        id="home-v2-categorias-heading"
+    <section id="categorias" aria-labelledby="home-categorias-heading">
+      <HomeSectionHeading
+        id="home-categorias-heading"
         title="Categorías"
         description="Empezá por el rubro que te interesa."
         action={<span className="hidden sm:inline">{productsCta}</span>}
@@ -38,10 +38,10 @@ export function HomeV2Categories({
           <div className="mt-4">{productsCta}</div>
         </div>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <ul className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:grid-cols-3 sm:gap-4">
           {categories.map((cat) => (
             <li key={cat.id} className="min-w-0">
-              <HomeV2CategoryCard category={cat} />
+              <HomeCategoryCard category={cat} />
             </li>
           ))}
         </ul>

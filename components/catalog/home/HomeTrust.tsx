@@ -24,10 +24,10 @@ function phoneHref(phone: string): string {
   return digits ? `tel:+${digits}` : `tel:${phone}`
 }
 
-export function HomeV2Trust() {
+export function HomeTrust() {
   return (
     <section
-      aria-labelledby="home-v2-confianza-heading"
+      aria-labelledby="home-confianza-heading"
       className="rounded-2xl border border-ifedel-primary/25 bg-[#eef6e3] px-5 py-8 sm:px-8 sm:py-9"
     >
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
@@ -36,7 +36,7 @@ export function HomeV2Trust() {
             Atención comercial
           </p>
           <h2
-            id="home-v2-confianza-heading"
+            id="home-confianza-heading"
             className="mt-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
           >
             Te ayudamos a encontrar la opción adecuada

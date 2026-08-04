@@ -24,13 +24,16 @@ export function CatalogHeader() {
     () => [
       { href: path(), label: 'Inicio' },
       { href: path('productos'), label: 'Productos' },
-      { href: `${path('productos')}#categorias`, label: 'Categorías' },
+      // Sección #categorias de la home (respeta /catalogo vs subdominio).
+      { href: `${path()}#categorias`, label: 'Categorías' },
       { href: path('consulta'), label: 'Consulta' },
     ],
     [path],
   )
 
   function navActive(href: string) {
+    // Anclas de sección (ej. #categorias) no compiten con "Inicio".
+    if (href.includes('#')) return false
     const base = href.split('#')[0]
     const home = path()
     if (base === home || base === '/') {

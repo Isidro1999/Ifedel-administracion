@@ -24,14 +24,14 @@ const STEPS = [
   },
 ] as const
 
-export function HomeV2HowItWorks() {
+export function HomeHowItWorks() {
   return (
     <section
-      aria-labelledby="home-v2-como-funciona-heading"
+      aria-labelledby="home-como-funciona-heading"
       className="rounded-2xl border border-slate-200/80 bg-white px-5 py-8 sm:px-8 sm:py-9"
     >
       <h2
-        id="home-v2-como-funciona-heading"
+        id="home-como-funciona-heading"
         className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
       >
         Cómo funciona la consulta

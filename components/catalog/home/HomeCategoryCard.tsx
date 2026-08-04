@@ -1,14 +1,14 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-import type { HomeCategoryItem } from '@/components/catalog/home-v2/home-categories'
-import { HomeV2CategoryIcon } from '@/components/catalog/home-v2/HomeV2CategoryIcon'
+import type { HomeCategoryItem } from '@/components/catalog/home/home-categories'
+import { HomeCategoryIcon } from '@/components/catalog/home/HomeCategoryIcon'
 
-type HomeV2CategoryCardProps = {
+type HomeCategoryCardProps = {
   category: HomeCategoryItem
 }
 
-export function HomeV2CategoryCard({ category }: HomeV2CategoryCardProps) {
+export function HomeCategoryCard({ category }: HomeCategoryCardProps) {
   const count = category.count
   const countLabel = `${count} producto${count === 1 ? '' : 's'}`
   const hasImage = Boolean(category.image)
@@ -35,6 +35,7 @@ export function HomeV2CategoryCard({ category }: HomeV2CategoryCardProps) {
             alt=""
             fill
             sizes="(max-width: 768px) 0px, (max-width: 1024px) 33vw, 280px"
+            loading="lazy"
             className="object-cover object-center opacity-0 grayscale transition duration-300 ease-out group-hover:scale-105 group-hover:opacity-100 group-focus-visible:scale-105 group-focus-visible:opacity-100 motion-reduce:transition-none motion-reduce:group-hover:scale-100 motion-reduce:group-focus-visible:scale-100"
           />
           <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/55 to-black/30 opacity-0 transition duration-300 ease-out group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none" />
@@ -52,7 +53,7 @@ export function HomeV2CategoryCard({ category }: HomeV2CategoryCardProps) {
             ].join(' ')}
             aria-hidden
           >
-            <HomeV2CategoryIcon name={category.icon} className="h-5 w-5" />
+            <HomeCategoryIcon name={category.icon} className="h-5 w-5" />
           </span>
           <ChevronRight
             className={[
@@ -68,7 +69,7 @@ export function HomeV2CategoryCard({ category }: HomeV2CategoryCardProps) {
         <span className="mt-auto min-w-0">
           <span
             className={[
-              'block text-sm font-semibold leading-snug text-slate-900 transition-colors duration-300 sm:text-base',
+              'block break-words text-sm font-semibold leading-snug text-slate-900 transition-colors duration-300 sm:text-base',
               hasImage
                 ? 'md:group-hover:text-white md:group-focus-visible:text-white'
                 : '',

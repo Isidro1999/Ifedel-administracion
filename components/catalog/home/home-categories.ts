@@ -1,6 +1,6 @@
 import type { CatalogCategory } from '@/lib/catalog-client'
 
-/** Máximo de categorías en la home V2. No rellenar con placeholders. */
+/** Máximo de categorías en la home. No rellenar con placeholders. */
 export const MAX_HOME_CATEGORIES = 6
 
 /**
@@ -75,6 +75,20 @@ export const HOME_CATEGORY_IMAGES: Record<string, string> = {
   identificacion: '/catalog/categories/pexels-philipp-441664-27579608.jpg',
   gripple: '/catalog/categories/pexels-andyclipit-13143653.jpg',
 }
+
+/**
+ * Labels comerciales solo para presentación en home.
+ * No cambia slugs, URLs ni nombres en base/admin/listado.
+ */
+export const HOME_CATEGORY_LABELS: Record<string, string> = {
+  'electrificacin-energizadores': 'Energizadores',
+  'electrificacin-accesorios': 'Accesorios de electrificación',
+  'pesaje-e-ide': 'Pesaje e identificación',
+  lectores: 'Lectores',
+  identificacion: 'Identificación animal',
+  gripple: 'Gripple',
+}
+
 export type HomeCategoryItem = {
   id: number
   name: string
@@ -127,7 +141,7 @@ export function toHomeCategoryItems(
     const image = HOME_CATEGORY_IMAGES[cat.slug]
     return {
       id: cat.id,
-      name: cat.name,
+      name: HOME_CATEGORY_LABELS[cat.slug] ?? cat.name,
       slug: cat.slug,
       count: cat.count ?? 0,
       href: hrefForSlug(cat.slug),

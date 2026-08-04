@@ -1,17 +1,17 @@
 import Link from 'next/link'
 
-type HomeV2FinalCtaProps = {
+type HomeFinalCtaProps = {
   productsHref: string
   inquiryHref: string
 }
 
-export function HomeV2FinalCta({
+export function HomeFinalCta({
   productsHref,
   inquiryHref,
-}: HomeV2FinalCtaProps) {
+}: HomeFinalCtaProps) {
   return (
     <section
-      aria-labelledby="home-v2-cta-heading"
+      aria-labelledby="home-cta-heading"
       className="overflow-hidden rounded-2xl bg-ifedel-primary px-5 py-9 text-black sm:px-8 sm:py-10"
     >
       <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
@@ -20,7 +20,7 @@ export function HomeV2FinalCta({
             Tu consulta, en pocos pasos
           </p>
           <h2
-            id="home-v2-cta-heading"
+            id="home-cta-heading"
             className="mt-2 text-xl font-bold tracking-tight text-black sm:text-2xl"
           >
             Encontrá lo que necesitás y armá tu consulta
