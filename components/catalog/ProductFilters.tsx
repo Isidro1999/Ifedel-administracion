@@ -58,7 +58,7 @@ export function ProductFilters({
         <input
           name="q"
           defaultValue={q}
-          placeholder="Nombre, SKU…"
+          placeholder="Nombre o marca…"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
         />
       </label>

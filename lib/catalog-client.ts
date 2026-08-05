@@ -175,13 +175,18 @@ export async function fetchCatalogCategories(): Promise<CatalogCategory[]> {
   return Array.isArray(data?.items) ? data.items : []
 }
 
-export async function fetchCatalogBrands(): Promise<CatalogBrand[]> {
+export async function fetchCatalogBrands(
+  params: { category?: string } = {},
+): Promise<CatalogBrand[]> {
   if (isServer()) {
     const { getCatalogBrands } = await import('@/lib/catalog-queries')
-    return getCatalogBrands()
+    return getCatalogBrands(params)
   }
 
-  const res = await catalogFetch('/api/catalog/brands')
+  const sp = new URLSearchParams()
+  if (params.category) sp.set('category', params.category)
+  const qs = sp.toString()
+  const res = await catalogFetch(`/api/catalog/brands${qs ? `?${qs}` : ''}`)
   if (!res.ok) throw new Error(`No se pudieron cargar las marcas (${res.status})`)
   const data = await res.json()
   return Array.isArray(data?.items) ? data.items : []

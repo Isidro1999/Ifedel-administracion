@@ -338,19 +338,31 @@ async function getCatalogCategoriesUncached(): Promise<CatalogCategory[]> {
   }))
 }
 
-async function getCatalogBrandsUncached(): Promise<CatalogBrand[]> {
+async function getCatalogBrandsUncached(
+  params: { category?: string } = {},
+): Promise<CatalogBrand[]> {
   const { prisma } = await import('@/lib/prisma')
+  const categorySlug = (params.category || '').trim()
 
   const grouped = await prisma.product.groupBy({
     by: ['brandId'],
-    where: { catalogVisible: true, isActive: true },
+    where: {
+      catalogVisible: true,
+      isActive: true,
+      ...(categorySlug ? { category: { slug: categorySlug } } : {}),
+    },
     _count: { _all: true },
   })
 
-  if (grouped.length === 0) return []
+  // Sin pastilla “Sin marca”: omitir productos sin brandId.
+  const withBrand = grouped.filter(
+    (g): g is { brandId: number; _count: { _all: number } } =>
+      g.brandId != null,
+  )
+  if (withBrand.length === 0) return []
 
   const counts = new Map(
-    grouped.map((g) => [g.brandId, g._count._all] as const),
+    withBrand.map((g) => [g.brandId, g._count._all] as const),
   )
   const brands = await prisma.brand.findMany({
     where: { id: { in: [...counts.keys()] } },
@@ -456,15 +468,20 @@ export async function getCatalogCategories(): Promise<CatalogCategory[]> {
   )
 }
 
-/** Marcas con al menos un producto visible en catálogo. */
-export async function getCatalogBrands(): Promise<CatalogBrand[]> {
+/** Marcas con al menos un producto visible en catálogo (opcionalmente por categoría). */
+export async function getCatalogBrands(
+  params: { category?: string } = {},
+): Promise<CatalogBrand[]> {
+  const categorySlug = (params.category || '').trim()
   return withPerf(
     'getCatalogBrands',
     async () => {
       try {
         const cached = unstable_cache(
-          () => getCatalogBrandsUncached(),
-          ['catalog-brands'],
+          () => getCatalogBrandsUncached({ category: categorySlug || undefined }),
+          categorySlug
+            ? ['catalog-brands', categorySlug]
+            : ['catalog-brands'],
           {
             revalidate: CATALOG_REVALIDATE_SECONDS,
             tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.brands],
