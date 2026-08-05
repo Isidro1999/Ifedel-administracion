@@ -1,5 +1,4 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
 import {
@@ -13,6 +12,7 @@ import {
 import { catalogPath } from '@/lib/catalog-paths'
 import { ProductFilters } from '@/components/catalog/ProductFilters'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
+import { CatalogPagination } from '@/components/catalog/CatalogPagination'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 
 export const revalidate = 60
@@ -92,13 +92,11 @@ export default async function CatalogoProductosPage({ searchParams }: PageProps)
   brands = brandsResult.data
   facetsError = !catsResult.ok || !brandsResult.ok
 
-  const pageQs = (pageNum: number) =>
-    new URLSearchParams({
-      ...(q ? { q } : {}),
-      ...(category ? { category } : {}),
-      ...(brand ? { brand } : {}),
-      page: String(pageNum),
-    }).toString()
+  const paginationParams = {
+    ...(q ? { q } : {}),
+    ...(category ? { category } : {}),
+    ...(brand ? { brand } : {}),
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6">
@@ -150,30 +148,12 @@ export default async function CatalogoProductosPage({ searchParams }: PageProps)
             emptyTitle="No hay productos con estos filtros"
             emptyDescription="Probá limpiar la búsqueda o elegir otra categoría/marca."
           />
-          {products.pagination.totalPages > 1 ? (
-            <div className="flex items-center justify-center gap-3 pt-4">
-              {products.pagination.page > 1 ? (
-                <Link
-                  href={`${productosBase}?${pageQs(products.pagination.page - 1)}`}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
-                >
-                  Anterior
-                </Link>
-              ) : null}
-              <span className="text-sm text-slate-500">
-                Página {products.pagination.page} de{' '}
-                {products.pagination.totalPages}
-              </span>
-              {products.pagination.page < products.pagination.totalPages ? (
-                <Link
-                  href={`${productosBase}?${pageQs(products.pagination.page + 1)}`}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
-                >
-                  Siguiente
-                </Link>
-              ) : null}
-            </div>
-          ) : null}
+          <CatalogPagination
+            basePath={productosBase}
+            page={products.pagination.page}
+            totalPages={products.pagination.totalPages}
+            params={paginationParams}
+          />
         </>
       ) : null}
     </div>
