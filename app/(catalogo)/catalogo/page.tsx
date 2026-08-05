@@ -4,7 +4,7 @@ import {
   fetchCatalogCategories,
   fetchCatalogProducts,
 } from '@/lib/catalog-client'
-import { catalogPath } from '@/lib/catalog-paths'
+import { CATALOG_PUBLIC_ORIGIN, catalogPath } from '@/lib/catalog-paths'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { HOME_BRANDS } from '@/components/catalog/home/home-brands'
 import { toHomeCategoryItems } from '@/components/catalog/home/home-categories'
@@ -21,9 +21,6 @@ export const revalidate = 60
 
 const HOME_DESCRIPTION =
   'Explorá productos para electrificación rural, alambrados, pesaje, ganadería y más. Armá tu consulta y recibí asesoramiento por WhatsApp.'
-
-/** Canonical del dominio público del catálogo (no apunta a preview/local). */
-const CATALOG_PUBLIC_ORIGIN = 'https://catalogo.ifedel.com'
 
 export const metadata: Metadata = {
   title: { absolute: 'Catálogo de soluciones agropecuarias | IFEDEL' },

@@ -50,7 +50,7 @@ export function CatalogOnlineSection({
         <h2 className="text-lg font-semibold text-slate-900">Catálogo online</h2>
         <p className="mt-1 text-xs text-slate-600">
           Estos campos controlan cómo se ve el producto en{' '}
-          <code className="text-[11px]">catalogo.ifedel.com</code>. Son datos
+          <code className="text-[11px]">ifedel.com</code>. Son datos
           públicos: no incluyas costos, márgenes ni información interna.
         </p>
       </div>

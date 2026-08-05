@@ -8,7 +8,7 @@ import { AppShell } from '@/components/layout/AppShell'
 
 type RootShellProps = {
   session?: Session | null
-  /** Host catalogo.* (middleware setea x-ifedel-catalog). */
+  /** Host catálogo (ifedel.com / catalogo.localhost; middleware setea x-ifedel-catalog). */
   forceCatalog?: boolean
   children: ReactNode
 }

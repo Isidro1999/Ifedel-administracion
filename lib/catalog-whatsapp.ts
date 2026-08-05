@@ -20,7 +20,7 @@ export function getIfedelWhatsAppNumber(): string | null {
 export function buildCatalogInquiryMessage(input: {
   items: CatalogInquiryItem[]
   contact: CatalogInquiryContact
-  /** Origen absoluto opcional (ej. https://catalogo.ifedel.com) */
+  /** Origen absoluto opcional (ej. https://ifedel.com) */
   catalogOrigin?: string
 }): string {
   const lines: string[] = [

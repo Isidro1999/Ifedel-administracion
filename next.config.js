@@ -25,15 +25,10 @@ const nextConfig = {
         destination: '/catalogo',
         permanent: true,
       },
+      // Hosts con paths limpios (catalogo.* legacy redirige entero a ifedel.com en middleware).
       {
         source: '/home-v2',
-        has: [{ type: 'host', value: 'catalogo.ifedel.com' }],
-        destination: '/',
-        permanent: true,
-      },
-      {
-        source: '/home-v2',
-        has: [{ type: 'host', value: 'www.catalogo.ifedel.com' }],
+        has: [{ type: 'host', value: 'ifedel.com' }],
         destination: '/',
         permanent: true,
       },
