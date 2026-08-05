@@ -1,16 +1,34 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { isCatalogHostName } from '@/lib/catalog-paths'
+import {
+  isCatalogHostName,
+  isLegacyCatalogRedirectHost,
+  isWwwCatalogRedirectHost,
+} from '@/lib/catalog-paths'
 
 /**
- * - catalogo.ifedel.com → reescribe UI a `/catalogo/*`.
- * - Dominio principal → catálogo en `/catalogo`.
+ * - ifedel.com / catalogo.localhost → reescribe UI a `/catalogo/*`.
+ * - catalogo.ifedel.com / www.catalogo.ifedel.com / www.ifedel.com → 308 a ifedel.com.
+ * - app.ifedel.com / localhost / *.vercel.app → backoffice o `/catalogo` con prefijo.
  * - `/api/*` nunca se reescribe ni se marca como ruta de catálogo UI.
- * - La excepción pública es solo `/catalogo/*` y `/api/catalog/*` (estas últimas
- *   son públicas por diseño en sus route handlers; NO vía este flag).
  */
+function redirectToPublicCatalogOrigin(req: NextRequest): NextResponse {
+  const target = new URL(req.url)
+  target.protocol = 'https:'
+  target.hostname = 'ifedel.com'
+  target.port = ''
+  // path + search + hash se conservan desde req.url
+  return NextResponse.redirect(target, 308)
+}
+
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || ''
+
+  // Redirects de host primero (evitan servir contenido indexable en hosts legacy/www).
+  if (isLegacyCatalogRedirectHost(host) || isWwwCatalogRedirectHost(host)) {
+    return redirectToPublicCatalogOrigin(req)
+  }
+
   const catalogHost = isCatalogHostName(host)
   const { pathname } = req.nextUrl
   const isApi = pathname.startsWith('/api')
@@ -47,7 +65,7 @@ export function middleware(req: NextRequest) {
     })
   }
 
-  // En subdominio, URLs con prefijo /catalogo → redirect limpio (SEO / UX)
+  // En host catálogo, URLs con prefijo /catalogo → redirect limpio (SEO / UX)
   if (isCatalogUiPath) {
     const url = req.nextUrl.clone()
     const rest =

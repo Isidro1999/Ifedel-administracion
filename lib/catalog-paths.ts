@@ -1,28 +1,59 @@
 /**
  * Rutas del catálogo público.
  *
- * - Local / dominio principal: `/catalogo`, `/catalogo/productos`, …
- * - Subdominio catalogo.ifedel.com: `/`, `/productos`, … (middleware reescribe a /catalogo/*)
+ * Producción (host catálogo):
+ *   ifedel.com → `/`, `/productos`, … (middleware reescribe a /catalogo/*)
+ *
+ * Legacy (redirect 308 a ifedel.com):
+ *   catalogo.ifedel.com, www.catalogo.ifedel.com, www.ifedel.com
+ *
+ * Local / Preview:
+ *   catalogo.localhost → paths limpios (simulación)
+ *   localhost / *.vercel.app → `/catalogo`, `/catalogo/productos`, …
+ *
+ * Backoffice: app.ifedel.com (no es host de catálogo).
  */
 
 export const CATALOG_PREFIX = '/catalogo'
 
+/** Origen canónico público del catálogo (producción). */
+export const CATALOG_PUBLIC_ORIGIN = 'https://ifedel.com'
+
 /** @deprecated Usar CATALOG_PREFIX o catalogPath() */
 export const CATALOG_BASE = CATALOG_PREFIX
 
+function normalizeHost(host: string | null | undefined): string {
+  return (host || '').split(':')[0].toLowerCase()
+}
+
+/**
+ * Hosts que sirven el catálogo con paths limpios (rewrite a /catalogo/*).
+ * No incluye www ni catalogo.* legacy (esos redirigen a ifedel.com).
+ */
 export function isCatalogHostName(host: string | null | undefined): boolean {
-  const h = (host || '').split(':')[0].toLowerCase()
-  return (
-    h === 'catalogo.ifedel.com' ||
-    h === 'www.catalogo.ifedel.com' ||
-    h === 'catalogo.localhost'
-  )
+  const h = normalizeHost(host)
+  return h === 'ifedel.com' || h === 'catalogo.localhost'
+}
+
+/** Subdominio legacy del catálogo → redirect permanente a ifedel.com. */
+export function isLegacyCatalogRedirectHost(
+  host: string | null | undefined,
+): boolean {
+  const h = normalizeHost(host)
+  return h === 'catalogo.ifedel.com' || h === 'www.catalogo.ifedel.com'
+}
+
+/** www del apex → redirect permanente a ifedel.com (sin www). */
+export function isWwwCatalogRedirectHost(
+  host: string | null | undefined,
+): boolean {
+  return normalizeHost(host) === 'www.ifedel.com'
 }
 
 /**
  * Construye un path de UI del catálogo.
  * @param path segmento relativo, ej: "", "productos", "productos/mi-slug", "consulta", "categorias/x"
- * @param onCatalogHost si true, omite el prefijo /catalogo (subdominio)
+ * @param onCatalogHost si true, omite el prefijo /catalogo (host catálogo / simulación local)
  */
 export function catalogPath(
   path: string = '',
@@ -54,15 +85,18 @@ export function catalogAbsoluteUrl(
     opts?.origin?.replace(/\/$/, '') ||
     process.env.NEXT_PUBLIC_CATALOG_URL?.replace(/\/$/, '') ||
     (typeof window !== 'undefined' ? window.location.origin : '') ||
-    'https://catalogo.ifedel.com'
+    CATALOG_PUBLIC_ORIGIN
 
-  // Si el origin es el subdominio de catálogo, paths limpios.
+  // Si el origin es el host público del catálogo, paths limpios.
   let onHost = opts?.onCatalogHost
   if (onHost === undefined) {
     try {
       onHost = isCatalogHostName(new URL(origin).host)
     } catch {
-      onHost = origin.includes('catalogo.ifedel.com')
+      onHost =
+        origin.includes('://ifedel.com') &&
+        !origin.includes('://app.ifedel.com') &&
+        !origin.includes('://www.ifedel.com')
     }
   }
 

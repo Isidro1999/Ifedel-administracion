@@ -1,4 +1,4 @@
-# Deploy — Catálogo público IFEDEL (`catalogo.ifedel.com`)
+# Deploy — Catálogo público IFEDEL (`ifedel.com`)
 
 ## Arquitectura
 
@@ -10,11 +10,20 @@ El catálogo vive en el **mismo proyecto Next.js** que el sistema interno de ges
 | API pública | `GET /api/catalog/*` (sin auth, whitelist de campos) |
 | Admin publicación | `/admin/products/[id]/edit` → sección “Catálogo online” |
 | Paths helper | `lib/catalog-paths.ts` → `catalogPath()` / `catalogAbsoluteUrl()` |
-| Host rewrite | `middleware.ts` — solo si host es `catalogo.ifedel.com` |
+| Host rewrite | `middleware.ts` — `ifedel.com` y `catalogo.localhost` |
+| Host redirects | `catalogo.ifedel.com`, `www.catalogo.ifedel.com`, `www.ifedel.com` → `https://ifedel.com` (308) |
+| Backoffice | `app.ifedel.com` (no es host de catálogo) |
 
-El dominio principal del backoffice **no** se reescribe: el catálogo sigue accesible en `/catalogo` (útil en local y como fallback).
+| Host | Comportamiento |
+|------|----------------|
+| `ifedel.com` | Catálogo con paths limpios (`/`, `/productos`, …) |
+| `www.ifedel.com` | 308 → `https://ifedel.com` + path/query |
+| `catalogo.ifedel.com` | 308 → `https://ifedel.com` + path/query (legacy) |
+| `app.ifedel.com` | Solo backoffice / auth |
+| `*.vercel.app` / `localhost` | Prefijo `/catalogo` (preview y local) |
+| `catalogo.localhost` | Simulación local de paths limpios |
 
-En el subdominio, el middleware:
+En el host catálogo, el middleware:
 
 1. Setea header `x-ifedel-catalog: 1`.
 2. Reescribe `/` → `/catalogo`, `/productos` → `/catalogo/productos`, etc.
@@ -23,9 +32,11 @@ En el subdominio, el middleware:
 
 `RootShell` omite `AuthGuard` / `AppShell` cuando hay host de catálogo o path `/catalogo/*`.
 
+Canonical / OG de la home: `https://ifedel.com/`.
+
 ---
 
-## Rutas locales (dominio principal / `localhost`)
+## Rutas locales (dominio principal / `localhost` / Preview)
 
 | URL | Página |
 |-----|--------|
@@ -44,7 +55,7 @@ API (igual en todos los hosts):
 
 ---
 
-## Rutas en subdominio (`catalogo.ifedel.com`)
+## Rutas en `ifedel.com`
 
 | URL pública | Internamente |
 |-------------|--------------|
@@ -54,15 +65,28 @@ API (igual en todos los hosts):
 | `/categorias/[slug]` | `/catalogo/categorias/[slug]` |
 | `/consulta` | `/catalogo/consulta` |
 
-Los links de la UI usan `catalogPath()` / `useCatalogPath()` para emitir paths limpios en el subdominio y `/catalogo/...` en local.
+Los links de la UI usan `catalogPath()` / `useCatalogPath()` para emitir paths limpios en el host catálogo y `/catalogo/...` en local/preview.
 
-Para simular el subdominio en local, podés agregar en `/etc/hosts`:
+Para simular el host catálogo en local, podés agregar en `/etc/hosts`:
 
 ```text
 127.0.0.1 catalogo.localhost
 ```
 
 y abrir `http://catalogo.localhost:3000/` (el middleware reconoce `catalogo.localhost`).
+
+Para probar redirects de host (sin DNS):
+
+```bash
+curl -sI -H "Host: catalogo.ifedel.com" "http://127.0.0.1:3000/productos?x=1"
+# → 308 Location: https://ifedel.com/productos?x=1
+
+curl -sI -H "Host: www.ifedel.com" "http://127.0.0.1:3000/consulta"
+# → 308 Location: https://ifedel.com/consulta
+
+curl -sI -H "Host: ifedel.com" "http://127.0.0.1:3000/productos"
+# → 200 (rewrite interno a /catalogo/productos)
+```
 
 ---
 
@@ -72,7 +96,7 @@ y abrir `http://catalogo.localhost:3000/` (el middleware reconoce `catalogo.loca
 
 | Variable | Valor producción | Notas |
 |----------|------------------|-------|
-| `NEXT_PUBLIC_CATALOG_URL` | `https://catalogo.ifedel.com` | URLs absolutas (WhatsApp, preview admin) |
+| `NEXT_PUBLIC_CATALOG_URL` | `https://ifedel.com` | URLs absolutas (WhatsApp, preview admin, canonical fallback) |
 | `NEXT_PUBLIC_IFEDEL_WHATSAPP_NUMBER` | dígitos con país, sin `+` | Ej. `54911…` |
 
 ### Base de datos (Supabase)
@@ -91,11 +115,13 @@ No uses `file:./dev.db` en Vercel.
 | Variable | Notas |
 |----------|-------|
 | `AUTH_SECRET` | Obligatorio (Auth.js). Si el proyecto aún lee `NEXTAUTH_SECRET`, definir ambos con el mismo valor. |
-| `AUTH_URL` | URL del **dominio principal** del backoffice (no el subdominio del catálogo). |
+| `AUTH_URL` | URL del **backoffice**: `https://app.ifedel.com` |
 | `AUTH_TRUST_HOST` | `true` en Vercel |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | OAuth Google |
 
-En Google Cloud Console, los redirect URIs deben apuntar al dominio principal (ej. `https://TU-DOMINIO/api/auth/callback/google`).
+En Google Cloud Console, los redirect URIs deben apuntar al backoffice:
+
+- `https://app.ifedel.com/api/auth/callback/google`
 
 ### Cloudinary
 
@@ -105,29 +131,56 @@ En Google Cloud Console, los redirect URIs deben apuntar al dominio principal (e
 
 ---
 
-## Configurar dominio `catalogo.ifedel.com` en Vercel
+## Configurar dominios en Vercel (cuando se apruebe DNS)
 
-1. En el proyecto de Vercel → **Settings → Domains**.
-2. Agregar `catalogo.ifedel.com` (mismo deployment que el dominio principal).
-3. En el DNS del dominio `ifedel.com`, crear un registro según indique Vercel:
-   - **CNAME** a `cname.vercel-dns.com`, o
-   - **A** a las IPs que muestre el panel.
-4. Esperar propagación SSL (automática en Vercel).
-5. Verificar variables de entorno (arriba) y redesplegar si cambiaste `NEXT_PUBLIC_*`.
-6. Probar:
-   - `https://catalogo.ifedel.com/`
-   - `https://catalogo.ifedel.com/productos`
-   - Una ficha `/productos/[slug]`
-   - `/consulta`
-   - Que el dominio principal siga pidiendo login en `/`, `/products`, `/admin`, etc.
+**Todavía no cambiar DNS hasta deploy + aprobación.** Cuando corresponda:
+
+1. Proyecto Vercel → **Settings → Domains**.
+2. Agregar / verificar:
+   - `ifedel.com` (catálogo apex)
+   - `www.ifedel.com` (puede ser Domain Redirect a `ifedel.com` en Vercel **o** dejar que el middleware haga 308)
+   - `app.ifedel.com` (backoffice; ya debería existir)
+   - `catalogo.ifedel.com` (mantener el dominio apuntando al mismo proyecto para que el 308 del middleware funcione; no hace falta un proyecto separado)
+3. Actualizar `NEXT_PUBLIC_CATALOG_URL=https://ifedel.com` y redesplegar.
+4. Probar:
+   - `https://ifedel.com/`
+   - `https://ifedel.com/productos`
+   - `https://catalogo.ifedel.com/productos` → 308 → `https://ifedel.com/productos`
+   - `https://www.ifedel.com/` → 308 → `https://ifedel.com/`
+   - `https://app.ifedel.com/` → login / dashboard
+   - Preview `*.vercel.app/catalogo` sigue con prefijo
 
 No hace falta un proyecto Vercel separado: un solo app + middleware por host.
+
+### DNS (GoDaddy / proveedor) — guía, sin aplicar aún
+
+| Registro | Acción futura | Notas |
+|----------|---------------|-------|
+| `ifedel.com` (A / ALIAS / ANAME hacia Vercel) | Apuntar al proyecto IFEDEL | Host canónico del catálogo |
+| `www` | CNAME a Vercel **o** redirect a apex | Evitar loop con middleware |
+| `app` | Mantener CNAME/A actual a Vercel | Backoffice; **no** redirigir a ifedel.com |
+| `catalogo` | Mantener apuntando a Vercel | Solo para 308 legacy → ifedel.com |
+| MX / TXT email / SPF / DKIM | **No tocar** | Correo independiente del catálogo |
+| Otros subdominios no listados | **No tocar** | |
+
+Si hoy `ifedel.com` apunta a otro sitio (WordPress, etc.), planificar cutover y TTL bajo antes del cambio.
+
+---
+
+## SEO futuro (no implementado en esta etapa)
+
+Cuando se agreguen:
+
+- `https://ifedel.com/robots.txt`
+- `https://ifedel.com/sitemap.xml`
+
+Nunca declarar `catalogo.ifedel.com` como canonical.
 
 ---
 
 ## Checklist QA producción
 
-### Subdominio catálogo
+### Catálogo (`ifedel.com`)
 
 - [ ] `/` carga home pública (sin shell interno / sin login).
 - [ ] `/productos` lista solo productos `catalogVisible` + activos.
@@ -135,17 +188,29 @@ No hace falta un proyecto Vercel separado: un solo app + middleware por host.
 - [ ] `/categorias/[slug]` filtra por categoría.
 - [ ] `/consulta` arma lista y abre WhatsApp con número correcto.
 - [ ] Links internos quedan limpios (`/productos`, no `/catalogo/productos`).
-- [ ] `/catalogo` en el subdominio redirige a `/` (sin duplicar).
+- [ ] `/catalogo` en el host catálogo redirige a `/` (sin duplicar).
+- [ ] Canonical / OG apuntan a `https://ifedel.com/`.
 - [ ] Imágenes Cloudinary y assets `/_next` cargan.
 - [ ] `/api/catalog/products` responde 200 sin auth.
 
-### Dominio principal (sistema interno)
+### Redirects
+
+- [ ] `catalogo.ifedel.com/*` → 308 `https://ifedel.com/*` (path + query).
+- [ ] `www.ifedel.com/*` → 308 `https://ifedel.com/*`.
+- [ ] Sin cadenas innecesarias ni loops.
+
+### Backoffice (`app.ifedel.com`)
 
 - [ ] `/` sigue siendo el dashboard autenticado.
-- [ ] `/catalogo` sigue funcionando como prefijo (opcional/fallback).
-- [ ] `/api/products` y `/api/products/[id]` exigen sesión (401/redirect sin login).
+- [ ] `/api/products` y `/api/products/[id]` exigen sesión.
 - [ ] `/admin/*`, `/quotes`, `/sales`, `/finance`, etc. siguen protegidos.
-- [ ] Login Google / Auth.js OK con `AUTH_URL` del dominio principal.
+- [ ] Login Google / Auth.js OK con `AUTH_URL=https://app.ifedel.com`.
+
+### Preview / local
+
+- [ ] `*.vercel.app/catalogo` y `/catalogo/productos` funcionan con prefijo.
+- [ ] `localhost:3000/catalogo` funciona.
+- [ ] `catalogo.localhost:3000/` simula paths limpios.
 
 ### Seguridad de datos públicos
 
@@ -174,7 +239,7 @@ Abrir:
 - http://localhost:3000/catalogo/categorias/[slug]
 - http://localhost:3000/catalogo/consulta
 
-Simular subdominio:
+Simular host catálogo:
 
 ```bash
 # /etc/hosts → 127.0.0.1 catalogo.localhost
@@ -199,23 +264,10 @@ npx prisma migrate deploy
 ## Riesgos pendientes
 
 1. **Número de WhatsApp**: confirmar `NEXT_PUBLIC_IFEDEL_WHATSAPP_NUMBER` definitivo antes del go-live comercial.
-2. **DNS / SSL**: propagación puede demorar; validar certificado en el subdominio.
-3. **Cookies / auth en subdominio**: el catálogo es público; si en el futuro se compartiera sesión entre hosts, revisar `AUTH_URL` y dominio de cookies. Hoy no es necesario.
-4. **Contenido**: productos sin `catalogVisible` / slug no aparecen; hace falta cargar contenido desde admin.
-5. **SEO**: solo metadata básica; faltan sitemap, Open Graph por producto, canonical, etc.
-6. **Pooler PgBouncer**: si fallan prepared statements, verificar `pgbouncer=true` y password URL-encoded.
-7. **`NEXT_PUBLIC_*`**: cambios requieren redeploy; no se actualizan solo editando env en runtime ya buildeado.
-8. **Duplicado `/catalogo` en dominio principal**: intencional para local; en producción el tráfico comercial debería ir al subdominio.
-
----
-
-## Criterios de aceptación (Etapa 6)
-
-- Local sigue bajo `/catalogo`.
-- Subdominio preparado sin prefijo visible.
-- Sistema interno intacto.
-- `/api/*` no rotas por el rewrite de host.
-- Admin protegido; catálogo público.
-- Build OK.
-- Deploy documentado en este archivo.
-- Logs temporales de catálogo solo en development.
+2. **DNS / SSL / cutover de ifedel.com**: si el apex hoy sirve otro sitio, coordinar migración.
+3. **Cookies / auth**: `AUTH_URL` debe seguir en `app.ifedel.com`; el catálogo es público.
+4. **Contenido**: productos sin `catalogVisible` / slug no aparecen.
+5. **SEO**: faltan sitemap / robots; canonical de home ya apunta a `ifedel.com`.
+6. **Pooler PgBouncer**: verificar `pgbouncer=true` y password URL-encoded.
+7. **`NEXT_PUBLIC_*`**: cambios requieren redeploy.
+8. **Duplicado `/catalogo` en preview/local**: intencional; tráfico comercial en producción va a `ifedel.com`.
