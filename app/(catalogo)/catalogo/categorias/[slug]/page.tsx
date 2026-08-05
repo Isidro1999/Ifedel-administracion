@@ -4,12 +4,15 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import {
+  fetchCatalogBrands,
   fetchCatalogCategories,
   fetchCatalogProducts,
+  type CatalogBrand,
 } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { CatalogPagination } from '@/components/catalog/CatalogPagination'
+import { CatalogBrandChips } from '@/components/catalog/CatalogBrandChips'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 
 export const revalidate = 60
@@ -45,9 +48,11 @@ export default async function CatalogoCategoriaPage({
   const onCatalogHost = headers().get('x-ifedel-catalog') === '1'
   const p = (segment = '') => catalogPath(segment, onCatalogHost)
   const page = first(searchParams.page) || '1'
+  const brand = first(searchParams.brand)
 
   let categoryName = params.slug
   let products: Awaited<ReturnType<typeof fetchCatalogProducts>> | null = null
+  let brands: CatalogBrand[] = []
   let error = false
   let missing = false
 
@@ -58,11 +63,28 @@ export default async function CatalogoCategoriaPage({
       missing = true
     } else {
       categoryName = cat.name
-      products = await fetchCatalogProducts({
-        category: params.slug,
-        page,
-        pageSize: '12',
-      })
+      const [productsResult, brandsResult] = await Promise.all([
+        fetchCatalogProducts({
+          category: params.slug,
+          brand: brand || undefined,
+          page,
+          pageSize: '12',
+        })
+          .then((data) => ({ ok: true as const, data }))
+          .catch(() => ({ ok: false as const, data: null })),
+        fetchCatalogBrands({ category: params.slug })
+          .then((data) => ({ ok: true as const, data }))
+          .catch(() => ({
+            ok: false as const,
+            data: [] as CatalogBrand[],
+          })),
+      ])
+      if (productsResult.ok) {
+        products = productsResult.data
+      } else {
+        error = true
+      }
+      brands = brandsResult.data
     }
   } catch {
     error = true
@@ -71,6 +93,9 @@ export default async function CatalogoCategoriaPage({
   if (missing) notFound()
 
   const categoryBase = p(`categorias/${params.slug}`)
+  const paginationParams = {
+    ...(brand ? { brand } : {}),
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6">
@@ -95,6 +120,12 @@ export default async function CatalogoCategoriaPage({
         </p>
       </div>
 
+      <CatalogBrandChips
+        brands={brands}
+        basePath={categoryBase}
+        activeBrandSlug={brand}
+      />
+
       <Suspense fallback={null}>
         {error ? (
           <EmptyCatalogState
@@ -117,6 +148,7 @@ export default async function CatalogoCategoriaPage({
               basePath={categoryBase}
               page={products.pagination.page}
               totalPages={products.pagination.totalPages}
+              params={paginationParams}
             />
           </>
         ) : null}

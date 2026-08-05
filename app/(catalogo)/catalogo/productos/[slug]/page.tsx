@@ -86,7 +86,6 @@ export default async function CatalogoProductoDetallePage({
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             {product.title}
           </h1>
-          <p className="mt-2 text-sm text-slate-500">SKU: {product.sku}</p>
 
           <p className="mt-6 text-xl font-semibold text-slate-900">
             {product.priceLabel}
