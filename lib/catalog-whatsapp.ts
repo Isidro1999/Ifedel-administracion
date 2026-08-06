@@ -40,6 +40,15 @@ export function buildCatalogInquiryMessage(input: {
 
   lines.push('Datos del interesado:')
   lines.push(`Nombre: ${input.contact.name.trim() || '-'}`)
+  if (input.contact.company?.trim()) {
+    lines.push(`Empresa: ${input.contact.company.trim()}`)
+  }
+  if (input.contact.phone?.trim()) {
+    lines.push(`Teléfono: ${input.contact.phone.trim()}`)
+  }
+  if (input.contact.email?.trim()) {
+    lines.push(`Email: ${input.contact.email.trim()}`)
+  }
   lines.push(`Localidad: ${input.contact.locality.trim() || '-'}`)
   lines.push(`Tipo de cliente: ${input.contact.clientType || '-'}`)
   const general = input.contact.generalComment?.trim()

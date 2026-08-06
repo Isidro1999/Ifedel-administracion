@@ -30,6 +30,9 @@ export type CatalogInquiryItem = {
 
 export type CatalogInquiryContact = {
   name: string
+  company: string
+  phone: string
+  email: string
   locality: string
   clientType: ClientType | ''
   generalComment: string
@@ -53,6 +56,9 @@ type CatalogInquiryState = {
   setItemComment: (productId: number, comment: string) => void
   removeItem: (productId: number) => void
   clearItems: () => void
+  clearContact: () => void
+  /** Limpia lista + datos de contacto tras un envío exitoso al servidor. */
+  clearAfterSuccessfulSubmit: () => void
   setContactField: <K extends keyof CatalogInquiryContact>(
     key: K,
     value: CatalogInquiryContact[K],
@@ -63,6 +69,9 @@ type CatalogInquiryState = {
 
 const emptyContact = (): CatalogInquiryContact => ({
   name: '',
+  company: '',
+  phone: '',
+  email: '',
   locality: '',
   clientType: '',
   generalComment: '',
@@ -134,6 +143,11 @@ export const useCatalogInquiryStore = create<CatalogInquiryState>()(
 
       clearItems: () => set({ items: [] }),
 
+      clearContact: () => set({ contact: emptyContact() }),
+
+      clearAfterSuccessfulSubmit: () =>
+        set({ items: [], contact: emptyContact() }),
+
       setContactField: (key, value) => {
         set((state) => ({
           contact: { ...state.contact, [key]: value },
@@ -146,11 +160,20 @@ export const useCatalogInquiryStore = create<CatalogInquiryState>()(
         get().items.some((i) => i.productId === productId),
     }),
     {
-      name: 'ifedel-catalog-inquiry-v1',
+      name: 'ifedel-catalog-inquiry-v2',
       partialize: (state) => ({
         items: state.items,
         contact: state.contact,
       }),
+      merge: (persisted, current) => {
+        const p = persisted as Partial<CatalogInquiryState> | undefined
+        return {
+          ...current,
+          ...p,
+          contact: { ...emptyContact(), ...(p?.contact ?? {}) },
+          items: Array.isArray(p?.items) ? p.items : current.items,
+        }
+      },
     },
   ),
 )
