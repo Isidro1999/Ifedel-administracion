@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { CatalogHeader } from '@/components/catalog/CatalogHeader'
 import { CatalogFooter } from '@/components/catalog/CatalogFooter'
 import { CatalogPathProvider } from '@/components/catalog/CatalogPathProvider'
+import { CatalogPromotionBar } from '@/components/catalog/CatalogPromotionBar'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default function CatalogoLayout({
   return (
     <CatalogPathProvider onCatalogHost={onCatalogHost}>
       <div className="flex min-h-screen flex-col bg-[#f4f7f0] text-slate-900">
+        <CatalogPromotionBar />
         <CatalogHeader />
         <main className="flex-1">{children}</main>
         <CatalogFooter />
