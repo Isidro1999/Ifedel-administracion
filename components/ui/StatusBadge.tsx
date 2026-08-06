@@ -13,6 +13,12 @@ const STYLE: Record<string, string> = {
   CLOSED: 'bg-slate-100 text-slate-700 ring-slate-500/20',
   IN: 'bg-emerald-50 text-emerald-900 ring-emerald-500/25',
   OUT: 'bg-rose-50 text-rose-900 ring-rose-500/25',
+  // Consultas comerciales (catálogo)
+  NEW: 'bg-amber-50 text-amber-950 ring-amber-500/30',
+  CONTACTED: 'bg-sky-50 text-sky-900 ring-sky-500/25',
+  IN_PROGRESS: 'bg-violet-50 text-violet-900 ring-violet-500/25',
+  QUOTE_SENT: 'bg-emerald-50 text-emerald-900 ring-emerald-500/25',
+  DISCARDED: 'bg-slate-100 text-slate-500 ring-slate-500/20',
 }
 
 const LABEL: Record<string, string> = {
@@ -30,6 +36,11 @@ const LABEL: Record<string, string> = {
   CLOSED: 'Cerrada',
   IN: 'Ingreso',
   OUT: 'Egreso',
+  NEW: 'Nueva',
+  CONTACTED: 'Contactada',
+  IN_PROGRESS: 'En gestión',
+  QUOTE_SENT: 'Cotización enviada',
+  DISCARDED: 'Descartada',
 }
 
 type StatusBadgeProps = {

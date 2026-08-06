@@ -9,6 +9,7 @@ import {
   Globe,
   Map,
   LayoutDashboard,
+  MessageSquareText,
   Package,
   Settings,
   ShoppingCart,
@@ -75,12 +76,19 @@ const SECTIONS: Section[] = [
     items: [
       { href: '/admin/users', label: 'Usuarios', icon: Users },
       { href: '/admin/catalog', label: 'Catálogo online', icon: Globe },
+      {
+        href: '/admin/catalog/inquiries',
+        label: 'Consultas comerciales',
+        icon: MessageSquareText,
+      },
       { href: '/admin/settings', label: 'Configuración', icon: Settings },
       { href: '/admin/financial-settings', label: 'Parámetros financieros', icon: Settings },
       { href: '/admin/import', label: 'Importar datos', icon: Upload },
     ],
   },
 ]
+
+const ALL_HREFS = SECTIONS.flatMap((s) => s.items.map((i) => i.href))
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ')
@@ -89,7 +97,16 @@ function cn(...classes: Array<string | false | null | undefined>) {
 function isActive(pathname: string | null, href: string) {
   if (!pathname) return false
   if (href === '/') return pathname === '/'
-  return pathname === href || pathname.startsWith(`${href}/`)
+  const matches = pathname === href || pathname.startsWith(`${href}/`)
+  if (!matches) return false
+  // Preferir el ítem más específico (evita que /admin/catalog active en /admin/catalog/inquiries).
+  const hasMoreSpecific = ALL_HREFS.some(
+    (other) =>
+      other !== href &&
+      other.startsWith(`${href}/`) &&
+      (pathname === other || pathname.startsWith(`${other}/`)),
+  )
+  return !hasMoreSpecific
 }
 
 function NavContent({
