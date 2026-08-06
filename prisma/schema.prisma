@@ -85,6 +85,7 @@ model Product {
   quoteItems QuoteItem[]
   saleItems  SaleItem[]
   purchaseItems PurchaseItem[]
+  commercialInquiryItems CommercialInquiryItem[]
 
   /// Listados / filtros del catálogo público
   @@index([catalogVisible, catalogSort])
@@ -251,6 +252,78 @@ model Customer {
   receivables  Receivable[]
 
   @@map("customers")
+}
+
+/// Contador atómico para referenceNumber IFD-XXXXXX (evita race conditions).
+model CommercialInquirySequence {
+  id        Int @id @default(1)
+  nextValue Int @default(1)
+
+  @@map("commercial_inquiry_sequence")
+}
+
+/// Consulta comercial del catálogo público (lead; no es cotización).
+/// Status (string; valores habituales):
+/// - NEW: recién recibida
+/// - CONTACTED: hubo primer contacto
+/// - IN_PROGRESS: en gestión comercial
+/// - QUOTE_SENT: se envió cotización al cliente
+/// - CLOSED: cerrada (ganada / resuelta)
+/// - DISCARDED: descartada / spam
+/// Source inicial: CATALOG_WEB
+model CommercialInquiry {
+  id              Int    @id @default(autoincrement())
+  referenceNumber String @unique
+
+  status String @default("NEW")
+  source String @default("CATALOG_WEB")
+
+  customerName String
+  companyName  String?
+  phone        String
+  email        String?
+  location     String?
+  clientType   String?
+  message      String?
+
+  /// IP / user-agent del envío (abuso / soporte; no exponer en API pública).
+  submitterIp        String?
+  submitterUserAgent String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items CommercialInquiryItem[]
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("commercial_inquiries")
+}
+
+/// Ítems de una consulta comercial (snapshot; sobrevive si el producto se borra).
+model CommercialInquiryItem {
+  id Int @id @default(autoincrement())
+
+  inquiryId Int
+  inquiry   CommercialInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  /// FK opcional: SetNull si el producto se elimina (el snapshot permanece).
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  sku      String
+  title    String
+  slug     String?
+  quantity Int     @default(1)
+  comment  String?
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([inquiryId])
+  @@index([productId])
+  @@map("commercial_inquiry_items")
 }
 
 /// Cotizaciones (cabecera)

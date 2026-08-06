@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Lista de consulta',
-  description: `Armá tu lista de productos y consultá a ${IFEDelBrand.companyName} por WhatsApp.`,
+  description: `Armá tu lista de productos y consultá a ${IFEDelBrand.companyName} por WhatsApp o solicitá contacto directo.`,
 }
 
 export default function CatalogoConsultaPage() {

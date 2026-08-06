@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { CheckCircle2, Trash2 } from 'lucide-react'
 import {
   CLIENT_TYPES,
   useCatalogInquiryStore,
@@ -17,6 +17,10 @@ import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 import { useCatalogPath } from '@/components/catalog/CatalogPathProvider'
 
+type SubmitSuccess = {
+  referenceNumber: string
+}
+
 export function InquiryPageClient() {
   const { path } = useCatalogPath()
   const items = useCatalogInquiryStore((s) => s.items)
@@ -25,13 +29,23 @@ export function InquiryPageClient() {
   const setItemComment = useCatalogInquiryStore((s) => s.setItemComment)
   const removeItem = useCatalogInquiryStore((s) => s.removeItem)
   const clearItems = useCatalogInquiryStore((s) => s.clearItems)
+  const clearAfterSuccessfulSubmit = useCatalogInquiryStore(
+    (s) => s.clearAfterSuccessfulSubmit,
+  )
   const setContactField = useCatalogInquiryStore((s) => s.setContactField)
 
   const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState<SubmitSuccess | null>(null)
+  const submitLock = useRef(false)
+  const honeypotRef = useRef<HTMLInputElement>(null)
 
-  const whatsappConfigured = useMemo(() => Boolean(getIfedelWhatsAppNumber()), [])
+  const whatsappConfigured = useMemo(
+    () => Boolean(getIfedelWhatsAppNumber()),
+    [],
+  )
 
-  function handleSend() {
+  function handleSendWhatsApp() {
     setError(null)
 
     if (items.length === 0) {
@@ -47,7 +61,7 @@ export function InquiryPageClient() {
 
     if (!whatsappConfigured) {
       setError(
-        'WhatsApp no está configurado todavía. Escribinos a info@ifedel.com.ar o intentá más tarde.',
+        'WhatsApp no está configurado todavía. Usá “Solicitar contacto” o escribinos a info@ifedel.com.ar.',
       )
       return
     }
@@ -62,6 +76,116 @@ export function InquiryPageClient() {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
+  async function handleSolicitarContacto() {
+    if (submitLock.current || submitting) return
+    setError(null)
+
+    if (items.length === 0) {
+      setError('Agregá al menos un producto a la consulta.')
+      return
+    }
+
+    const name = contact.name.trim()
+    const phone = contact.phone.trim()
+    if (!name) {
+      setError('Completá tu nombre y apellido.')
+      return
+    }
+    if (!phone) {
+      setError('Completá tu teléfono para que podamos contactarte.')
+      return
+    }
+
+    submitLock.current = true
+    setSubmitting(true)
+
+    try {
+      const res = await fetch('/api/catalog/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: name,
+          companyName: contact.company.trim() || null,
+          phone,
+          email: contact.email.trim() || null,
+          location: contact.locality.trim() || null,
+          clientType: contact.clientType || null,
+          message: contact.generalComment.trim() || null,
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            comment: item.comment.trim() || null,
+          })),
+          website: honeypotRef.current?.value ?? '', // honeypot
+        }),
+      })
+
+      const data = (await res.json().catch(() => null)) as {
+        success?: boolean
+        inquiry?: { referenceNumber?: string }
+        error?: string
+      } | null
+
+      if (!res.ok || !data?.success || !data.inquiry?.referenceNumber) {
+        setError(
+          data?.error ||
+            'No pudimos registrar tu consulta. Revisá los datos e intentá de nuevo.',
+        )
+        return
+      }
+
+      clearAfterSuccessfulSubmit()
+      setSuccess({ referenceNumber: data.inquiry.referenceNumber })
+    } catch {
+      setError(
+        'Hubo un problema de conexión. Tus datos se conservaron; intentá de nuevo.',
+      )
+    } finally {
+      setSubmitting(false)
+      submitLock.current = false
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 sm:px-6">
+        <div className="rounded-2xl border border-ifedel-primary/30 bg-white px-6 py-10 text-center shadow-sm sm:px-10">
+          <CheckCircle2
+            className="mx-auto h-12 w-12 text-ifedel-primary"
+            aria-hidden
+          />
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
+            ¡Consulta recibida!
+          </h1>
+          <p className="mt-3 text-sm text-slate-600 sm:text-base">
+            Un representante de IFEDEL se pondrá en contacto con vos a la
+            brevedad.
+          </p>
+          <p className="mt-6 text-sm font-medium text-slate-800">
+            Número de consulta:{' '}
+            <span className="font-bold tracking-wide text-ifedel-brown">
+              {success.referenceNumber}
+            </span>
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href={path('productos')}
+              className="inline-flex rounded-full bg-ifedel-primary px-5 py-3 text-sm font-semibold text-black"
+            >
+              Seguir explorando
+            </Link>
+            <Link
+              href={path()}
+              className="inline-flex rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800"
+            >
+              Volver al inicio
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-3xl space-y-8 px-4 py-10 sm:px-6">
@@ -71,7 +195,7 @@ export function InquiryPageClient() {
           </h1>
           <p className="mt-2 text-sm text-slate-600">
             Agregá productos desde el catálogo y envianos tu consulta por
-            WhatsApp.
+            WhatsApp o solicitá contacto directo con IFEDEL.
           </p>
         </div>
         <EmptyCatalogState
@@ -192,31 +316,70 @@ export function InquiryPageClient() {
         })}
       </ul>
 
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+      <section className="relative rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-slate-900">Tus datos</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Los usamos solo para armar el mensaje de WhatsApp. No se guarda en
-          nuestro sistema desde el catálogo.
+          Completá tus datos para enviarnos la consulta. Los productos de tu
+          lista se adjuntan automáticamente.
         </p>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            <span className="font-medium text-slate-700">Nombre *</span>
+            <span className="font-medium text-slate-700">
+              Nombre y apellido *
+            </span>
             <input
               value={contact.name}
               onChange={(e) => setContactField('name', e.target.value)}
               className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
-              placeholder="Tu nombre o el de tu comercio"
+              placeholder="Tu nombre completo"
+              autoComplete="name"
               required
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">Localidad</span>
+            <span className="font-medium text-slate-700">Empresa</span>
+            <input
+              value={contact.company}
+              onChange={(e) => setContactField('company', e.target.value)}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
+              placeholder="Opcional"
+              autoComplete="organization"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-slate-700">Teléfono *</span>
+            <input
+              value={contact.phone}
+              onChange={(e) => setContactField('phone', e.target.value)}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
+              placeholder="Con código de área"
+              autoComplete="tel"
+              inputMode="tel"
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-slate-700">Email</span>
+            <input
+              type="email"
+              value={contact.email}
+              onChange={(e) => setContactField('email', e.target.value)}
+              className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
+              placeholder="Opcional"
+              autoComplete="email"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-slate-700">
+              Localidad o provincia
+            </span>
             <input
               value={contact.locality}
               onChange={(e) => setContactField('locality', e.target.value)}
               className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
               placeholder="Ciudad / provincia"
+              autoComplete="address-level2"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -240,9 +403,7 @@ export function InquiryPageClient() {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-            <span className="font-medium text-slate-700">
-              Comentario general
-            </span>
+            <span className="font-medium text-slate-700">Comentario</span>
             <textarea
               value={contact.generalComment}
               onChange={(e) =>
@@ -250,7 +411,23 @@ export function InquiryPageClient() {
               }
               rows={3}
               className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
-              placeholder="Contexto de la consulta, urgencia, etc."
+              placeholder="Contexto de la consulta, urgencia, etc. (opcional)"
+            />
+          </label>
+
+          {/* Honeypot: oculto a usuarios, visible a bots ingenuos */}
+          <label
+            className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden"
+            aria-hidden
+          >
+            Sitio web
+            <input
+              ref={honeypotRef}
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              defaultValue=""
             />
           </label>
         </div>
@@ -265,28 +442,51 @@ export function InquiryPageClient() {
         </p>
       ) : null}
 
-      {!whatsappConfigured ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Falta configurar <code className="text-xs">NEXT_PUBLIC_IFEDEL_WHATSAPP_NUMBER</code> para
-          habilitar el envío.
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold text-slate-900">
+          ¿Cómo querés enviarla?
+        </h2>
+        <p className="text-sm text-slate-600">
+          Podés escribirnos por WhatsApp o dejar tu consulta directamente en
+          IFEDEL para que un representante te contacte.
         </p>
-      ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={handleSend}
-          className="inline-flex flex-1 items-center justify-center rounded-full bg-[#25D366] px-6 py-3.5 text-sm font-semibold text-white transition hover:brightness-105"
-        >
-          Enviar consulta por WhatsApp
-        </button>
-        <Link
-          href={path('productos')}
-          className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-800"
-        >
-          Seguir explorando
-        </Link>
-      </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={handleSolicitarContacto}
+            disabled={submitting}
+            className="inline-flex flex-1 items-center justify-center rounded-full bg-ifedel-brown px-6 py-3.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? 'Enviando…' : 'Solicitar contacto'}
+          </button>
+          <button
+            type="button"
+            onClick={handleSendWhatsApp}
+            disabled={submitting || !whatsappConfigured}
+            className="inline-flex flex-1 items-center justify-center rounded-full bg-[#25D366] px-6 py-3.5 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Enviar por WhatsApp
+          </button>
+        </div>
+
+        {!whatsappConfigured ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            WhatsApp aún no está configurado. Podés usar{' '}
+            <strong>Solicitar contacto</strong> para enviarnos la consulta
+            directamente.
+          </p>
+        ) : null}
+
+        <div className="text-center sm:text-left">
+          <Link
+            href={path('productos')}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800"
+          >
+            Seguir explorando
+          </Link>
+        </div>
+      </section>
     </div>
   )
 }
