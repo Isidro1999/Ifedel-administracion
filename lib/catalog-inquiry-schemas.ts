@@ -93,3 +93,33 @@ export const COMMERCIAL_INQUIRY_SOURCES = ['CATALOG_WEB'] as const
 
 export type CommercialInquirySource =
   (typeof COMMERCIAL_INQUIRY_SOURCES)[number]
+
+export const COMMERCIAL_INQUIRY_STATUS_LABELS: Record<
+  CommercialInquiryStatus,
+  string
+> = {
+  NEW: 'Nueva',
+  CONTACTED: 'Contactada',
+  IN_PROGRESS: 'En gestión',
+  QUOTE_SENT: 'Cotización enviada',
+  CLOSED: 'Cerrada',
+  DISCARDED: 'Descartada',
+}
+
+export const COMMERCIAL_INQUIRY_SOURCE_LABELS: Record<
+  CommercialInquirySource,
+  string
+> = {
+  CATALOG_WEB: 'Catálogo web',
+}
+
+/** PATCH admin: solo permite cambiar status. */
+export const UpdateCommercialInquiryStatusSchema = z.object({
+  status: z.enum(COMMERCIAL_INQUIRY_STATUSES, {
+    errorMap: () => ({ message: 'Estado inválido' }),
+  }),
+})
+
+export type UpdateCommercialInquiryStatusInput = z.infer<
+  typeof UpdateCommercialInquiryStatusSchema
+>

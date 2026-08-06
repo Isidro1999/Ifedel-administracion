@@ -19,6 +19,7 @@ import {
   Upload,
   Users,
   Wallet,
+  MessageSquareText,
 } from 'lucide-react'
 
 import { COMMAND_PALETTE_EVENT } from './command-palette-constants'
@@ -52,6 +53,7 @@ const ENTRIES: Entry[] = [
   { id: 'mapa-ganadero', title: 'Mapa ganadero', href: '/comercial/mapa', keywords: 'provincias stock bovino comercial', group: 'Analytics', Icon: Map },
   { id: 'admin-users', title: 'Admin — Usuarios', href: '/admin/users', keywords: 'usuarios roles', group: 'Admin', Icon: Users },
   { id: 'admin-catalog', title: 'Admin — Catálogo online', href: '/admin/catalog', keywords: 'publicar despublicar catálogo online', group: 'Admin', Icon: Globe },
+  { id: 'admin-inquiries', title: 'Admin — Consultas comerciales', href: '/admin/catalog/inquiries', keywords: 'consulta lead catálogo ifd contacto', group: 'Admin', Icon: MessageSquareText },
   { id: 'admin-settings', title: 'Admin — Configuración', href: '/admin/settings', keywords: 'settings', group: 'Admin', Icon: Settings },
   { id: 'admin-financial', title: 'Admin — Parámetros financieros', href: '/admin/financial-settings', keywords: 'tasas overhead', group: 'Admin', Icon: Settings },
   { id: 'admin-import', title: 'Admin — Importar datos', href: '/admin/import', keywords: 'csv productos', group: 'Admin', Icon: Upload },

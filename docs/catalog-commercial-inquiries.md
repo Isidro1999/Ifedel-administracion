@@ -51,21 +51,29 @@ Variables (ver `.env.example`):
 - `INQUIRY_NOTIFICATION_FROM`
 - `INQUIRY_NOTIFICATION_RECIPIENTS`
 
-## Backoffice (etapa siguiente — no implementada)
+## Backoffice (etapa 2)
 
-Ruta UI recomendada:
+Rutas UI:
 
-- `/admin/catalog/inquiries` (listado)
-- `/admin/catalog/inquiries/[id]` (detalle)
+- `/admin/catalog/inquiries` — listado con filtros, paginación y contador de `NEW`
+- `/admin/catalog/inquiries/[id]` — detalle, contacto y cambio de estado
 
-API admin recomendada:
+API admin:
 
 - `GET /api/admin/catalog/inquiries`
 - `GET /api/admin/catalog/inquiries/[id]`
-- `PATCH /api/admin/catalog/inquiries/[id]` (status)
+- `PATCH /api/admin/catalog/inquiries/[id]` — body `{ status }` únicamente
 
-Permisos: misma puerta que el resto del admin (`requireAdminSession` /
-`requireAdminPage`: usuario `APPROVED` + rol `ADMIN`).
+Permisos: `requireAdminSession` / `requireAdminPage` (usuario `APPROVED` + rol `ADMIN`).
+
+Capa de datos: `lib/admin-catalog-inquiries.ts`.
+
+### Decisiones de esta etapa
+
+- **Transiciones de estado:** libres (cualquier estado → cualquier otro). Endurecer más adelante si hace falta.
+- **Badge en sidebar:** no implementado. El `Sidebar` es client estático sin props de counts; el contador de `NEW` vive en la página de listado (`MetricCard`).
+- **Sin eliminación** de consultas desde la UI.
+- **Sin notas internas / historial de cambios / emails / cotizaciones** (etapas futuras).
 
 No exponer listados ni detalle en rutas `/api/catalog/*` de lectura.
 
