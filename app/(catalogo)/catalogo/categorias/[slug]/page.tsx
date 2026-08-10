@@ -14,6 +14,7 @@ import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { CatalogPagination } from '@/components/catalog/CatalogPagination'
 import { CatalogBrandChips } from '@/components/catalog/CatalogBrandChips'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
+import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
 
 export const revalidate = 60
 
@@ -118,6 +119,9 @@ export default async function CatalogoCategoriaPage({
         <p className="mt-2 text-sm text-slate-600">
           Productos publicados en esta categoría.
         </p>
+        <div className="mt-3">
+          <CatalogPriceDisclaimer />
+        </div>
       </div>
 
       <CatalogBrandChips

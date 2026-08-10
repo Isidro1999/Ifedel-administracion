@@ -350,7 +350,9 @@ async function validatePublishItem(
     warnings.push('Falta descripción corta (publicShortDescription o short)')
   }
   if (product.showPrice && !product.catalogPriceList?.trim()) {
-    warnings.push('showPrice=true pero falta catalogPriceList')
+    warnings.push(
+      'showPrice=true sin catalogPriceList: el catálogo usará fallback "minorista"',
+    )
   }
   if (hasImage && !hasPrimary) {
     warnings.push('Ninguna imagen está marcada como principal')

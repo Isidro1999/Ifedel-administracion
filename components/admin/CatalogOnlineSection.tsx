@@ -226,6 +226,7 @@ export function CatalogOnlineSection({
           </span>
           <span className="mt-0.5 block text-xs text-slate-500">
             Si está desactivado, el catálogo muestra “Consultar precio”.
+            Si está activo y no elegís lista, se usa “minorista” por defecto.
           </span>
         </span>
       </label>
@@ -269,8 +270,8 @@ export function CatalogOnlineSection({
         </p>
         {showPrice && !(form.catalogPriceList || '').trim() ? (
           <p className="mt-1 text-xs text-amber-700">
-            Tenés precio público activo pero sin lista. El catálogo mostrará
-            “Consultar precio” hasta que configures una lista válida.
+            Precio público activo sin lista: se usará “minorista” como fallback.
+            Podés elegir una lista explícita si corresponde.
           </p>
         ) : null}
       </div>

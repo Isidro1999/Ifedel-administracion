@@ -13,6 +13,8 @@ import {
   CATALOG_CACHE_TAGS,
   CATALOG_REVALIDATE_SECONDS,
 } from '@/lib/catalog-cache'
+import { effectiveCatalogPriceList } from '@/lib/catalog-public-price'
+import { getUsdArsRateSettings } from '@/lib/exchange-rate/get-usd-ars-rate'
 import { withPerf } from '@/lib/perf'
 import type {
   CatalogBrand,
@@ -183,9 +185,8 @@ async function loadPublicPricesForProducts(
   }>,
 ): Promise<Map<number, PriceRow[]>> {
   const map = new Map<number, PriceRow[]>()
-  const needPrice = products.filter(
-    (p) => p.showPrice && Boolean(p.catalogPriceList?.trim()),
-  )
+  // showPrice=true → lista efectiva (catalogPriceList ?? "minorista")
+  const needPrice = products.filter((p) => p.showPrice)
   if (needPrice.length === 0) return map
 
   const { prisma } = await import('@/lib/prisma')
@@ -193,7 +194,7 @@ async function loadPublicPricesForProducts(
     where: {
       OR: needPrice.map((p) => ({
         productId: p.id,
-        priceList: p.catalogPriceList!.trim(),
+        priceList: effectiveCatalogPriceList(p.catalogPriceList),
       })),
     },
     orderBy: { createdAt: 'desc' },
@@ -210,6 +211,7 @@ async function loadPublicPricesForProducts(
 
 async function getCatalogProductsUncached(
   params: CatalogProductListParams = {},
+  usdArsRate: number | null = null,
 ): Promise<CatalogProductsResponse> {
   const { prisma } = await import('@/lib/prisma')
   const { q, brand, category, featuredOnly, page, pageSize } =
@@ -254,15 +256,19 @@ async function getCatalogProductsUncached(
   })
 
   const priceMap = await loadPublicPricesForProducts(products)
+  const serializeOpts = { usdArsRate }
 
   const items = products.map((p) =>
-    serializeCatalogProductListItem({
-      ...p,
-      brand: p.brand ?? null,
-      category: p.category ?? null,
-      images: p.images ?? [],
-      prices: priceMap.get(p.id) ?? [],
-    }),
+    serializeCatalogProductListItem(
+      {
+        ...p,
+        brand: p.brand ?? null,
+        category: p.category ?? null,
+        images: p.images ?? [],
+        prices: priceMap.get(p.id) ?? [],
+      },
+      serializeOpts,
+    ),
   )
 
   return {
@@ -278,6 +284,7 @@ async function getCatalogProductsUncached(
 
 async function getCatalogProductBySlugUncached(
   slugRaw: string,
+  usdArsRate: number | null = null,
 ): Promise<CatalogProductDetail | null> {
   const { prisma } = await import('@/lib/prisma')
   const slug = decodeURIComponent(slugRaw || '').trim()
@@ -298,15 +305,18 @@ async function getCatalogProductBySlugUncached(
 
   const priceMap = await loadPublicPricesForProducts([product])
 
-  return serializeCatalogProductDetail({
-    ...product,
-    brand: product.brand ?? null,
-    category: product.category ?? null,
-    images: product.images ?? [],
-    specs: product.specs ?? [],
-    files: product.files ?? [],
-    prices: priceMap.get(product.id) ?? [],
-  }) as CatalogProductDetail
+  return serializeCatalogProductDetail(
+    {
+      ...product,
+      brand: product.brand ?? null,
+      category: product.category ?? null,
+      images: product.images ?? [],
+      specs: product.specs ?? [],
+      files: product.files ?? [],
+      prices: priceMap.get(product.id) ?? [],
+    },
+    { usdArsRate },
+  ) as CatalogProductDetail
 }
 
 async function getCatalogCategoriesUncached(): Promise<CatalogCategory[]> {
@@ -395,10 +405,16 @@ export async function getCatalogProducts(
     'getCatalogProducts',
     async () => {
       try {
+        // TC una vez por request; entra en la cache key para coherencia con invalidación.
+        const { usdArsRate } = await getUsdArsRateSettings()
+        const rateKey =
+          usdArsRate != null && Number.isFinite(usdArsRate)
+            ? String(usdArsRate)
+            : 'none'
         const key = cacheKeyForListParams(params)
         const cached = unstable_cache(
-          () => getCatalogProductsUncached(params),
-          ['catalog-products', key],
+          () => getCatalogProductsUncached(params, usdArsRate),
+          ['catalog-products', key, rateKey],
           {
             revalidate: CATALOG_REVALIDATE_SECONDS,
             tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.products],
@@ -426,9 +442,14 @@ export async function getCatalogProductBySlug(
         if (!slug) {
           throw new CatalogQueryError('Slug inválido', 400)
         }
+        const { usdArsRate } = await getUsdArsRateSettings()
+        const rateKey =
+          usdArsRate != null && Number.isFinite(usdArsRate)
+            ? String(usdArsRate)
+            : 'none'
         const cached = unstable_cache(
-          () => getCatalogProductBySlugUncached(slug),
-          ['catalog-product', slug],
+          () => getCatalogProductBySlugUncached(slug, usdArsRate),
+          ['catalog-product', slug, rateKey],
           {
             revalidate: CATALOG_REVALIDATE_SECONDS,
             tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.product],

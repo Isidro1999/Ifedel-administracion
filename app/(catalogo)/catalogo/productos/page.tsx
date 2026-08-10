@@ -14,6 +14,7 @@ import { ProductFilters } from '@/components/catalog/ProductFilters'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { CatalogPagination } from '@/components/catalog/CatalogPagination'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
+import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
 
 export const revalidate = 60
 
@@ -107,10 +108,13 @@ export default async function CatalogoProductosPage({ searchParams }: PageProps)
         <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
           Productos
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Filtrá por categoría o marca y abrí la ficha de cada producto.
-        </p>
-      </div>
+          <p className="mt-2 text-sm text-slate-600">
+            Filtrá por categoría o marca y abrí la ficha de cada producto.
+          </p>
+          <div className="mt-3">
+            <CatalogPriceDisclaimer />
+          </div>
+        </div>
 
       <div id="categorias">
         <Suspense

@@ -10,10 +10,16 @@
 export type CatalogBrand = { id: number; name: string; slug: string; count?: number }
 export type CatalogCategory = { id: number; name: string; slug: string; count?: number }
 
+/**
+ * Precio público final en ARS (IVA incluido, sin centavos).
+ * `netPrice` es alias de `amount` (compat); no es el neto original de ProductPrice.
+ */
 export type CatalogPrice = {
-  currency: string
+  currency: 'ARS'
+  amount: number
+  includesTax: true
   netPrice: number
-  taxRate: number
+  taxRate: 0
 } | null
 
 export type CatalogPrimaryImage = {
