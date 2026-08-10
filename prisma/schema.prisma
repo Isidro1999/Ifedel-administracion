@@ -163,6 +163,30 @@ model Settings {
   @@map("settings")
 }
 
+/// Historial auditable del tipo de cambio USD → ARS (singleton vigente en Settings).
+/// source: MANUAL | BNA (string; sin enum Prisma).
+model ExchangeRateHistory {
+  id              Int      @id @default(autoincrement())
+  rate            Float
+  currencyBase    String   @default("USD")
+  currencyQuote   String   @default("ARS")
+  /// MANUAL | BNA
+  source          String
+  effectiveDate   DateTime
+  providerDate    DateTime?
+  /// Hora publicada por el proveedor (ej. "11:00"); null en cambios manuales.
+  providerTime    String?
+  previousRate    Float?
+  createdAt       DateTime @default(now())
+
+  createdByUserId String?
+  createdBy       User?    @relation("ExchangeRateHistoryCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([source, createdAt])
+  @@map("exchange_rate_history")
+}
+
 /// Configuración económica/financiera global de IFEDEL.
 /// Se usa una única fila con id = 1.
 model FinancialSettings {
@@ -834,6 +858,7 @@ model User {
   receivablePaymentsCreated  ReceivablePayment[] @relation("ReceivablePaymentCreatedBy")
   cashMovementsCreated       CashMovement[]      @relation("CashMovementCreatedBy")
   purchasesCreated           Purchase[]          @relation("PurchaseCreatedBy")
+  exchangeRateHistoryCreated ExchangeRateHistory[] @relation("ExchangeRateHistoryCreatedBy")
 
   @@map("users")
 }
