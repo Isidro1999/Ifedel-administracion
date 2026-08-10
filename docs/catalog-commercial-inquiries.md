@@ -10,13 +10,15 @@ no incluye precios finales, envío, financiación ni condiciones confirmadas.
 | Consulta comercial | `CommercialInquiry` / `CommercialInquiryItem` |
 | Lista de consulta (cliente) | Zustand `catalog-inquiry-store` |
 
-## Flujo actual (etapa 1)
+## Flujo (etapas 1–3)
 
 1. El visitante arma una lista en el catálogo.
 2. En `/catalogo/consulta` puede:
-   - **Enviar por WhatsApp** (flujo previo, sin persistencia servidor).
+   - **Enviar por WhatsApp** (sin persistencia servidor).
    - **Solicitar contacto** → `POST /api/catalog/inquiries` → guarda en DB.
-3. Tras éxito: confirmación visual + `referenceNumber` (`IFD-000123`) y se limpia la lista.
+3. Tras éxito: confirmación visual + `referenceNumber` (`IFD-000123`).
+4. Aviso interno por email a IFEDEL vía Brevo (best-effort; no bloquea el guardado).
+5. La consulta aparece en `/admin/catalog/inquiries`.
 
 ## API pública
 
@@ -27,6 +29,7 @@ no incluye precios finales, envío, financiación ni condiciones confirmadas.
 - Reconstruye snapshots de productos desde DB (`catalogVisible` + `isActive`).
 - No lista ni permite consultar por número de referencia.
 - Respuesta exitosa: `{ success: true, inquiry: { referenceNumber } }`.
+- **No** expone si el email se envió, destinatarios ni `messageId` de Brevo.
 
 ### Protecciones anti-spam
 
@@ -38,18 +41,61 @@ no incluye precios finales, envío, financiación ni condiciones confirmadas.
 | Longitudes | Zod (nombre, teléfono, mensaje, etc.) |
 | UI | lock + disable durante envío |
 
-> El rate limit in-memory **no es global** entre instancias Vercel. Es una primera capa;
-> para límites estrictos en producción convendrá Redis / Upstash u otro store compartido.
+> El rate limit in-memory **no es global** entre instancias Vercel.
 
-## Emails (etapa futura)
+## Emails internos (etapa 3 — Brevo)
 
-Stub: `lib/catalog-inquiry-notify.ts` → `sendNewInquiryNotification`.
+Servicio: `lib/catalog-inquiry-notify.ts` → `sendNewInquiryNotification(inquiryId)`.
 
-Variables (ver `.env.example`):
+Builders puros (escape HTML, asunto, HTML, texto): `lib/catalog-inquiry-email.ts`.
 
-- `BREVO_API_KEY`
-- `INQUIRY_NOTIFICATION_FROM`
-- `INQUIRY_NOTIFICATION_RECIPIENTS`
+Integración: `fetch` a `POST https://api.brevo.com/v3/smtp/email` (sin SDK). Timeout 8s.
+
+### Principio de resiliencia
+
+1. Se confirma la consulta en DB.
+2. Se intenta el email.
+3. Si Brevo falla / falta config → se loguea, **no** hay rollback, el cliente recibe éxito igual.
+
+### Variables (ver `.env.example`)
+
+| Variable | Uso |
+|----------|-----|
+| `BREVO_API_KEY` | Obligatoria para enviar |
+| `INQUIRY_NOTIFICATION_FROM` | Remitente email (`info@ifedel.com`) |
+| `INQUIRY_NOTIFICATION_FROM_NAME` | Nombre (`IFEDEL`) |
+| `INQUIRY_NOTIFICATION_RECIPIENTS` | Lista separada por comas |
+| `NEXT_PUBLIC_BACKOFFICE_URL` | Base CTA (`https://app.ifedel.com`); fallback `AUTH_URL` |
+
+Reply-To = email del cliente si es válido. Tag Brevo: `catalog-inquiry`.
+
+Sin `BREVO_API_KEY` o sin destinatarios válidos: `sent: false` (`disabled` / `configuration_error`) y se puede crear consultas en local.
+
+### Configurar Brevo (manual)
+
+1. Entrar a [Brevo](https://www.brevo.com/).
+2. Crear una **API key** con permiso de envío transaccional.
+3. Registrar el remitente `info@ifedel.com` (Senders).
+4. Autenticar el dominio `ifedel.com` (DKIM / DMARC / registros que Brevo indique — **usar los valores exactos del panel**, no inventarlos).
+5. Esperar validación DNS (puede no ser inmediata).
+6. En Vercel → Project → Settings → Environment Variables (Production):
+   - `BREVO_API_KEY`
+   - `INQUIRY_NOTIFICATION_FROM=info@ifedel.com`
+   - `INQUIRY_NOTIFICATION_FROM_NAME=IFEDEL`
+   - `INQUIRY_NOTIFICATION_RECIPIENTS=isidroballestrin@gmail.com,jeroanchelerguez@gmail.com`
+   - `NEXT_PUBLIC_BACKOFFICE_URL=https://app.ifedel.com`
+7. Redeploy.
+8. Enviar una consulta real desde el catálogo (con email de prueba en el formulario).
+9. Revisar Transactional → Email logs en Brevo.
+10. Confirmar recepción en ambas casillas y Reply-To del cliente.
+
+Para pruebas locales, apuntá `INQUIRY_NOTIFICATION_RECIPIENTS` a casillas propias (no hardcodear producción en `.env` local).
+
+### Deuda futura
+
+- Confirmación por email al cliente.
+- Cola / reintentos persistentes (hoy es síncrono best-effort con timeout).
+- Webhooks de entrega, historial de emails, reenvío manual desde el backoffice.
 
 ## Backoffice (etapa 2)
 
@@ -68,21 +114,16 @@ Permisos: `requireAdminSession` / `requireAdminPage` (usuario `APPROVED` + rol `
 
 Capa de datos: `lib/admin-catalog-inquiries.ts`.
 
-### Decisiones de esta etapa
+### Decisiones
 
-- **Transiciones de estado:** libres (cualquier estado → cualquier otro). Endurecer más adelante si hace falta.
-- **Badge en sidebar:** no implementado. El `Sidebar` es client estático sin props de counts; el contador de `NEW` vive en la página de listado (`MetricCard`).
-- **Sin eliminación** de consultas desde la UI.
-- **Sin notas internas / historial de cambios / emails / cotizaciones** (etapas futuras).
-
-No exponer listados ni detalle en rutas `/api/catalog/*` de lectura.
+- **Transiciones de estado:** libres (cualquier estado → cualquier otro).
+- **Badge en sidebar:** no implementado; contador `NEW` en el listado.
+- Sin eliminación / notas / historial de cambios / cotizaciones.
 
 ## Migración
 
 ```bash
 npx prisma migrate deploy
-# o en local de desarrollo:
-npx prisma migrate dev
 npx prisma generate
 ```
 

@@ -110,33 +110,31 @@ export async function POST(request: NextRequest) {
           },
         },
         select: {
+          id: true,
           referenceNumber: true,
-          customerName: true,
-          companyName: true,
-          phone: true,
-          email: true,
-          location: true,
-          message: true,
-          _count: { select: { items: true } },
         },
       })
 
       return inquiry
     })
 
-    // Etapa futura de emails: no bloquea ni falla el envío al cliente.
-    void sendNewInquiryNotification({
-      referenceNumber: created.referenceNumber,
-      customerName: created.customerName,
-      companyName: created.companyName,
-      phone: created.phone,
-      email: created.email,
-      location: created.location,
-      message: created.message,
-      itemCount: created._count.items,
-    }).catch(() => {
-      /* swallow */
-    })
+    // Notificación Brevo: secundaria. No hace rollback ni altera la respuesta.
+    // Await con timeout interno para no cortar el envío en Vercel al responder.
+    try {
+      await sendNewInquiryNotification(created.id)
+    } catch (notifyError) {
+      console.warn(
+        '[catalog.inquiries.notify] unexpected error after save',
+        {
+          inquiryId: created.id,
+          referenceNumber: created.referenceNumber,
+          detail:
+            notifyError instanceof Error
+              ? notifyError.message.slice(0, 200)
+              : 'unknown_error',
+        },
+      )
+    }
 
     return NextResponse.json({
       success: true,
