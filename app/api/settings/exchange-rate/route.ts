@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireApprovedSession } from '@/lib/session-auth'
+import { getUsdArsRateSettings } from '@/lib/exchange-rate'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -12,17 +13,8 @@ export async function GET() {
   const gate = await requireApprovedSession()
   if (!gate.ok) return gate.response
 
-  const { prisma } = await import('@/lib/prisma')
   try {
-    const settings = await prisma.settings.findFirst()
-
-    if (!settings) {
-      return NextResponse.json({
-        usdArsRate: null,
-        updatedAt: null,
-      })
-    }
-
+    const settings = await getUsdArsRateSettings()
     return NextResponse.json({
       usdArsRate: settings.usdArsRate,
       updatedAt: settings.updatedAt,
