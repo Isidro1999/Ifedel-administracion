@@ -16,7 +16,9 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:backfill:receivables": "tsx prisma/backfill-receivables-to-ars.ts",
-    "db:migrate:sqlite-products": "tsx prisma/migrate-sqlite-products-to-postgres.ts"
+    "db:migrate:sqlite-products": "tsx prisma/migrate-sqlite-products-to-postgres.ts",
+    "test:exchange-rate": "tsx --test lib/exchange-rate/parse-bna-exchange-rate.test.ts",
+    "verify:bna-exchange-rate": "tsx scripts/verify-bna-exchange-rate.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

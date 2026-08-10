@@ -20,3 +20,19 @@ export {
   getExchangeRateHistory,
   type ExchangeRateHistoryItem,
 } from '@/lib/exchange-rate/get-exchange-rate-history'
+export {
+  syncUsdArsRateFromBna,
+  BNA_VARIATION_MAX,
+  type BnaSyncResult,
+  type BnaSyncStatus,
+} from '@/lib/exchange-rate/sync-from-bna'
+export {
+  parseBnaExchangeRate,
+  BnaParseError,
+  type ParsedBnaExchangeRate,
+} from '@/lib/exchange-rate/parse-bna-exchange-rate'
+export {
+  fetchBnaUsdBilleteVenta,
+  BNA_HOME_URL,
+  BnaFetchError,
+} from '@/lib/exchange-rate/bna-client'
