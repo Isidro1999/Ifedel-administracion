@@ -4,24 +4,15 @@
  * Endpoints `/api/catalog/*` — sin auth.
  * Whitelist estricta: NUNCA incluir cost, costCurrency, márgenes,
  * proveedores, notas internas, ni listas de precios internas completas.
+ * NUNCA exponer USD/netPrice original ni usdArsRate.
  *
  * Tolera brand/category/images/files/specs/prices nulos o vacíos.
  */
 
-const PUBLIC_PRICE_LABEL = 'Consultar precio'
-
-/** Tipos de archivo aptos para cliente final. */
-const PUBLIC_FILE_TYPES = new Set([
-  'manual',
-  'ficha',
-  'ficha_tecnica',
-  'fichatecnica',
-  'catalogo',
-  'catálogo',
-  'brochure',
-  'datasheet',
-  'pdf',
-])
+import {
+  resolvePublicCatalogPrice,
+  type CatalogPublicPrice,
+} from '@/lib/catalog-public-price'
 
 export type CatalogBrand = { id: number; name: string; slug: string }
 export type CatalogCategory = { id: number; name: string; slug: string }
@@ -46,12 +37,11 @@ export type CatalogFile = {
   url: string
 }
 
-/** Precio público permitido (sin IDs de lista interna ni historial). */
-export type CatalogPrice = {
-  currency: string
-  netPrice: number
-  taxRate: number
-} | null
+/**
+ * Precio público final en ARS (IVA incluido).
+ * `netPrice` es alias de `amount` (compat); no es el neto original.
+ */
+export type CatalogPrice = CatalogPublicPrice | null
 
 type PriceRow = {
   priceList: string
@@ -101,6 +91,24 @@ export type CatalogProductSource = {
   prices?: PriceRow[] | null
 }
 
+export type CatalogSerializeOptions = {
+  /** TC global USD→ARS (una vez por request). */
+  usdArsRate?: number | null
+}
+
+/** Tipos de archivo aptos para cliente final. */
+const PUBLIC_FILE_TYPES = new Set([
+  'manual',
+  'ficha',
+  'ficha_tecnica',
+  'fichatecnica',
+  'catalogo',
+  'catálogo',
+  'brochure',
+  'datasheet',
+  'pdf',
+])
+
 function publicTitle(p: CatalogProductSource): string {
   const t = p.publicTitle?.trim()
   return t || p.title
@@ -118,87 +126,18 @@ function publicDescription(p: CatalogProductSource): string | null {
   return p.description?.trim() || null
 }
 
-function isDateInRange(
-  now: Date,
-  validFrom?: Date | string | null,
-  validTo?: Date | string | null,
-): boolean {
-  if (validFrom) {
-    const from = new Date(validFrom)
-    if (!Number.isNaN(from.getTime()) && now < from) return false
-  }
-  if (validTo) {
-    const to = new Date(validTo)
-    if (!Number.isNaN(to.getTime()) && now > to) return false
-  }
-  return true
-}
-
 /**
- * Resuelve precio público según showPrice + catalogPriceList.
- * Nunca expone otras listas ni el array prices completo.
+ * @deprecated Usar resolvePublicCatalogPrice. Se mantiene como wrapper.
  */
-export function resolveCatalogPrice(product: {
-  showPrice: boolean
-  catalogPriceList?: string | null
-  prices?: PriceRow[] | null
-}): { showPrice: boolean; price: CatalogPrice; priceLabel: string } {
-  const consultar = (): {
+export function resolveCatalogPrice(
+  product: {
     showPrice: boolean
-    price: CatalogPrice
-    priceLabel: string
-  } => ({
-    showPrice: Boolean(product.showPrice),
-    price: null,
-    priceLabel: PUBLIC_PRICE_LABEL,
-  })
-
-  if (!product.showPrice) {
-    return {
-      showPrice: false,
-      price: null,
-      priceLabel: PUBLIC_PRICE_LABEL,
-    }
-  }
-
-  const listName = product.catalogPriceList?.trim()
-  if (!listName || !product.prices?.length) {
-    return consultar()
-  }
-
-  const now = new Date()
-  const candidates = product.prices
-    .filter(
-      (pr) =>
-        pr &&
-        pr.priceList === listName &&
-        typeof pr.netPrice === 'number' &&
-        Number.isFinite(pr.netPrice) &&
-        pr.netPrice >= 0 &&
-        isDateInRange(now, pr.validFrom, pr.validTo),
-    )
-    .sort((a, b) => {
-      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0
-      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0
-      return tb - ta
-    })
-
-  const best = candidates[0]
-  if (!best) {
-    return consultar()
-  }
-
-  const price = {
-    currency: best.currency || 'ARS',
-    netPrice: best.netPrice,
-    taxRate: best.taxRate ?? 0,
-  }
-
-  return {
-    showPrice: true,
-    price,
-    priceLabel: `${price.currency} ${price.netPrice}`,
-  }
+    catalogPriceList?: string | null
+    prices?: PriceRow[] | null
+  },
+  usdArsRate?: number | null,
+) {
+  return resolvePublicCatalogPrice(product, usdArsRate ?? null)
 }
 
 export function isPublicCatalogFileType(type: string): boolean {
@@ -249,9 +188,27 @@ function serializeCategory(
   }
 }
 
+function publicPricing(
+  product: CatalogProductSource,
+  opts?: CatalogSerializeOptions,
+) {
+  const resolved = resolvePublicCatalogPrice(
+    product,
+    opts?.usdArsRate ?? null,
+  )
+  return {
+    showPrice: resolved.showPrice,
+    price: resolved.price,
+    priceLabel: resolved.priceLabel,
+  }
+}
+
 /** Card / listado del catálogo. */
-export function serializeCatalogProductListItem(product: CatalogProductSource) {
-  const pricing = resolveCatalogPrice(product)
+export function serializeCatalogProductListItem(
+  product: CatalogProductSource,
+  opts?: CatalogSerializeOptions,
+) {
+  const pricing = publicPricing(product, opts)
 
   return {
     id: product.id,
@@ -271,8 +228,11 @@ export function serializeCatalogProductListItem(product: CatalogProductSource) {
 }
 
 /** Ficha de detalle pública. */
-export function serializeCatalogProductDetail(product: CatalogProductSource) {
-  const pricing = resolveCatalogPrice(product)
+export function serializeCatalogProductDetail(
+  product: CatalogProductSource,
+  opts?: CatalogSerializeOptions,
+) {
+  const pricing = publicPricing(product, opts)
 
   const images = [...(product.images ?? [])]
     .filter((img) => img?.url)

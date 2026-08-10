@@ -4,6 +4,7 @@ import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { HomeSectionHeading } from '@/components/catalog/home/HomeSectionHeading'
+import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
 
 type HomeFeaturedProductsProps = {
   products: CatalogProductListItem[]
@@ -23,6 +24,9 @@ export function HomeFeaturedProducts({
         title="Productos destacados"
         description={`Selección comercial de ${IFEDelBrand.companyName}.`}
       />
+      <div className="mb-6 -mt-2">
+        <CatalogPriceDisclaimer />
+      </div>
 
       {loadError ? (
         <EmptyCatalogState

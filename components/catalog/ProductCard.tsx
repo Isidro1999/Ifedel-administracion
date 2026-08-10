@@ -19,6 +19,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
   // Cards ~320–400px CSS; 480 cubre retina 1.5–2x sin pedir original.
   const src = img ? getOptimizedImageUrl(img, 480) : null
   const detailHref = path(`productos/${product.slug}`)
+  const hasPublicPrice = Boolean(product.price)
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:border-ifedel-primary/40 hover:shadow-md">
@@ -66,9 +67,16 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           ) : null}
         </div>
 
-        <p className="mt-auto text-sm font-semibold text-slate-900">
-          {product.priceLabel}
-        </p>
+        <div className="mt-auto">
+          <p className="text-sm font-semibold text-slate-900">
+            {product.priceLabel}
+          </p>
+          {hasPublicPrice ? (
+            <p className="mt-0.5 text-xs font-normal text-slate-500">
+              IVA incluido
+            </p>
+          ) : null}
+        </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
           <Link

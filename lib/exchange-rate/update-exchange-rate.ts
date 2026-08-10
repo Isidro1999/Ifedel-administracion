@@ -113,6 +113,11 @@ export async function updateUsdArsRate(
   })
 
   revalidateTag(FINANCIAL_SETTINGS_TAG)
+  // Etapa C: precios públicos dependen del TC → invalidar catálogo solo si cambió.
+  const { revalidateCatalogPublicCache } = await import(
+    '@/lib/catalog-revalidate'
+  )
+  revalidateCatalogPublicCache()
 
   return {
     changed: true,

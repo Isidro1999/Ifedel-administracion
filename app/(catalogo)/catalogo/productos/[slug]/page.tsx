@@ -6,6 +6,7 @@ import { fetchCatalogProduct } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
 import { ProductGallery } from '@/components/catalog/ProductGallery'
 import { ProductDetailActions } from '@/components/catalog/ProductDetailActions'
+import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
 export const revalidate = 60
@@ -87,9 +88,17 @@ export default async function CatalogoProductoDetallePage({
             {product.title}
           </h1>
 
-          <p className="mt-6 text-xl font-semibold text-slate-900">
-            {product.priceLabel}
-          </p>
+          <div className="mt-6">
+            <p className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              {product.priceLabel}
+            </p>
+            {product.price ? (
+              <p className="mt-1 text-sm text-slate-500">IVA incluido</p>
+            ) : null}
+            {product.price ? (
+              <CatalogPriceDisclaimer variant="detail" />
+            ) : null}
+          </div>
 
           {product.shortDescription ? (
             <p className="mt-4 text-base leading-relaxed text-slate-700">
