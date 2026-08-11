@@ -46,7 +46,9 @@ export const useQuoteStore = create<QuoteState>()(
       client: {},
       meta: {
         validityDays: 7,
-        exchangeRateARS: 1000,
+        // Preview only until /quotes/new hidrata desde Settings.
+        // El POST ignora este valor y toma Settings server-side.
+        exchangeRateARS: 0,
         discountPct: 0,
         paymentTermCode: 'CONTADO',
       },
@@ -93,7 +95,7 @@ export const useQuoteStore = create<QuoteState>()(
           client: {},
           meta: {
             validityDays: 7,
-            exchangeRateARS: 1000,
+            exchangeRateARS: 0,
             discountPct: 0,
             paymentTermCode: 'CONTADO',
           },

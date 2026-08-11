@@ -268,12 +268,18 @@ export const QuotePdfDocument: React.FC<QuotePdfDocumentProps> = ({
   totalUSD,
   totalARS,
 }) => {
-  const exchangeRate = meta.exchangeRateARS || 1000
+  const exchangeRate =
+    typeof meta.exchangeRateARS === 'number' &&
+    Number.isFinite(meta.exchangeRateARS) &&
+    meta.exchangeRateARS > 0
+      ? meta.exchangeRateARS
+      : 0
   const discountPct = meta.discountPct ?? 0
   const hasDiscount = discountPct > 0
   const discountAmountUSD = hasDiscount ? totalUSD * (discountPct / 100) : 0
   const totalUSDWithDiscount = hasDiscount ? totalUSD - discountAmountUSD : totalUSD
-  const totalARSFinal = totalUSDWithDiscount * exchangeRate
+  const totalARSFinal =
+    exchangeRate > 0 ? totalUSDWithDiscount * exchangeRate : totalARS
   const formattedDiscountPct = Number.isInteger(discountPct)
     ? `${discountPct}%`
     : `${discountPct.toFixed(1)}%`

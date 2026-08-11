@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+import {
+  getInitialQuoteExchangeRate,
+  InvalidQuoteExchangeRateError,
+} from '@/lib/exchange-rate/get-initial-quote-exchange-rate'
+import {
+  computeQuoteLineTotals,
+  computeQuoteTotals,
+} from '@/lib/quotes/quote-totals'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -23,9 +31,13 @@ const QuoteClientInputSchema = z.object({
   phone: z.string().trim().optional(),
 })
 
+/**
+ * exchangeRateARS del cliente es opcional e IGNORADO en creación.
+ * El snapshot se toma server-side desde Settings justo antes del create.
+ */
 const QuoteMetaInputSchema = z.object({
   validityDays: z.number().int().positive().default(7),
-  exchangeRateARS: z.number().positive(),
+  exchangeRateARS: z.number().positive().optional(),
   discountPct: z.number().min(0).max(100).default(0),
   paymentTermCode: z.string().trim().min(1).default('CONTADO'),
 })
@@ -38,53 +50,6 @@ const QuotePayloadSchema = z.object({
 
 type QuotePayload = z.infer<typeof QuotePayloadSchema>
 
-function normalizeNumber(value: number | undefined, fallback: number): number {
-  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
-    return fallback
-  }
-  return value
-}
-
-function computeTotals(payload: QuotePayload) {
-  const currency = 'USD'
-
-  const subtotal = payload.items.reduce(
-    (acc, item) => acc + item.unitPriceUSD * item.qty,
-    0
-  )
-
-  const total = payload.items.reduce((acc, item) => {
-    const lineBase = item.unitPriceUSD * item.qty
-    return acc + lineBase * (1 + item.taxRate / 100)
-  }, 0)
-
-  const exchangeRate = normalizeNumber(payload.meta.exchangeRateARS, 1000)
-  const discountPct = normalizeNumber(payload.meta.discountPct, 0)
-  const clampedDiscountPct = Math.min(100, Math.max(0, discountPct))
-
-  const discountAmount = total * (clampedDiscountPct / 100)
-  const totalWithDiscount = total - discountAmount
-  const totalARS = totalWithDiscount * exchangeRate
-
-  return {
-    currency,
-    subtotal,
-    total,
-    discountPct: clampedDiscountPct,
-    discountAmount,
-    totalWithDiscount,
-    totalARS,
-    exchangeRateARS: exchangeRate,
-  }
-}
-
-function computeLineTotals(item: z.infer<typeof QuoteItemInputSchema>) {
-  const subtotal = item.unitPriceUSD * item.qty
-  const taxAmount = subtotal * (item.taxRate / 100)
-  const total = subtotal + taxAmount
-  return { subtotal, taxAmount, total }
-}
-
 function hasMeaningfulClientData(client: QuotePayload['client']) {
   const hasName = !!client.name && client.name.trim().length > 0
   const hasCompany = !!client.company && client.company.trim().length > 0
@@ -95,7 +60,7 @@ function hasMeaningfulClientData(client: QuotePayload['client']) {
 
 async function getOrCreateCustomerId(
   payload: QuotePayload,
-  tx: Prisma.TransactionClient
+  tx: Prisma.TransactionClient,
 ): Promise<number | null> {
   const { client } = payload
   if (!hasMeaningfulClientData(client)) return null
@@ -139,7 +104,7 @@ async function getOrCreateCustomerId(
 
 async function resolvePaymentTermForQuote(
   payload: QuotePayload,
-  tx: Prisma.TransactionClient
+  tx: Prisma.TransactionClient,
 ) {
   const code = payload.meta.paymentTermCode?.trim() || 'CONTADO'
 
@@ -177,7 +142,7 @@ async function resolvePaymentTermForQuote(
           order: inst.order,
           offsetDays: inst.offsetDays,
           percentage: inst.percentage,
-        }))
+        })),
       ),
     }
   }
@@ -191,7 +156,7 @@ async function resolvePaymentTermForQuote(
         order: inst.order,
         offsetDays: inst.offsetDays,
         percentage: inst.percentage,
-      }))
+      })),
     ),
   }
 }
@@ -213,6 +178,10 @@ async function generateQuoteNumber(tx: Prisma.TransactionClient): Promise<string
   return `${prefix}${seqStr}`
 }
 
+/**
+ * Crea Quote con snapshot de Settings.usdArsRate (server-side).
+ * Ignora meta.exchangeRateARS del cliente.
+ */
 export async function POST(request: NextRequest) {
   const [{ prisma }, { requireApprovedSession }] = await Promise.all([
     import('@/lib/prisma'),
@@ -237,32 +206,50 @@ export async function POST(request: NextRequest) {
             message: i.message,
           })),
         },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
     return NextResponse.json(
       { error: 'Body inválido o no parseable' },
-      { status: 400 }
+      { status: 400 },
     )
   }
 
   if (payload.items.length === 0) {
     return NextResponse.json(
       { error: 'La cotización no tiene ítems' },
-      { status: 400 }
+      { status: 400 },
     )
+  }
+
+  let exchangeRateARS: number
+  try {
+    // Snapshot inmediatamente antes de crear (no el valor del cliente).
+    exchangeRateARS = await getInitialQuoteExchangeRate()
+  } catch (error) {
+    if (error instanceof InvalidQuoteExchangeRateError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    throw error
   }
 
   try {
     const result = await prisma.$transaction(async (tx) => {
       const customerId = await getOrCreateCustomerId(payload, tx)
 
-      const totals = computeTotals(payload)
+      const totals = computeQuoteTotals({
+        items: payload.items,
+        discountPct: payload.meta.discountPct,
+        exchangeRateARS,
+      })
 
       const now = new Date()
-      const validityDays = payload.meta.validityDays > 0 ? payload.meta.validityDays : 7
-      const expiresAt = new Date(now.getTime() + validityDays * 24 * 60 * 60 * 1000)
+      const validityDays =
+        payload.meta.validityDays > 0 ? payload.meta.validityDays : 7
+      const expiresAt = new Date(
+        now.getTime() + validityDays * 24 * 60 * 60 * 1000,
+      )
 
       const quoteNumber = await generateQuoteNumber(tx)
 
@@ -305,7 +292,7 @@ export async function POST(request: NextRequest) {
 
           items: {
             create: payload.items.map((item, index) => {
-              const lineTotals = computeLineTotals(item)
+              const lineTotals = computeQuoteLineTotals(item)
               return {
                 productId: item.productId,
                 sku: item.sku,
@@ -329,6 +316,7 @@ export async function POST(request: NextRequest) {
       return {
         id: created.id,
         quoteNumber: created.quoteNumber,
+        exchangeRateARS: created.exchangeRateARS,
       }
     })
 
@@ -337,21 +325,23 @@ export async function POST(request: NextRequest) {
         success: true,
         quoteId: result.id,
         quoteNumber: result.quoteNumber,
+        exchangeRateARS: result.exchangeRateARS,
       },
-      { status: 201 }
+      { status: 201 },
     )
 
     revalidatePath('/quotes')
     return response
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creando la cotización:', error)
+    const message =
+      error instanceof Error ? error.message : 'Error desconocido'
     return NextResponse.json(
       {
         error: 'Error al crear la cotización',
-        details: error?.message ?? 'Error desconocido',
+        details: message,
       },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
-
