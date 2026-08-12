@@ -1,7 +1,18 @@
 import { z } from 'zod'
+import { isValidTaxIdInput, normalizeTaxId } from '@/lib/tax-id'
 
 /** Máximo de productos por consulta comercial. */
 export const MAX_INQUIRY_ITEMS = 40
+
+const TAX_ID_INVALID_MESSAGE =
+  'Ingresá un CUIT / CUIL válido de 11 dígitos.'
+
+export const CatalogInquiryTaxIdSchema = z
+  .string()
+  .trim()
+  .min(1, { message: TAX_ID_INVALID_MESSAGE })
+  .refine(isValidTaxIdInput, { message: TAX_ID_INVALID_MESSAGE })
+  .transform(normalizeTaxId)
 
 const trimmed = (max: number) =>
   z
@@ -23,6 +34,7 @@ export const CreateCatalogInquirySchema = z
   .object({
     customerName: trimmed(120).min(2, { message: 'Ingresá tu nombre' }),
     companyName: trimmed(160).optional().nullable(),
+    taxId: CatalogInquiryTaxIdSchema,
     phone: trimmed(40).min(6, { message: 'Ingresá un teléfono válido' }),
     email: z
       .string()
@@ -63,6 +75,7 @@ export const CreateCatalogInquirySchema = z
     return {
       customerName: data.customerName,
       companyName: emptyToNull(data.companyName),
+      taxId: data.taxId,
       phone: data.phone,
       email: emptyToNull(data.email),
       clientType: emptyToNull(data.clientType),

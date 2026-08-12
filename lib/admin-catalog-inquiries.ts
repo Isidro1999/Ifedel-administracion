@@ -7,6 +7,7 @@ import {
   type CommercialInquiryStatus,
 } from '@/lib/catalog-inquiry-schemas'
 import { hasInquiryEconomicSnapshot } from '@/lib/catalog-inquiry-totals'
+export { displayTaxId } from '@/lib/tax-id'
 import {
   parsePaginationParams,
   resolvePagination,
@@ -58,6 +59,7 @@ export type AdminInquiryDetail = {
   source: string
   customerName: string
   companyName: string | null
+  taxId: string | null
   phone: string
   email: string | null
   location: string | null
@@ -243,6 +245,7 @@ export async function getAdminCommercialInquiryById(
       source: true,
       customerName: true,
       companyName: true,
+      taxId: true,
       phone: true,
       email: true,
       location: true,
@@ -295,6 +298,7 @@ export async function getAdminCommercialInquiryById(
     source: row.source,
     customerName: row.customerName,
     companyName: row.companyName,
+    taxId: row.taxId,
     phone: row.phone,
     email: row.email,
     location: row.location,

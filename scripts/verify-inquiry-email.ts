@@ -21,6 +21,7 @@ const sample: InquiryEmailPayload = {
   createdAt: new Date('2026-08-10T15:30:00.000Z'),
   customerName: 'Juan <script>Pérez</script>',
   companyName: 'Campo & Co',
+  taxId: '20123456783',
   phone: '1155551234',
   email: 'juan@example.com',
   location: 'Pergamino, Buenos Aires',

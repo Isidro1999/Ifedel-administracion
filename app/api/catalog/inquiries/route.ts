@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
           source: 'CATALOG_WEB',
           customerName: payload.customerName,
           companyName: payload.companyName,
+          taxId: payload.taxId,
           phone: payload.phone,
           email: payload.email,
           location: payload.location,

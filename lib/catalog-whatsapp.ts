@@ -1,6 +1,7 @@
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { catalogAbsoluteUrl } from '@/lib/catalog-paths'
 import { formatPublicCatalogPriceLabel } from '@/lib/catalog-public-price'
+import { formatTaxId } from '@/lib/tax-id'
 import type {
   CatalogInquiryContact,
   CatalogInquiryDelivery,
@@ -76,6 +77,10 @@ export function buildCatalogInquiryMessage(input: {
   lines.push(`Nombre: ${input.contact.name.trim() || '-'}`)
   if (input.contact.company?.trim()) {
     lines.push(`Empresa: ${input.contact.company.trim()}`)
+  }
+  const taxIdLabel = formatTaxId(input.contact.taxId)
+  if (taxIdLabel) {
+    lines.push(`CUIT/CUIL: ${taxIdLabel}`)
   }
   if (input.contact.phone?.trim()) {
     lines.push(`Teléfono: ${input.contact.phone.trim()}`)

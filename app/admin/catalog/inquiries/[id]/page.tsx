@@ -12,6 +12,7 @@ import {
   formatInquiryDateTime,
   getAdminCommercialInquiryById,
 } from '@/lib/admin-catalog-inquiries'
+import { displayTaxId } from '@/lib/tax-id'
 import {
   COMMERCIAL_INQUIRY_SOURCE_LABELS,
   type CommercialInquirySource,
@@ -113,6 +114,14 @@ export default async function AdminCatalogInquiryDetailPage({
               </dt>
               <dd className="mt-0.5 text-slate-800">
                 {displayOptional(inquiry.companyName)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                CUIT / CUIL
+              </dt>
+              <dd className="mt-0.5 text-slate-800">
+                {displayTaxId(inquiry.taxId)}
               </dd>
             </div>
             <div>
