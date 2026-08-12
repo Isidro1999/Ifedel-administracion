@@ -22,6 +22,7 @@
     "test:inquiry-totals": "tsx --test lib/catalog-inquiry-totals.test.ts lib/catalog-inquiry-schemas.test.ts",
     "verify:bna-exchange-rate": "tsx scripts/verify-bna-exchange-rate.ts",
     "verify:inquiry-email": "tsx scripts/verify-inquiry-email.ts"
+    "test:quotes-exchange-rate": "tsx --test lib/quotes/quote-totals.test.ts",
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

@@ -27,6 +27,11 @@ export {
   type BnaSyncStatus,
 } from '@/lib/exchange-rate/sync-from-bna'
 export {
+  getInitialQuoteExchangeRate,
+  isValidQuoteExchangeRate,
+  InvalidQuoteExchangeRateError,
+} from '@/lib/exchange-rate/get-initial-quote-exchange-rate'
+export {
   parseBnaExchangeRate,
   BnaParseError,
   type ParsedBnaExchangeRate,

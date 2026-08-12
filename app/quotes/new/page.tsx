@@ -57,11 +57,13 @@ export default function NewQuotePage() {
         acc + item.unitPriceUSD * item.qty * (1 + item.taxRate / 100),
       0
     )
-    const exchangeRate = meta.exchangeRateARS || 1000
+    const exchangeRate =
+      meta.exchangeRateARS > 0 ? meta.exchangeRateARS : 0
     const pct = meta.discountPct ?? 0
     const discountAmount = total * (pct / 100)
     const totalWithDiscount = total - discountAmount
-    const totalArsFinal = totalWithDiscount * exchangeRate
+    const totalArsFinal =
+      exchangeRate > 0 ? totalWithDiscount * exchangeRate : 0
 
     return {
       subtotalUSD: subtotal,
@@ -86,6 +88,33 @@ export default function NewQuotePage() {
     { id: number; code: string; label: string }[]
   >([])
   const [paymentTermsError, setPaymentTermsError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadExchangeRate = async () => {
+      try {
+        const res = await fetch('/api/settings/exchange-rate')
+        if (!res.ok) return
+        const data = (await res.json()) as {
+          usdArsRate: number | null
+        }
+        if (
+          !cancelled &&
+          typeof data.usdArsRate === 'number' &&
+          Number.isFinite(data.usdArsRate) &&
+          data.usdArsRate > 0
+        ) {
+          setExchangeRateARS(data.usdArsRate)
+        }
+      } catch (err) {
+        console.error('Error cargando tipo de cambio vigente', err)
+      }
+    }
+    loadExchangeRate()
+    return () => {
+      cancelled = true
+    }
+  }, [setExchangeRateARS])
 
   useEffect(() => {
     let cancelled = false
@@ -202,7 +231,9 @@ export default function NewQuotePage() {
       )
     }
     lines.push(
-      `TC: ARS ${meta.exchangeRateARS.toFixed(2)} por USD 1`
+      meta.exchangeRateARS > 0
+        ? `TC: ARS ${meta.exchangeRateARS.toFixed(2)} por USD 1`
+        : 'TC: (sin tipo de cambio vigente)'
     )
     lines.push(`Total ARS (con IVA): ${totalARS.toFixed(2)}`)
 
@@ -470,22 +501,28 @@ export default function NewQuotePage() {
                 </div>
               </>
             )}
-            <div className="flex items-center justify-between gap-2">
-              <span>Tipo de cambio (ARS por USD)</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={meta.exchangeRateARS.toString()}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(',', '.')
-                    const num = Number(raw)
-                    if (!Number.isNaN(num) && num > 0) {
-                      setExchangeRateARS(num)
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <span>Tipo de cambio USD/ARS</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={
+                      meta.exchangeRateARS > 0
+                        ? meta.exchangeRateARS.toString()
+                        : ''
                     }
-                  }}
-                  className="w-24 px-2 py-1 border rounded text-sm text-right"
-                />
+                    readOnly
+                    className="w-28 px-2 py-1 border rounded text-sm text-right bg-gray-50 text-gray-800"
+                    aria-label="Tipo de cambio vigente (solo lectura en creación)"
+                  />
+                </div>
               </div>
+              <p className="text-xs text-gray-500">
+                Valor vigente al armar la cotización (solo referencia). Al
+                guardar se toma el tipo de cambio del servidor y después podés
+                modificarlo en la cotización guardada.
+              </p>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span>Descuento (%)</span>

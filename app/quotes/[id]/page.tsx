@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { fmtMoneyUSD, fmtMoneyARS, fmtNumberAR } from '@/lib/format-money'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ConvertToSaleButton } from './ConvertToSaleButton'
+import { EditQuoteExchangeRate } from './EditQuoteExchangeRate'
 import { requireApprovedPage } from '@/lib/session-auth'
 import { withPerf } from '@/lib/perf'
 
@@ -165,13 +166,12 @@ export default async function QuoteDetailPage({ params }: QuotesDetailPageProps)
               <span className="text-gray-600">Moneda</span>
               <span className="text-gray-900">{quote.currency}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Tipo de cambio (ARS por {quote.currency})</span>
-              <span className="text-gray-900">
-                {quote.exchangeRateARS != null
-                  ? fmtNumberAR(quote.exchangeRateARS)
-                  : '-'}
-              </span>
+            <div className="border-t border-gray-100 pt-2">
+              <EditQuoteExchangeRate
+                quoteId={quote.id}
+                initialRate={quote.exchangeRateARS}
+                canEdit={quote.status !== 'CANCELLED' && !quote.sale}
+              />
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Descuento (%)</span>
