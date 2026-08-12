@@ -19,7 +19,9 @@
     "db:migrate:sqlite-products": "tsx prisma/migrate-sqlite-products-to-postgres.ts",
     "test:exchange-rate": "tsx --test lib/exchange-rate/parse-bna-exchange-rate.test.ts",
     "test:catalog-price": "tsx --test lib/catalog-public-price.test.ts",
-    "verify:bna-exchange-rate": "tsx scripts/verify-bna-exchange-rate.ts"
+    "test:inquiry-totals": "tsx --test lib/catalog-inquiry-totals.test.ts lib/catalog-inquiry-schemas.test.ts",
+    "verify:bna-exchange-rate": "tsx scripts/verify-bna-exchange-rate.ts",
+    "verify:inquiry-email": "tsx scripts/verify-inquiry-email.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

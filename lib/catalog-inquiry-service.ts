@@ -1,5 +1,11 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { effectiveCatalogPriceList, resolvePublicCatalogPrice } from '@/lib/catalog-public-price'
+import {
+  computeInquiryEstimatedTotals,
+  snapshotInquiryLinePrice,
+} from '@/lib/catalog-inquiry-totals'
+import { getUsdArsRateSettings } from '@/lib/exchange-rate/get-usd-ars-rate'
 
 /**
  * Genera el próximo referenceNumber IFD-000001 de forma atómica.
@@ -29,23 +35,33 @@ export type InquiryItemSnapshotInput = {
   comment: string | null
 }
 
+export type PublicInquiryItemSnapshot = {
+  productId: number
+  sku: string
+  title: string
+  slug: string
+  quantity: number
+  comment: string | null
+  unitPriceARS: number | null
+  subtotalARS: number | null
+  sortOrder: number
+}
+
+export type PublicInquirySnapshotsResult = {
+  snapshots: PublicInquiryItemSnapshot[]
+  estimatedProductsTotalARS: number
+  pricedItemsCount: number
+  unpricedItemsCount: number
+}
+
 /**
  * Valida productos públicos y arma snapshots desde DB (no confía en el cliente).
+ * Recalcula precios públicos ARS vigentes al momento del envío.
  */
 export async function buildPublicInquiryItemSnapshots(
   items: InquiryItemSnapshotInput[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<
-  Array<{
-    productId: number
-    sku: string
-    title: string
-    slug: string
-    quantity: number
-    comment: string | null
-    sortOrder: number
-  }>
-> {
+): Promise<PublicInquirySnapshotsResult> {
   const uniqueIds = [...new Set(items.map((i) => i.productId))]
 
   const products = await tx.product.findMany({
@@ -60,6 +76,8 @@ export async function buildPublicInquiryItemSnapshots(
       title: true,
       publicTitle: true,
       slug: true,
+      showPrice: true,
+      catalogPriceList: true,
     },
   })
 
@@ -68,6 +86,39 @@ export async function buildPublicInquiryItemSnapshots(
     const missing = uniqueIds.filter((id) => !found.has(id))
     throw new InquiryProductsUnavailableError(missing)
   }
+
+  const needPrice = products.filter((p) => p.showPrice)
+  const priceRows =
+    needPrice.length === 0
+      ? []
+      : await tx.productPrice.findMany({
+          where: {
+            OR: needPrice.map((p) => ({
+              productId: p.id,
+              priceList: effectiveCatalogPriceList(p.catalogPriceList),
+            })),
+          },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            productId: true,
+            priceList: true,
+            currency: true,
+            netPrice: true,
+            taxRate: true,
+            validFrom: true,
+            validTo: true,
+            createdAt: true,
+          },
+        })
+
+  const pricesByProduct = new Map<number, typeof priceRows>()
+  for (const row of priceRows) {
+    const list = pricesByProduct.get(row.productId) ?? []
+    list.push(row)
+    pricesByProduct.set(row.productId, list)
+  }
+
+  const { usdArsRate } = await getUsdArsRateSettings()
 
   const byId = new Map(products.map((p) => [p.id, p]))
   const qtyById = new Map<number, { quantity: number; comment: string | null }>()
@@ -87,9 +138,22 @@ export async function buildPublicInquiryItemSnapshots(
     }
   }
 
-  return uniqueIds.map((id, index) => {
+  const snapshots = uniqueIds.map((id, index) => {
     const product = byId.get(id)!
     const meta = qtyById.get(id)!
+    const resolved = resolvePublicCatalogPrice(
+      {
+        showPrice: product.showPrice,
+        catalogPriceList: product.catalogPriceList,
+        prices: pricesByProduct.get(id) ?? [],
+      },
+      usdArsRate,
+    )
+    const priced = snapshotInquiryLinePrice(
+      meta.quantity,
+      resolved.price?.amount ?? null,
+    )
+
     return {
       productId: product.id,
       sku: product.sku,
@@ -97,9 +161,25 @@ export async function buildPublicInquiryItemSnapshots(
       slug: product.slug,
       quantity: meta.quantity,
       comment: meta.comment,
+      unitPriceARS: priced.unitPriceARS,
+      subtotalARS: priced.subtotalARS,
       sortOrder: index,
     }
   })
+
+  const totals = computeInquiryEstimatedTotals(
+    snapshots.map((s) => ({
+      unitPriceARS: s.unitPriceARS,
+      quantity: s.quantity,
+    })),
+  )
+
+  return {
+    snapshots,
+    estimatedProductsTotalARS: totals.estimatedProductsTotalARS,
+    pricedItemsCount: totals.pricedItemsCount,
+    unpricedItemsCount: totals.unpricedItemsCount,
+  }
 }
 
 export class InquiryProductsUnavailableError extends Error {

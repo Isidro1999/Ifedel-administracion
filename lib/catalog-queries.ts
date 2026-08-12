@@ -13,7 +13,11 @@ import {
   CATALOG_CACHE_TAGS,
   CATALOG_REVALIDATE_SECONDS,
 } from '@/lib/catalog-cache'
-import { effectiveCatalogPriceList } from '@/lib/catalog-public-price'
+import {
+  effectiveCatalogPriceList,
+  PUBLIC_PRICE_LABEL,
+  resolvePublicCatalogPrice,
+} from '@/lib/catalog-public-price'
 import { getUsdArsRateSettings } from '@/lib/exchange-rate/get-usd-ars-rate'
 import { withPerf } from '@/lib/perf'
 import type {
@@ -516,6 +520,78 @@ export async function getCatalogBrands(
     },
     (r) => r.length,
   )
+}
+
+export type PublicCatalogPriceById = {
+  productId: number
+  found: boolean
+  slug?: string
+  price: { currency: 'ARS'; amount: number; includesTax: true; netPrice: number; taxRate: 0 } | null
+  priceLabel: string
+  showPrice: boolean
+}
+
+/**
+ * Precios públicos vigentes por IDs (catálogo visible + activo).
+ * Sin caché: la lista de consulta necesita TC/listas actuales.
+ * No expone USD, costos ni Settings.
+ */
+export async function getPublicCatalogPricesByProductIds(
+  productIds: number[],
+): Promise<PublicCatalogPriceById[]> {
+  const uniqueIds = [
+    ...new Set(productIds.filter((id) => Number.isInteger(id) && id > 0)),
+  ]
+  if (uniqueIds.length === 0) return []
+
+  const { prisma } = await import('@/lib/prisma')
+  const products = await prisma.product.findMany({
+    where: {
+      id: { in: uniqueIds },
+      isActive: true,
+      catalogVisible: true,
+    },
+    select: {
+      id: true,
+      slug: true,
+      showPrice: true,
+      catalogPriceList: true,
+    },
+  })
+
+  const priceMap = await loadPublicPricesForProducts(products)
+  const { usdArsRate } = await getUsdArsRateSettings()
+
+  return uniqueIds.map((id) => {
+    const product = products.find((row) => row.id === id)
+    if (!product) {
+      return {
+        productId: id,
+        found: false,
+        price: null,
+        priceLabel: PUBLIC_PRICE_LABEL,
+        showPrice: false,
+      }
+    }
+
+    const resolved = resolvePublicCatalogPrice(
+      {
+        showPrice: product.showPrice,
+        catalogPriceList: product.catalogPriceList,
+        prices: priceMap.get(id) ?? [],
+      },
+      usdArsRate,
+    )
+
+    return {
+      productId: id,
+      found: true,
+      slug: product.slug,
+      price: resolved.price,
+      priceLabel: resolved.priceLabel,
+      showPrice: resolved.showPrice,
+    }
+  })
 }
 
 /** Aliases legacy (APIs / client). */

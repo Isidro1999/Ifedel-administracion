@@ -77,10 +77,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const created = await prisma.$transaction(async (tx) => {
-      const snapshots = await buildPublicInquiryItemSnapshots(
-        payload.items,
-        tx,
-      )
+      const { snapshots, estimatedProductsTotalARS, pricedItemsCount, unpricedItemsCount } =
+        await buildPublicInquiryItemSnapshots(payload.items, tx)
       const referenceNumber = await nextCommercialInquiryReference(tx)
 
       const inquiry = await tx.commercialInquiry.create({
@@ -95,6 +93,14 @@ export async function POST(request: NextRequest) {
           location: payload.location,
           clientType: payload.clientType,
           message: payload.message,
+          deliveryAddress: payload.deliveryAddress,
+          deliveryCity: payload.deliveryCity,
+          deliveryProvince: payload.deliveryProvince,
+          deliveryPostalCode: payload.deliveryPostalCode,
+          deliveryNotes: payload.deliveryNotes,
+          estimatedProductsTotalARS,
+          pricedItemsCount,
+          unpricedItemsCount,
           submitterIp: ip === 'unknown' ? null : ip,
           submitterUserAgent: userAgent,
           items: {
@@ -105,6 +111,8 @@ export async function POST(request: NextRequest) {
               slug: s.slug,
               quantity: s.quantity,
               comment: s.comment,
+              unitPriceARS: s.unitPriceARS,
+              subtotalARS: s.subtotalARS,
               sortOrder: s.sortOrder,
             })),
           },

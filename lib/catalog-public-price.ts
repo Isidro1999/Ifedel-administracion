@@ -65,14 +65,16 @@ function isValidUsdArsRate(rate: number | null | undefined): rate is number {
   return typeof rate === 'number' && Number.isFinite(rate) && rate > 0
 }
 
-/** Formato público ARS sin centavos: "$ 183.920" (locale es-AR). */
+/** Formato público ARS sin centavos: "$183.920" (locale es-AR, sin espacio tras $). */
 export function formatPublicCatalogPriceLabel(amountArs: number): string {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: 'ARS',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amountArs)
+  })
+    .format(amountArs)
+    .replace(/(\$)\s+/u, '$1')
 }
 
 function buildPublicPrice(amount: number): CatalogPublicPrice {

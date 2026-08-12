@@ -23,11 +23,24 @@ const sample: InquiryEmailPayload = {
   companyName: 'Campo & Co',
   phone: '1155551234',
   email: 'juan@example.com',
-  location: 'Pergamino',
+  location: 'Pergamino, Buenos Aires',
   message: 'Necesito stock\ny urgencia.',
   source: 'CATALOG_WEB',
+  deliveryAddress: 'San Martín 123',
+  deliveryCity: 'Pergamino',
+  deliveryProvince: 'Buenos Aires',
+  deliveryPostalCode: '2700',
+  estimatedProductsTotalARS: 85000,
+  pricedItemsCount: 1,
+  unpricedItemsCount: 1,
   items: [
-    { title: 'Balanza "TWR5"', sku: 'G-02606', quantity: 2 },
+    {
+      title: 'Balanza "TWR5"',
+      sku: 'G-02606',
+      quantity: 2,
+      unitPriceARS: 42500,
+      subtotalARS: 85000,
+    },
     { title: 'Caravana <FDX>', sku: '242308', quantity: 1 },
   ],
 }
@@ -98,11 +111,16 @@ assert(!html.includes('<script>'), 'html escaped script')
 assert(html.includes('&lt;script&gt;'), 'escaped name in html')
 assert(html.includes('Ver consulta en el backoffice'), 'cta')
 assert(html.includes(url), 'url in html')
+assert(html.includes('Datos de entrega'), 'delivery heading')
+assert(html.includes('Pergamino'), 'delivery city')
+assert(html.includes('Total estimado parcial') || html.includes('Total estimado'), 'estimated total')
 
 const text = buildInquiryNotificationText(sample, url)
 assert(!text.includes('<br'), 'text has no html')
 assert(text.includes('IFD-000042'), 'text ref')
 assert(text.includes(url), 'text url')
+assert(text.includes('San Martín 123'), 'delivery address in text')
+assert(text.includes('a cotizar'), 'unpriced item in text')
 
 const noEmail = { ...sample, email: null }
 const htmlNoReplyBits = buildInquiryNotificationHtml(noEmail, url)

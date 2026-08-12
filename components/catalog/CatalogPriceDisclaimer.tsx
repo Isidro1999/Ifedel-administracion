@@ -8,7 +8,7 @@ export function CatalogPriceDisclaimer({
 }) {
   if (variant === 'detail') {
     return (
-      <p className="mt-2 text-xs leading-relaxed text-slate-500">
+      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
         Precio sujeto a confirmación al momento de la consulta.
       </p>
     )

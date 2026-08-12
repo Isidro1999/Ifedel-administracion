@@ -8,6 +8,7 @@ import {
   buildInquiryWhatsAppUrl,
   formatInquiryDateTime,
 } from '@/lib/admin-catalog-inquiries'
+import { formatPublicCatalogPriceLabel } from '@/lib/catalog-public-price'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -15,6 +16,8 @@ export type InquiryEmailItem = {
   title: string
   sku: string
   quantity: number
+  unitPriceARS?: number | null
+  subtotalARS?: number | null
 }
 
 export type InquiryEmailPayload = {
@@ -28,6 +31,14 @@ export type InquiryEmailPayload = {
   location: string | null
   message: string | null
   source: string
+  deliveryAddress?: string | null
+  deliveryCity?: string | null
+  deliveryProvince?: string | null
+  deliveryPostalCode?: string | null
+  deliveryNotes?: string | null
+  estimatedProductsTotalARS?: number | null
+  pricedItemsCount?: number | null
+  unpricedItemsCount?: number | null
   items: InquiryEmailItem[]
 }
 
@@ -166,9 +177,63 @@ export function buildInquiryNotificationText(
     lines.push(`Localidad: ${payload.location.trim()}`)
   }
 
+  const hasDelivery =
+    payload.deliveryAddress?.trim() ||
+    payload.deliveryCity?.trim() ||
+    payload.deliveryProvince?.trim() ||
+    payload.deliveryPostalCode?.trim() ||
+    payload.deliveryNotes?.trim()
+  if (hasDelivery) {
+    lines.push('', 'Datos de entrega')
+    if (payload.deliveryAddress?.trim()) {
+      lines.push(`Dirección: ${payload.deliveryAddress.trim()}`)
+    }
+    if (payload.deliveryCity?.trim()) {
+      lines.push(`Localidad: ${payload.deliveryCity.trim()}`)
+    }
+    if (payload.deliveryProvince?.trim()) {
+      lines.push(`Provincia: ${payload.deliveryProvince.trim()}`)
+    }
+    if (payload.deliveryPostalCode?.trim()) {
+      lines.push(`Código postal: ${payload.deliveryPostalCode.trim()}`)
+    }
+    if (payload.deliveryNotes?.trim()) {
+      lines.push(`Referencia: ${payload.deliveryNotes.trim()}`)
+    }
+  }
+
+  if (
+    payload.estimatedProductsTotalARS != null ||
+    payload.pricedItemsCount != null
+  ) {
+    lines.push('', 'Resumen económico')
+    if (payload.estimatedProductsTotalARS != null) {
+      lines.push(
+        `Productos con precio: ${formatPublicCatalogPriceLabel(payload.estimatedProductsTotalARS)}`,
+      )
+    }
+    if (payload.unpricedItemsCount) {
+      lines.push(`Productos a cotizar: ${payload.unpricedItemsCount}`)
+    }
+    lines.push('Envío: a cotizar')
+    if (payload.estimatedProductsTotalARS != null) {
+      const partial = (payload.unpricedItemsCount ?? 0) > 0
+      lines.push(
+        `${partial ? 'Total estimado parcial' : 'Total estimado'}: ${formatPublicCatalogPriceLabel(payload.estimatedProductsTotalARS)}`,
+      )
+    }
+  }
+
   lines.push('', 'Productos consultados')
   for (const item of payload.items) {
-    lines.push(`- [${item.sku}] ${item.title} × ${item.quantity}`)
+    const priceBit =
+      item.unitPriceARS != null
+        ? ` · ${formatPublicCatalogPriceLabel(item.unitPriceARS)} c/u` +
+          (item.subtotalARS != null
+            ? ` · subtotal ${formatPublicCatalogPriceLabel(item.subtotalARS)}`
+            : '')
+        : ' · a cotizar'
+    lines.push(`- [${item.sku}] ${item.title} × ${item.quantity}${priceBit}`)
   }
 
   if (payload.message?.trim()) {
@@ -196,9 +261,34 @@ export function buildInquiryNotificationHtml(
   const location = payload.location?.trim()
     ? escapeHtml(payload.location.trim())
     : null
+  const deliveryAddress = payload.deliveryAddress?.trim()
+    ? escapeHtml(payload.deliveryAddress.trim())
+    : null
+  const deliveryCity = payload.deliveryCity?.trim()
+    ? escapeHtml(payload.deliveryCity.trim())
+    : null
+  const deliveryProvince = payload.deliveryProvince?.trim()
+    ? escapeHtml(payload.deliveryProvince.trim())
+    : null
+  const deliveryPostalCode = payload.deliveryPostalCode?.trim()
+    ? escapeHtml(payload.deliveryPostalCode.trim())
+    : null
+  const deliveryNotes = payload.deliveryNotes?.trim()
+    ? escapeHtml(payload.deliveryNotes.trim())
+    : null
   const messageHtml = payload.message?.trim()
     ? plainTextToSafeHtml(payload.message.trim())
     : null
+  const hasEconomicSnapshot =
+    payload.estimatedProductsTotalARS != null ||
+    payload.pricedItemsCount != null
+  const estimatedTotal =
+    payload.estimatedProductsTotalARS != null
+      ? escapeHtml(
+          formatPublicCatalogPriceLabel(payload.estimatedProductsTotalARS),
+        )
+      : null
+  const partial = (payload.unpricedItemsCount ?? 0) > 0
 
   const telHref = `tel:${payload.phone.replace(/\s+/g, '')}`
   const waHref = buildInquiryWhatsAppUrl({
@@ -215,20 +305,38 @@ export function buildInquiryNotificationHtml(
 
   const itemRows = payload.items
     .map((item) => {
+      const unit =
+        item.unitPriceARS != null
+          ? escapeHtml(formatPublicCatalogPriceLabel(item.unitPriceARS))
+          : 'A cotizar'
+      const subtotal =
+        item.subtotalARS != null
+          ? escapeHtml(formatPublicCatalogPriceLabel(item.subtotalARS))
+          : '—'
       return `<tr>
   <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;">${escapeHtml(item.title)}</td>
   <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#475569;font-family:ui-monospace,monospace;font-size:12px;">${escapeHtml(item.sku)}</td>
   <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;text-align:right;">${item.quantity}</td>
+  <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;text-align:right;">${unit}</td>
+  <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;text-align:right;">${subtotal}</td>
 </tr>`
     })
     .join('')
 
   const itemCards = payload.items
     .map((item) => {
+      const unit =
+        item.unitPriceARS != null
+          ? escapeHtml(formatPublicCatalogPriceLabel(item.unitPriceARS))
+          : 'A cotizar'
+      const subtotal =
+        item.subtotalARS != null
+          ? ` · Subtotal ${escapeHtml(formatPublicCatalogPriceLabel(item.subtotalARS))}`
+          : ''
       return `<div style="padding:12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;">
   <div style="font-weight:600;color:#0f172a;">${escapeHtml(item.title)}</div>
   <div style="font-size:12px;color:#64748b;font-family:ui-monospace,monospace;margin-top:4px;">${escapeHtml(item.sku)}</div>
-  <div style="font-size:13px;color:#334155;margin-top:6px;">Cantidad: ${item.quantity}</div>
+  <div style="font-size:13px;color:#334155;margin-top:6px;">Cantidad: ${item.quantity} · ${unit}${subtotal}</div>
 </div>`
     })
     .join('')
@@ -272,6 +380,35 @@ export function buildInquiryNotificationHtml(
         ${location ? `<tr><td style="padding:6px 0;color:#64748b;">Localidad</td><td style="padding:6px 0;">${location}</td></tr>` : ''}
       </table>
 
+      ${
+        deliveryAddress ||
+        deliveryCity ||
+        deliveryProvince ||
+        deliveryPostalCode ||
+        deliveryNotes
+          ? `<h2 style="margin:24px 0 12px;font-size:16px;">Datos de entrega</h2>
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">
+        ${deliveryAddress ? `<tr><td style="padding:6px 0;color:#64748b;width:120px;">Dirección</td><td style="padding:6px 0;">${deliveryAddress}</td></tr>` : ''}
+        ${deliveryCity ? `<tr><td style="padding:6px 0;color:#64748b;">Localidad</td><td style="padding:6px 0;">${deliveryCity}</td></tr>` : ''}
+        ${deliveryProvince ? `<tr><td style="padding:6px 0;color:#64748b;">Provincia</td><td style="padding:6px 0;">${deliveryProvince}</td></tr>` : ''}
+        ${deliveryPostalCode ? `<tr><td style="padding:6px 0;color:#64748b;">CP</td><td style="padding:6px 0;">${deliveryPostalCode}</td></tr>` : ''}
+        ${deliveryNotes ? `<tr><td style="padding:6px 0;color:#64748b;">Referencia</td><td style="padding:6px 0;">${deliveryNotes}</td></tr>` : ''}
+      </table>`
+          : ''
+      }
+
+      ${
+        hasEconomicSnapshot
+          ? `<h2 style="margin:24px 0 12px;font-size:16px;">Resumen económico</h2>
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">
+        ${estimatedTotal ? `<tr><td style="padding:6px 0;color:#64748b;width:180px;">Productos con precio</td><td style="padding:6px 0;font-weight:600;">${estimatedTotal}</td></tr>` : ''}
+        ${payload.unpricedItemsCount ? `<tr><td style="padding:6px 0;color:#64748b;">Productos a cotizar</td><td style="padding:6px 0;">${payload.unpricedItemsCount}</td></tr>` : ''}
+        <tr><td style="padding:6px 0;color:#64748b;">Envío</td><td style="padding:6px 0;">A cotizar</td></tr>
+        ${estimatedTotal ? `<tr><td style="padding:6px 0;color:#64748b;">${partial ? 'Total estimado parcial' : 'Total estimado'}</td><td style="padding:6px 0;font-weight:700;">${estimatedTotal}</td></tr>` : ''}
+      </table>`
+          : ''
+      }
+
       <h2 style="margin:24px 0 12px;font-size:16px;">Productos consultados</h2>
       <!-- Desktop table -->
       <div style="display:block;">
@@ -281,6 +418,8 @@ export function buildInquiryNotificationHtml(
               <th align="left" style="padding:10px 12px;color:#64748b;font-weight:600;">Producto</th>
               <th align="left" style="padding:10px 12px;color:#64748b;font-weight:600;">SKU</th>
               <th align="right" style="padding:10px 12px;color:#64748b;font-weight:600;">Cant.</th>
+              <th align="right" style="padding:10px 12px;color:#64748b;font-weight:600;">Precio</th>
+              <th align="right" style="padding:10px 12px;color:#64748b;font-weight:600;">Subtotal</th>
             </tr>
           </thead>
           <tbody>
