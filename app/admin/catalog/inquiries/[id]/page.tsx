@@ -16,6 +16,7 @@ import {
   COMMERCIAL_INQUIRY_SOURCE_LABELS,
   type CommercialInquirySource,
 } from '@/lib/catalog-inquiry-schemas'
+import { formatPublicCatalogPriceLabel } from '@/lib/catalog-public-price'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 import { InquiryStatusForm } from '../InquiryStatusForm'
 
@@ -130,7 +131,7 @@ export default async function AdminCatalogInquiryDetailPage({
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Localidad
+                Localidad (legado)
               </dt>
               <dd className="mt-0.5 text-slate-800">
                 {displayOptional(inquiry.location)}
@@ -177,11 +178,95 @@ export default async function AdminCatalogInquiryDetailPage({
           </div>
         </section>
 
-        <InquiryStatusForm
-          inquiryId={inquiry.id}
-          currentStatus={inquiry.status}
-        />
+        <div className="space-y-4">
+          <InquiryStatusForm
+            inquiryId={inquiry.id}
+            currentStatus={inquiry.status}
+          />
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">
+              Resumen económico
+            </h2>
+            {inquiry.hasEconomicSnapshot ? (
+              <dl className="mt-3 space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-600">Productos con precio</dt>
+                  <dd className="font-semibold text-slate-900">
+                    {inquiry.estimatedProductsTotalARS != null
+                      ? formatPublicCatalogPriceLabel(
+                          inquiry.estimatedProductsTotalARS,
+                        )
+                      : '—'}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-600">Productos a cotizar</dt>
+                  <dd className="font-medium text-slate-900">
+                    {inquiry.unpricedItemsCount ?? 0}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-slate-600">Envío</dt>
+                  <dd className="font-medium text-slate-800">Pendiente</dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="mt-3 text-sm text-slate-500">
+                Esta consulta no tiene snapshot económico (anterior a la
+                actualización de precios).
+              </p>
+            )}
+          </section>
+        </div>
       </div>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-slate-900">
+          Datos de entrega
+        </h2>
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Dirección
+            </dt>
+            <dd className="mt-0.5 text-slate-800">
+              {displayOptional(inquiry.deliveryAddress)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Localidad
+            </dt>
+            <dd className="mt-0.5 text-slate-800">
+              {displayOptional(inquiry.deliveryCity)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Provincia
+            </dt>
+            <dd className="mt-0.5 text-slate-800">
+              {displayOptional(inquiry.deliveryProvince)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Código postal
+            </dt>
+            <dd className="mt-0.5 text-slate-800">
+              {displayOptional(inquiry.deliveryPostalCode)}
+            </dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Referencia
+            </dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-slate-800">
+              {displayOptional(inquiry.deliveryNotes)}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-slate-900">
@@ -232,6 +317,20 @@ export default async function AdminCatalogInquiryDetailPage({
                     <p className="mt-1 text-sm text-slate-600">
                       Cantidad: {item.quantity}
                     </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Precio al momento de la consulta:{' '}
+                      {item.unitPriceARS != null
+                        ? formatPublicCatalogPriceLabel(item.unitPriceARS)
+                        : inquiry.hasEconomicSnapshot
+                          ? 'A cotizar'
+                          : '—'}
+                    </p>
+                    {item.subtotalARS != null ? (
+                      <p className="text-sm font-medium text-slate-800">
+                        Subtotal:{' '}
+                        {formatPublicCatalogPriceLabel(item.subtotalARS)}
+                      </p>
+                    ) : null}
                     {item.productExists && item.productId ? (
                       <Link
                         href={`/products/${item.productId}`}
@@ -264,6 +363,8 @@ export default async function AdminCatalogInquiryDetailPage({
                   <th className="px-4 py-3">Producto</th>
                   <th className="px-4 py-3">SKU</th>
                   <th className="px-4 py-3">Cant.</th>
+                  <th className="px-4 py-3">Precio consulta</th>
+                  <th className="px-4 py-3">Subtotal</th>
                   <th className="px-4 py-3">Comentario</th>
                   <th className="px-4 py-3"> </th>
                 </tr>
@@ -305,6 +406,18 @@ export default async function AdminCatalogInquiryDetailPage({
                       </td>
                       <td className="px-4 py-3 text-slate-800">
                         {item.quantity}
+                      </td>
+                      <td className="px-4 py-3 text-slate-800">
+                        {item.unitPriceARS != null
+                          ? formatPublicCatalogPriceLabel(item.unitPriceARS)
+                          : inquiry.hasEconomicSnapshot
+                            ? 'A cotizar'
+                            : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-800">
+                        {item.subtotalARS != null
+                          ? formatPublicCatalogPriceLabel(item.subtotalARS)
+                          : '—'}
                       </td>
                       <td className="max-w-xs px-4 py-3 text-slate-600">
                         {item.comment?.trim() ? (

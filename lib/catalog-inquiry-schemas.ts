@@ -17,7 +17,7 @@ export const CatalogInquiryItemInputSchema = z.object({
 
 /**
  * Payload público POST /api/catalog/inquiries.
- * No confiar en sku/title/slug del cliente: se reconstruyen desde DB.
+ * No confiar en sku/title/slug ni precios del cliente: se reconstruyen desde DB.
  */
 export const CreateCatalogInquirySchema = z
   .object({
@@ -34,9 +34,17 @@ export const CreateCatalogInquirySchema = z
         (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
         { message: 'Email inválido' },
       ),
-    location: trimmed(120).optional().nullable(),
     clientType: trimmed(60).optional().nullable(),
     message: trimmed(2000).optional().nullable(),
+    deliveryAddress: trimmed(200).optional().nullable(),
+    deliveryCity: trimmed(100).min(2, { message: 'Ingresá la localidad' }),
+    deliveryProvince: trimmed(100).min(2, {
+      message: 'Ingresá la provincia',
+    }),
+    deliveryPostalCode: trimmed(20).optional().nullable(),
+    deliveryNotes: trimmed(500).optional().nullable(),
+    /** Compat: si llega, se ignora a favor de city + province. */
+    location: trimmed(120).optional().nullable(),
     items: z
       .array(CatalogInquiryItemInputSchema)
       .min(1, { message: 'Agregá al menos un producto' })
@@ -49,25 +57,44 @@ export const CreateCatalogInquirySchema = z
      */
     website: z.string().max(200).optional().nullable(),
   })
-  .transform((data) => ({
-    customerName: data.customerName,
-    companyName: emptyToNull(data.companyName),
-    phone: data.phone,
-    email: emptyToNull(data.email),
-    location: emptyToNull(data.location),
-    clientType: emptyToNull(data.clientType),
-    message: emptyToNull(data.message),
-    items: data.items.map((item) => ({
-      productId: item.productId,
-      quantity: item.quantity,
-      comment: emptyToNull(item.comment),
-    })),
-    website: (data.website ?? '').trim(),
-  }))
+  .transform((data) => {
+    const deliveryCity = emptyToNull(data.deliveryCity)
+    const deliveryProvince = emptyToNull(data.deliveryProvince)
+    return {
+      customerName: data.customerName,
+      companyName: emptyToNull(data.companyName),
+      phone: data.phone,
+      email: emptyToNull(data.email),
+      clientType: emptyToNull(data.clientType),
+      message: emptyToNull(data.message),
+      deliveryAddress: emptyToNull(data.deliveryAddress),
+      deliveryCity,
+      deliveryProvince,
+      deliveryPostalCode: emptyToNull(data.deliveryPostalCode),
+      deliveryNotes: emptyToNull(data.deliveryNotes),
+      location: composeInquiryLocation(deliveryCity, deliveryProvince),
+      items: data.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        comment: emptyToNull(item.comment),
+      })),
+      website: (data.website ?? '').trim(),
+    }
+  })
 
 export type CreateCatalogInquiryInput = z.infer<
   typeof CreateCatalogInquirySchema
 >
+
+export function composeInquiryLocation(
+  city: string | null | undefined,
+  province: string | null | undefined,
+): string | null {
+  const c = city?.trim() || ''
+  const p = province?.trim() || ''
+  if (c && p) return `${c}, ${p}`
+  return c || p || null
+}
 
 function emptyToNull(
   value: string | null | undefined,
@@ -123,3 +150,12 @@ export const UpdateCommercialInquiryStatusSchema = z.object({
 export type UpdateCommercialInquiryStatusInput = z.infer<
   typeof UpdateCommercialInquiryStatusSchema
 >
+
+export const CatalogProductPricesRequestSchema = z.object({
+  productIds: z
+    .array(z.number().int().positive())
+    .min(1, { message: 'Indicá al menos un producto' })
+    .max(MAX_INQUIRY_ITEMS, {
+      message: `Máximo ${MAX_INQUIRY_ITEMS} productos`,
+    }),
+})

@@ -6,6 +6,7 @@ import {
   type CommercialInquirySource,
   type CommercialInquiryStatus,
 } from '@/lib/catalog-inquiry-schemas'
+import { hasInquiryEconomicSnapshot } from '@/lib/catalog-inquiry-totals'
 import {
   parsePaginationParams,
   resolvePagination,
@@ -43,6 +44,8 @@ export type AdminInquiryDetailItem = {
   slug: string | null
   quantity: number
   comment: string | null
+  unitPriceARS: number | null
+  subtotalARS: number | null
   sortOrder: number
   productExists: boolean
   primaryImageUrl: string | null
@@ -60,6 +63,15 @@ export type AdminInquiryDetail = {
   location: string | null
   clientType: string | null
   message: string | null
+  deliveryAddress: string | null
+  deliveryCity: string | null
+  deliveryProvince: string | null
+  deliveryPostalCode: string | null
+  deliveryNotes: string | null
+  estimatedProductsTotalARS: number | null
+  pricedItemsCount: number | null
+  unpricedItemsCount: number | null
+  hasEconomicSnapshot: boolean
   createdAt: Date
   updatedAt: Date
   itemCount: number
@@ -236,6 +248,14 @@ export async function getAdminCommercialInquiryById(
       location: true,
       clientType: true,
       message: true,
+      deliveryAddress: true,
+      deliveryCity: true,
+      deliveryProvince: true,
+      deliveryPostalCode: true,
+      deliveryNotes: true,
+      estimatedProductsTotalARS: true,
+      pricedItemsCount: true,
+      unpricedItemsCount: true,
       createdAt: true,
       updatedAt: true,
       items: {
@@ -248,6 +268,8 @@ export async function getAdminCommercialInquiryById(
           slug: true,
           quantity: true,
           comment: true,
+          unitPriceARS: true,
+          subtotalARS: true,
           sortOrder: true,
           product: {
             select: {
@@ -278,6 +300,15 @@ export async function getAdminCommercialInquiryById(
     location: row.location,
     clientType: row.clientType,
     message: row.message,
+    deliveryAddress: row.deliveryAddress,
+    deliveryCity: row.deliveryCity,
+    deliveryProvince: row.deliveryProvince,
+    deliveryPostalCode: row.deliveryPostalCode,
+    deliveryNotes: row.deliveryNotes,
+    estimatedProductsTotalARS: row.estimatedProductsTotalARS,
+    pricedItemsCount: row.pricedItemsCount,
+    unpricedItemsCount: row.unpricedItemsCount,
+    hasEconomicSnapshot: hasInquiryEconomicSnapshot(row),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     itemCount: row.items.length,
@@ -289,6 +320,8 @@ export async function getAdminCommercialInquiryById(
       slug: item.slug,
       quantity: item.quantity,
       comment: item.comment,
+      unitPriceARS: item.unitPriceARS,
+      subtotalARS: item.subtotalARS,
       sortOrder: item.sortOrder,
       productExists: item.product != null,
       primaryImageUrl: item.product?.images[0]?.url ?? null,

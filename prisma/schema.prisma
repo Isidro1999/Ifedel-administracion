@@ -310,6 +310,18 @@ model CommercialInquiry {
   clientType   String?
   message      String?
 
+  /// Datos de entrega (todos opcionales para consultas históricas).
+  deliveryAddress    String?
+  deliveryCity       String?
+  deliveryProvince   String?
+  deliveryPostalCode String?
+  deliveryNotes      String?
+
+  /// Total estimado de productos con precio público (sin envío).
+  estimatedProductsTotalARS Int?
+  pricedItemsCount          Int?
+  unpricedItemsCount        Int?
+
   /// IP / user-agent del envío (abuso / soporte; no exponer en API pública).
   submitterIp        String?
   submitterUserAgent String?
@@ -340,6 +352,10 @@ model CommercialInquiryItem {
   slug     String?
   quantity Int     @default(1)
   comment  String?
+
+  /// Precio público ARS (IVA incl.) al momento de la consulta; null = a cotizar.
+  unitPriceARS Int?
+  subtotalARS  Int?
 
   sortOrder Int @default(0)
 
