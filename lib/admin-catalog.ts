@@ -12,6 +12,11 @@ import {
 } from '@/lib/pagination'
 import { withPerf } from '@/lib/perf'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import {
+  findProductIdsMatchingSearch,
+  mergeProductSearchIds,
+  tokenizeProductSearch,
+} from '@/lib/product-search'
 
 export type TriFilter = 'true' | 'false' | 'all'
 
@@ -80,24 +85,20 @@ export function parseAdminCatalogFilters(
   }
 }
 
+/**
+ * Filtros de catálogo admin sin el texto `q`.
+ * La búsqueda textual se aplica aparte (multi-token + accent-insensitive).
+ */
 export function buildAdminCatalogWhere(
   filters: AdminCatalogFilters,
 ): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = {}
 
-  if (filters.q) {
-    where.OR = [
-      { sku: { contains: filters.q } },
-      { title: { contains: filters.q } },
-      { publicTitle: { contains: filters.q } },
-    ]
-  }
-
   if (filters.brand) {
     where.brand = {
       OR: [
         { slug: filters.brand },
-        { name: { contains: filters.brand } },
+        { name: { contains: filters.brand, mode: 'insensitive' } },
       ],
     }
   }
@@ -106,7 +107,7 @@ export function buildAdminCatalogWhere(
     where.category = {
       OR: [
         { slug: filters.category },
-        { name: { contains: filters.category } },
+        { name: { contains: filters.category, mode: 'insensitive' } },
       ],
     }
   }
@@ -224,7 +225,12 @@ export async function listAdminCatalogProducts(
     searchParams,
     { defaultPageSize: DEFAULT_PAGE_SIZE },
   )
-  const where = buildAdminCatalogWhere(filters)
+  const tokens = tokenizeProductSearch(filters.q)
+  const matchingIds = await findProductIdsMatchingSearch(prisma, tokens)
+  const where = mergeProductSearchIds(
+    buildAdminCatalogWhere(filters),
+    matchingIds,
+  )
 
   const [total, facets] = await Promise.all([
     withPerf(
