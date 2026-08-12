@@ -19,6 +19,13 @@ import {
   parsePaginationParams,
   resolvePagination,
 } from '@/lib/pagination'
+import {
+  buildProductSearchSqlAnd,
+  escapeLikePattern,
+  findProductIdsMatchingSearch,
+  mergeProductSearchIds,
+  tokenizeProductSearch,
+} from '@/lib/product-search'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -26,12 +33,8 @@ export const runtime = 'nodejs'
 /** Mismo criterio que JS: sin precio aplicable → último en asc, primero en desc. */
 const NO_PRICE_ASC_SENTINEL = 1.7976931348623157e308
 
-function escapeLikePattern(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
-
 function buildProductListWhereSql(
-  q: string,
+  searchTokens: string[],
   brand: string,
   category: string,
   priceList: string,
@@ -39,24 +42,22 @@ function buildProductListWhereSql(
 ): Prisma.Sql[] {
   const parts: Prisma.Sql[] = [Prisma.sql`p."isActive" = true`]
 
-  if (q.trim()) {
-    const pat = `%${escapeLikePattern(q)}%`
-    parts.push(
-      Prisma.sql`(p."title" LIKE ${pat} ESCAPE '\\' OR p."sku" LIKE ${pat} ESCAPE '\\')`,
-    )
+  const searchAnd = buildProductSearchSqlAnd(searchTokens)
+  if (searchAnd) {
+    parts.push(Prisma.sql`(${searchAnd})`)
   }
 
   if (brand) {
     const pat = `%${escapeLikePattern(brand)}%`
     parts.push(
-      Prisma.sql`(br."slug" = ${brand} OR br."name" LIKE ${pat} ESCAPE '\\')`,
+      Prisma.sql`(br."slug" = ${brand} OR br."name" ILIKE ${pat} ESCAPE '\\')`,
     )
   }
 
   if (category) {
     const pat = `%${escapeLikePattern(category)}%`
     parts.push(
-      Prisma.sql`(ca."slug" = ${category} OR ca."name" LIKE ${pat} ESCAPE '\\')`,
+      Prisma.sql`(ca."slug" = ${category} OR ca."name" ILIKE ${pat} ESCAPE '\\')`,
     )
   }
 
@@ -162,34 +163,41 @@ export async function GET(request: NextRequest) {
       defaultPageSize: PRODUCTS_DEFAULT_PAGE_SIZE,
     })
 
-    const where: Prisma.ProductWhereInput = {
+    const searchTokens = tokenizeProductSearch(q)
+    const matchingIds = await findProductIdsMatchingSearch(prisma, searchTokens)
+
+    const baseWhere: Prisma.ProductWhereInput = {
       isActive: true,
     }
 
-    if (q) {
-      where.OR = [{ title: { contains: q } }, { sku: { contains: q } }]
-    }
-
     if (brand) {
-      where.brand = {
-        OR: [{ slug: brand }, { name: { contains: brand } }],
+      baseWhere.brand = {
+        OR: [
+          { slug: brand },
+          { name: { contains: brand, mode: 'insensitive' } },
+        ],
       }
     }
 
     if (category) {
-      where.category = {
-        OR: [{ slug: category }, { name: { contains: category } }],
+      baseWhere.category = {
+        OR: [
+          { slug: category },
+          { name: { contains: category, mode: 'insensitive' } },
+        ],
       }
     }
 
     if (priceList || currency) {
-      where.prices = {
+      baseWhere.prices = {
         some: {
           ...(priceList && { priceList }),
           ...(currency && { currency }),
         },
       }
     }
+
+    const where = mergeProductSearchIds(baseWhere, matchingIds)
 
     let orderBy: Prisma.ProductOrderByWithRelationInput = { title: 'asc' }
     const needsPriceSort = sort === 'price_asc' || sort === 'price_desc'
@@ -227,7 +235,7 @@ export async function GET(request: NextRequest) {
         'products.list',
         async () => {
           const whereParts = buildProductListWhereSql(
-            q,
+            searchTokens,
             brand,
             category,
             priceList,
@@ -292,6 +300,10 @@ export async function GET(request: NextRequest) {
     const facets = await withPerf(
       'api.products.facets',
       async () => {
+        const facetProductWhere = mergeProductSearchIds(
+          { isActive: true },
+          matchingIds,
+        )
         const [brandFacets, categoryFacets] = await Promise.all([
           prisma.brand.findMany({
             select: {
@@ -299,15 +311,7 @@ export async function GET(request: NextRequest) {
               _count: {
                 select: {
                   products: {
-                    where: {
-                      isActive: true,
-                      ...(q && {
-                        OR: [
-                          { title: { contains: q } },
-                          { sku: { contains: q } },
-                        ],
-                      }),
-                    },
+                    where: facetProductWhere,
                   },
                 },
               },
@@ -319,15 +323,7 @@ export async function GET(request: NextRequest) {
               _count: {
                 select: {
                   products: {
-                    where: {
-                      isActive: true,
-                      ...(q && {
-                        OR: [
-                          { title: { contains: q } },
-                          { sku: { contains: q } },
-                        ],
-                      }),
-                    },
+                    where: facetProductWhere,
                   },
                 },
               },
