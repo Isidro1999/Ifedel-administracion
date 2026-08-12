@@ -31,6 +31,7 @@ export type CatalogInquiryItem = {
 export type CatalogInquiryContact = {
   name: string
   company: string
+  taxId: string
   phone: string
   email: string
   clientType: ClientType | ''
@@ -83,6 +84,7 @@ type CatalogInquiryState = {
 const emptyContact = (): CatalogInquiryContact => ({
   name: '',
   company: '',
+  taxId: '',
   phone: '',
   email: '',
   clientType: '',

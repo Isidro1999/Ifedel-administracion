@@ -20,6 +20,7 @@ import {
   type InquiryLinePublicPrice,
 } from '@/lib/catalog-whatsapp'
 import { formatPublicCatalogPriceLabel } from '@/lib/catalog-public-price'
+import { isValidTaxIdInput } from '@/lib/tax-id'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 import { CatalogPriceDisplay } from '@/components/catalog/CatalogPriceDisplay'
 import { CATALOG_MONEY_NUMERIC_CLASS } from '@/components/catalog/catalog-money-numeric'
@@ -141,6 +142,10 @@ export function InquiryPageClient() {
       setError('Completá tu teléfono para que podamos contactarte.')
       return false
     }
+    if (!isValidTaxIdInput(contact.taxId)) {
+      setError('Ingresá un CUIT / CUIL válido de 11 dígitos.')
+      return false
+    }
     if (!delivery.city.trim()) {
       setError('Completá la localidad de entrega.')
       return false
@@ -194,6 +199,7 @@ export function InquiryPageClient() {
         body: JSON.stringify({
           customerName: contact.name.trim(),
           companyName: contact.company.trim() || null,
+          taxId: contact.taxId.trim(),
           phone: contact.phone.trim(),
           email: contact.email.trim() || null,
           clientType: contact.clientType || null,
@@ -492,6 +498,18 @@ export function InquiryPageClient() {
                   className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
                   placeholder="Opcional"
                   autoComplete="organization"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium text-slate-700">CUIT / CUIL *</span>
+                <input
+                  value={contact.taxId}
+                  onChange={(e) => setContactField('taxId', e.target.value)}
+                  className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none ring-ifedel-primary/30 focus:ring-2"
+                  placeholder="20-12345678-3"
+                  autoComplete="off"
+                  inputMode="numeric"
+                  required
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm">

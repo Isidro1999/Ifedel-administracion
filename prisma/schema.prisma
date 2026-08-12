@@ -304,6 +304,8 @@ model CommercialInquiry {
 
   customerName String
   companyName  String?
+  /// CUIT/CUIL (11 dígitos, sin guiones). Null en consultas históricas.
+  taxId        String?
   phone        String
   email        String?
   location     String?

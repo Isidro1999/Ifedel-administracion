@@ -19,6 +19,7 @@ describe('CreateCatalogInquirySchema — entrega', () => {
   const base = {
     customerName: 'Juan Pérez',
     phone: '1155551234',
+    taxId: '20-12345678-3',
     deliveryCity: 'Pergamino',
     deliveryProvince: 'Buenos Aires',
     items: [{ productId: 1, quantity: 2 }],
@@ -85,6 +86,36 @@ describe('CreateCatalogInquirySchema — entrega', () => {
         ...base,
         deliveryAddress: 'x'.repeat(201),
       }),
+    )
+  })
+})
+
+describe('CreateCatalogInquirySchema — taxId', () => {
+  const base = {
+    customerName: 'Juan Pérez',
+    phone: '1155551234',
+    deliveryCity: 'Pergamino',
+    deliveryProvince: 'Buenos Aires',
+    items: [{ productId: 1, quantity: 1 }],
+  }
+
+  it('normaliza taxId a 11 dígitos', () => {
+    const parsed = CreateCatalogInquirySchema.parse({
+      ...base,
+      taxId: '20-12345678-3',
+    })
+    assert.equal(parsed.taxId, '20123456783')
+  })
+
+  it('rechaza taxId vacío o inválido', () => {
+    assert.throws(() =>
+      CreateCatalogInquirySchema.parse({ ...base, taxId: '' }),
+    )
+    assert.throws(() =>
+      CreateCatalogInquirySchema.parse({ ...base, taxId: '123' }),
+    )
+    assert.throws(() =>
+      CreateCatalogInquirySchema.parse({ ...base, taxId: '20-ABC-5678' }),
     )
   })
 })

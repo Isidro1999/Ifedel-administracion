@@ -9,6 +9,7 @@ import {
   formatInquiryDateTime,
 } from '@/lib/admin-catalog-inquiries'
 import { formatPublicCatalogPriceLabel } from '@/lib/catalog-public-price'
+import { formatTaxId } from '@/lib/tax-id'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -26,6 +27,7 @@ export type InquiryEmailPayload = {
   createdAt: Date
   customerName: string
   companyName: string | null
+  taxId?: string | null
   phone: string
   email: string | null
   location: string | null
@@ -169,6 +171,10 @@ export function buildInquiryNotificationText(
   if (payload.companyName?.trim()) {
     lines.push(`Empresa: ${payload.companyName.trim()}`)
   }
+  const taxIdText = formatTaxId(payload.taxId)
+  if (taxIdText) {
+    lines.push(`CUIT/CUIL: ${taxIdText}`)
+  }
   lines.push(`Teléfono: ${payload.phone}`)
   if (payload.email?.trim()) {
     lines.push(`Email: ${payload.email.trim()}`)
@@ -254,6 +260,8 @@ export function buildInquiryNotificationHtml(
   const company = payload.companyName?.trim()
     ? escapeHtml(payload.companyName.trim())
     : null
+  const taxIdFormatted = formatTaxId(payload.taxId)
+  const taxId = taxIdFormatted ? escapeHtml(taxIdFormatted) : null
   const phone = escapeHtml(payload.phone)
   const email = payload.email?.trim()
     ? escapeHtml(payload.email.trim())
@@ -375,6 +383,7 @@ export function buildInquiryNotificationHtml(
       <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">
         <tr><td style="padding:6px 0;color:#64748b;width:120px;">Nombre</td><td style="padding:6px 0;font-weight:600;">${name}</td></tr>
         ${company ? `<tr><td style="padding:6px 0;color:#64748b;">Empresa</td><td style="padding:6px 0;">${company}</td></tr>` : ''}
+        ${taxId ? `<tr><td style="padding:6px 0;color:#64748b;">CUIT/CUIL</td><td style="padding:6px 0;">${taxId}</td></tr>` : ''}
         <tr><td style="padding:6px 0;color:#64748b;">Teléfono</td><td style="padding:6px 0;">${phone}</td></tr>
         ${email ? `<tr><td style="padding:6px 0;color:#64748b;">Email</td><td style="padding:6px 0;">${email}</td></tr>` : ''}
         ${location ? `<tr><td style="padding:6px 0;color:#64748b;">Localidad</td><td style="padding:6px 0;">${location}</td></tr>` : ''}
