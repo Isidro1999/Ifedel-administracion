@@ -118,7 +118,7 @@ export async function buildPublicInquiryItemSnapshots(
     pricesByProduct.set(row.productId, list)
   }
 
-  const { usdArsRate } = await getUsdArsRateSettings()
+  const { usdArsRate } = await getUsdArsRateSettings(tx)
 
   const byId = new Map(products.map((p) => [p.id, p]))
   const qtyById = new Map<number, { quantity: number; comment: string | null }>()

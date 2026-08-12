@@ -161,9 +161,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[catalog.inquiries]', error)
-    }
+    console.error('[catalog.inquiries]', error)
 
     return NextResponse.json(
       { error: 'No pudimos registrar tu consulta. Intentá de nuevo.' },
