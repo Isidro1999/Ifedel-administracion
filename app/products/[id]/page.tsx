@@ -5,6 +5,10 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import {
+  PRODUCTS_LIST_PATH,
+  canSafelyBackToProductsList,
+} from '@/lib/products-list-url'
 
 interface Product {
   id: number
@@ -39,19 +43,27 @@ export default function ProductDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
+  function goBackToProductsList() {
+    if (canSafelyBackToProductsList()) {
+      router.back()
+      return
+    }
+    router.push(PRODUCTS_LIST_PATH)
+  }
+
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const res = await fetch(`/api/products/${params.id}?view=detail`)
         if (!res.ok) {
-          router.push('/products')
+          router.push(PRODUCTS_LIST_PATH)
           return
         }
         const data: Product = await res.json()
         setProduct(data)
       } catch (error) {
         console.error('Error fetching product:', error)
-        router.push('/products')
+        router.push(PRODUCTS_LIST_PATH)
       } finally {
         setLoading(false)
       }
@@ -75,7 +87,7 @@ export default function ProductDetailPage() {
       <div className="min-h-screen p-8">
         <div className="max-w-6xl mx-auto text-center py-12">
           <p className="text-gray-500 mb-4">Producto no encontrado</p>
-          <Link href="/products" className="text-ifedel-primary hover:underline font-medium">
+          <Link href={PRODUCTS_LIST_PATH} className="text-ifedel-primary hover:underline font-medium">
             Volver al catálogo
           </Link>
         </div>
@@ -109,7 +121,7 @@ export default function ProductDetailPage() {
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || 'Error al eliminar')
       }
-      router.push('/products')
+      router.push(PRODUCTS_LIST_PATH)
     } catch (err: unknown) {
       setDeleteError(err instanceof Error ? err.message : 'Error al eliminar el producto')
     } finally {
@@ -121,9 +133,13 @@ export default function ProductDetailPage() {
     <div className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-4 mb-4">
-          <Link href="/products" className="text-ifedel-primary hover:underline font-medium">
+          <button
+            type="button"
+            onClick={goBackToProductsList}
+            className="text-ifedel-primary hover:underline font-medium"
+          >
             ← Volver al catálogo
-          </Link>
+          </button>
           <Link
             href={`/admin/products/${product.id}/edit`}
             className="px-3 py-1.5 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
