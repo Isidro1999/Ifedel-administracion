@@ -87,9 +87,13 @@ export default function ProductDetailPage() {
       <div className="min-h-screen p-8">
         <div className="max-w-6xl mx-auto text-center py-12">
           <p className="text-gray-500 mb-4">Producto no encontrado</p>
-          <Link href={PRODUCTS_LIST_PATH} className="text-ifedel-primary hover:underline font-medium">
+          <button
+            type="button"
+            onClick={goBackToProductsList}
+            className="text-ifedel-primary hover:underline font-medium"
+          >
             Volver al catálogo
-          </Link>
+          </button>
         </div>
       </div>
     )
