@@ -20,6 +20,7 @@
     "test:exchange-rate": "tsx --test lib/exchange-rate/parse-bna-exchange-rate.test.ts",
     "test:catalog-price": "tsx --test lib/catalog-public-price.test.ts",
     "test:product-search": "tsx --test lib/product-search.test.ts",
+    "test:products-list-url": "tsx --test lib/products-list-url.test.ts",
     "test:inquiry-totals": "tsx --test lib/catalog-inquiry-totals.test.ts lib/catalog-inquiry-schemas.test.ts lib/tax-id.test.ts",
     "verify:bna-exchange-rate": "tsx scripts/verify-bna-exchange-rate.ts",
     "verify:inquiry-email": "tsx scripts/verify-inquiry-email.ts",

@@ -1,12 +1,21 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 import { useQuoteStore } from '@/lib/quote-store'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { SectionCard } from '@/components/layout/SectionCard'
+import {
+  PRODUCTS_LIST_DEFAULT_SORT,
+  PRODUCTS_LIST_PATH,
+  type ProductsListSort,
+  type ProductsListState,
+  buildProductsListHref,
+  parseProductsListState,
+} from '@/lib/products-list-url'
 
 interface Product {
   id: number
@@ -16,7 +25,12 @@ interface Product {
   brand: { name: string }
   category: { name: string }
   images: Array<{ url: string; isPrimary: boolean }>
-  prices: Array<{ netPrice: number; currency: string; priceList: string; taxRate?: number | null }>
+  prices: Array<{
+    netPrice: number
+    currency: string
+    priceList: string
+    taxRate?: number | null
+  }>
 }
 
 interface Facets {
@@ -35,12 +49,18 @@ interface ProductsResponse {
   facets: Facets
 }
 
-export default function ProductsPage() {
+function ProductsPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const listState = useMemo(
+    () => parseProductsListState(searchParams),
+    [searchParams],
+  )
+
   const [products, setProducts] = useState<Product[]>([])
   const [facets, setFacets] = useState<Facets>({ brands: [], categories: [] })
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 12,
+  const [paginationMeta, setPaginationMeta] = useState({
     total: 0,
     totalPages: 0,
   })
@@ -49,78 +69,104 @@ export default function ProductsPage() {
     usdArsRate: number | null
     updatedAt: string | null
   } | null>(null)
-  const [filters, setFilters] = useState({
-    q: '',
-    brand: '',
-    category: '',
-    priceList: '',
-    currency: '', // vacío = mostrar todos los productos (no filtrar por moneda)
-    sort: 'name_asc',
-  })
-  const [qInput, setQInput] = useState('')
-  const [debouncedQ, setDebouncedQ] = useState('')
-  const lastCommittedQRef = useRef('')
+
+  /** Input local con debounce; se sincroniza desde URL al montar / Back-Forward. */
+  const [qInput, setQInput] = useState(listState.q)
 
   useEffect(() => {
-    const id = setTimeout(() => setDebouncedQ(qInput), 400)
-    return () => clearTimeout(id)
-  }, [qInput])
+    setQInput(listState.q)
+  }, [listState.q])
+
+  const replaceListUrl = useCallback(
+    (patch: Parameters<typeof buildProductsListHref>[1]) => {
+      const href = buildProductsListHref(listState, patch)
+      const current =
+        searchParams.toString() === ''
+          ? PRODUCTS_LIST_PATH
+          : `${PRODUCTS_LIST_PATH}?${searchParams.toString()}`
+      if (href === current) return
+      router.replace(href, { scroll: false })
+    },
+    [listState, router, searchParams],
+  )
 
   useEffect(() => {
-    if (lastCommittedQRef.current === debouncedQ) return
-    lastCommittedQRef.current = debouncedQ
-    setFilters((f) => ({ ...f, q: debouncedQ }))
-    setPagination((p) => ({ ...p, page: 1 }))
-  }, [debouncedQ])
+    const id = window.setTimeout(() => {
+      const nextQ = qInput.trim()
+      if (nextQ === listState.q) return
+      replaceListUrl({ q: nextQ || null, page: null })
+    }, 400)
+    return () => window.clearTimeout(id)
+  }, [qInput, listState.q, replaceListUrl])
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async (state: ProductsListState) => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        pageSize: pagination.pageSize.toString(),
-        sort: filters.sort,
-        ...(filters.q && { q: filters.q }),
-        ...(filters.brand && { brand: filters.brand }),
-        ...(filters.category && { category: filters.category }),
-        ...(filters.priceList && { priceList: filters.priceList }),
-        ...(filters.currency && { currency: filters.currency }),
+        page: String(state.page),
+        pageSize: String(state.pageSize),
+        sort: state.sort,
       })
+      if (state.q) params.set('q', state.q)
+      if (state.brand) params.set('brand', state.brand)
+      if (state.category) params.set('category', state.category)
 
       const res = await fetch(`/api/products?${params}`)
       const data: ProductsResponse = await res.json()
       setProducts(data.items)
       setFacets(data.facets)
-      setPagination(data.pagination)
+      setPaginationMeta({
+        total: data.pagination.total,
+        totalPages: data.pagination.totalPages,
+      })
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
     }
-  }
-
-  const fetchExchangeRate = async () => {
-    try {
-      const res = await fetch('/api/settings/exchange-rate')
-      if (!res.ok) return
-      const data = (await res.json()) as { usdArsRate: number | null; updatedAt: string | null }
-      setExchangeRate(data)
-    } catch (error) {
-      console.error('Error fetching exchange rate:', error)
-    }
-  }
-
-  useEffect(() => {
-    fetchProducts()
-  }, [filters, pagination.page])
-
-  useEffect(() => {
-    fetchExchangeRate()
   }, [])
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }))
-    setPagination((prev) => ({ ...prev, page: 1 }))
+  useEffect(() => {
+    void fetchProducts(listState)
+  }, [listState, fetchProducts])
+
+  useEffect(() => {
+    const loadRate = async () => {
+      try {
+        const res = await fetch('/api/settings/exchange-rate')
+        if (!res.ok) return
+        const data = (await res.json()) as {
+          usdArsRate: number | null
+          updatedAt: string | null
+        }
+        setExchangeRate(data)
+      } catch (error) {
+        console.error('Error fetching exchange rate:', error)
+      }
+    }
+    void loadRate()
+  }, [])
+
+  const handleFilterChange = (
+    key: 'brand' | 'category' | 'sort',
+    value: string,
+  ) => {
+    if (key === 'sort') {
+      const sort = (value || PRODUCTS_LIST_DEFAULT_SORT) as ProductsListSort
+      replaceListUrl({
+        sort: sort === PRODUCTS_LIST_DEFAULT_SORT ? null : sort,
+        page: null,
+      })
+      return
+    }
+    replaceListUrl({
+      [key]: value || null,
+      page: null,
+    })
+  }
+
+  const goToPage = (page: number) => {
+    replaceListUrl({ page: page <= 1 ? null : page })
   }
 
   const getDisplayPrice = (product: Product) => {
@@ -174,7 +220,7 @@ export default function ProductsPage() {
               Marca
             </label>
             <select
-              value={filters.brand}
+              value={listState.brand}
               onChange={(e) => handleFilterChange('brand', e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-ifedel-primary focus:ring-2 focus:ring-ifedel-primary"
             >
@@ -191,7 +237,7 @@ export default function ProductsPage() {
               Categoría
             </label>
             <select
-              value={filters.category}
+              value={listState.category}
               onChange={(e) => handleFilterChange('category', e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-ifedel-primary focus:ring-2 focus:ring-ifedel-primary"
             >
@@ -208,7 +254,7 @@ export default function ProductsPage() {
               Ordenar
             </label>
             <select
-              value={filters.sort}
+              value={listState.sort}
               onChange={(e) => handleFilterChange('sort', e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-ifedel-primary focus:ring-2 focus:ring-ifedel-primary"
             >
@@ -236,13 +282,14 @@ export default function ProductsPage() {
           description="No se encontraron productos con los filtros actuales."
         >
           <p className="text-sm text-gray-600">
-            Probá ampliando la búsqueda o limpiando los filtros para ver más productos disponibles.
+            Probá ampliando la búsqueda o limpiando los filtros para ver más
+            productos disponibles.
           </p>
         </SectionCard>
       ) : (
         <SectionCard
           title="Resultados"
-          description={`Mostrando ${products.length} de ${pagination.total} productos.`}
+          description={`Mostrando ${products.length} de ${paginationMeta.total} productos.`}
         >
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((product) => {
@@ -261,7 +308,7 @@ export default function ProductsPage() {
                     taxRate: mainPrice.taxRate ?? 0,
                     imageUrl: product.images[0]?.url,
                   },
-                  qty > 0 ? qty : 1
+                  qty > 0 ? qty : 1,
                 )
               }
 
@@ -278,7 +325,7 @@ export default function ProductsPage() {
                       taxRate: mainPrice.taxRate ?? 0,
                       imageUrl: product.images[0]?.url,
                     },
-                    newQty
+                    newQty,
                   )
                 } else {
                   updateQty(product.id, newQty)
@@ -327,10 +374,11 @@ export default function ProductsPage() {
                             const p = mainPrice
                             const taxRate = p.taxRate ?? 0
                             const totalUsd = p.netPrice * (1 + taxRate / 100)
-                            const totalArs = totalUsd * exchangeRate.usdArsRate!
+                            const totalArs =
+                              totalUsd * exchangeRate.usdArsRate!
                             return `≈ ${formatCurrency(
                               totalArs,
-                              'ARS'
+                              'ARS',
                             )} (al tipo de cambio ${
                               exchangeRate.usdArsRate
                             } ARS/USD)`
@@ -359,8 +407,8 @@ export default function ProductsPage() {
                             handleQtyChange(
                               Math.max(
                                 0,
-                                parseInt(e.target.value || '0', 10)
-                              )
+                                parseInt(e.target.value || '0', 10),
+                              ),
                             )
                           }
                           className="h-7 w-12 rounded border text-center text-sm"
@@ -390,25 +438,23 @@ export default function ProductsPage() {
             })}
           </div>
 
-          {pagination.totalPages > 1 && (
+          {paginationMeta.totalPages > 1 && (
             <div className="mt-6 flex justify-center gap-2 text-sm">
               <button
-                onClick={() =>
-                  setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
-                }
-                disabled={pagination.page === 1}
+                type="button"
+                onClick={() => goToPage(listState.page - 1)}
+                disabled={listState.page === 1}
                 className="rounded border border-ifedel-primary px-4 py-2 text-ifedel-primary transition hover:bg-ifedel-primary hover:text-white disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-500 disabled:hover:bg-transparent"
               >
                 Anterior
               </button>
               <span className="px-4 py-2">
-                Página {pagination.page} de {pagination.totalPages}
+                Página {listState.page} de {paginationMeta.totalPages}
               </span>
               <button
-                onClick={() =>
-                  setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
-                }
-                disabled={pagination.page >= pagination.totalPages}
+                type="button"
+                onClick={() => goToPage(listState.page + 1)}
+                disabled={listState.page >= paginationMeta.totalPages}
                 className="rounded border border-ifedel-primary px-4 py-2 text-ifedel-primary transition hover:bg-ifedel-primary hover:text-white disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-500 disabled:hover:bg-transparent"
               >
                 Siguiente
@@ -430,3 +476,24 @@ export default function ProductsPage() {
   )
 }
 
+export default function ProductsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-6">
+          <PageHeader
+            title="Catálogo de productos"
+            description="Explorá el catálogo y armá cotizaciones rápidas a partir de los productos disponibles."
+          />
+          <SectionCard title="Resultados" description="Cargando…">
+            <div className="py-8 text-center text-sm text-gray-600">
+              Cargando...
+            </div>
+          </SectionCard>
+        </div>
+      }
+    >
+      <ProductsPageContent />
+    </Suspense>
+  )
+}
