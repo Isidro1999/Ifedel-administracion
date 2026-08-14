@@ -23,6 +23,12 @@ export function CatalogFooter() {
         </div>
         <div className="flex flex-col gap-2 text-sm">
           <Link
+            href={path('nosotros')}
+            className="text-white/80 hover:text-ifedel-primary"
+          >
+            Nosotros
+          </Link>
+          <Link
             href={path('productos')}
             className="text-white/80 hover:text-ifedel-primary"
           >
