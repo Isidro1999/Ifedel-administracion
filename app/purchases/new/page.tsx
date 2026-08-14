@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -20,7 +20,8 @@ export default function NewPurchasePage() {
   const [supplierPhone, setSupplierPhone] = useState('')
 
   const [currency, setCurrency] = useState<'USD' | 'ARS'>('USD')
-  const [exchangeRateARS, setExchangeRateARS] = useState('1000')
+  const [exchangeRateARS, setExchangeRateARS] = useState('')
+  const [exchangeRateHint, setExchangeRateHint] = useState<string | null>(null)
   const [discountPct, setDiscountPct] = useState('0')
   const [issuedAt, setIssuedAt] = useState(
     new Date().toISOString().slice(0, 10)
@@ -34,6 +35,48 @@ export default function NewPurchasePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadExchangeRate = async () => {
+      try {
+        const res = await fetch('/api/settings/exchange-rate')
+        if (!res.ok) {
+          if (!cancelled) {
+            setExchangeRateHint(
+              'No se pudo cargar el TC global. Configuralo en Configuración o ingresalo manualmente.',
+            )
+          }
+          return
+        }
+        const data = (await res.json()) as { usdArsRate: number | null }
+        if (
+          !cancelled &&
+          typeof data.usdArsRate === 'number' &&
+          Number.isFinite(data.usdArsRate) &&
+          data.usdArsRate > 0
+        ) {
+          setExchangeRateARS(String(data.usdArsRate))
+          setExchangeRateHint('Precargado desde el tipo de cambio global.')
+        } else if (!cancelled) {
+          setExchangeRateHint(
+            'No hay un tipo de cambio USD/ARS configurado. Actualizalo en Configuración antes de crear la compra.',
+          )
+        }
+      } catch (err) {
+        console.error('Error cargando tipo de cambio vigente', err)
+        if (!cancelled) {
+          setExchangeRateHint(
+            'No se pudo cargar el TC global. Configuralo en Configuración o ingresalo manualmente.',
+          )
+        }
+      }
+    }
+    loadExchangeRate()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function updateItem(index: number, patch: Partial<Item>) {
     setItems((prev) =>
@@ -118,7 +161,6 @@ export default function NewPurchasePage() {
       setSupplierEmail('')
       setSupplierPhone('')
       setCurrency('USD')
-      setExchangeRateARS('1000')
       setDiscountPct('0')
       setIssuedAt(new Date().toISOString().slice(0, 10))
       setNotes('')
@@ -237,15 +279,23 @@ export default function NewPurchasePage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
-                  Tipo de cambio (ARS por 1 unidad)
+                  Tipo de cambio USD/ARS
                 </label>
                 <input
                   type="text"
                   value={exchangeRateARS}
-                  onChange={(e) => setExchangeRateARS(e.target.value)}
+                  onChange={(e) => {
+                    setExchangeRateARS(e.target.value)
+                    setExchangeRateHint(null)
+                  }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-right"
-                  placeholder="1000"
+                  placeholder="Desde Configuración"
                 />
+                {exchangeRateHint && (
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    {exchangeRateHint}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
@@ -393,4 +443,3 @@ export default function NewPurchasePage() {
     </div>
   )
 }
-
