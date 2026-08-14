@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 import {
   PRODUCTS_LIST_PATH,
-  canSafelyBackToProductsList,
+  resolveProductsListBackHref,
 } from '@/lib/products-list-url'
 
 interface Product {
@@ -35,20 +35,35 @@ interface Product {
 }
 
 export default function ProductDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen p-8">
+          <div className="max-w-6xl mx-auto text-center py-12">Cargando...</div>
+        </div>
+      }
+    >
+      <ProductDetailPageContent />
+    </Suspense>
+  )
+}
+
+function ProductDetailPageContent() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
+  const productsListBackHref = resolveProductsListBackHref(
+    searchParams.get('from'),
+  )
+
   function goBackToProductsList() {
-    if (canSafelyBackToProductsList()) {
-      router.back()
-      return
-    }
-    router.push(PRODUCTS_LIST_PATH)
+    router.push(productsListBackHref)
   }
 
   useEffect(() => {
@@ -56,14 +71,14 @@ export default function ProductDetailPage() {
       try {
         const res = await fetch(`/api/products/${params.id}?view=detail`)
         if (!res.ok) {
-          router.push(PRODUCTS_LIST_PATH)
+          setProduct(null)
           return
         }
         const data: Product = await res.json()
         setProduct(data)
       } catch (error) {
         console.error('Error fetching product:', error)
-        router.push(PRODUCTS_LIST_PATH)
+        setProduct(null)
       } finally {
         setLoading(false)
       }
@@ -72,7 +87,7 @@ export default function ProductDetailPage() {
     if (params.id) {
       fetchProduct()
     }
-  }, [params.id, router])
+  }, [params.id])
 
   if (loading) {
     return (
