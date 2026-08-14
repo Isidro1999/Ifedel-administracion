@@ -6,11 +6,19 @@ import { HomeCategoryCard } from '@/components/catalog/home/HomeCategoryCard'
 type HomeCategoriesProps = {
   categories: HomeCategoryItem[]
   productsHref: string
+  headingId?: string
+  title?: string
+  description?: string
+  sectionId?: string
 }
 
 export function HomeCategories({
   categories,
   productsHref,
+  headingId = 'home-categorias-heading',
+  title = 'Categorías',
+  description = 'Empezá por el rubro que te interesa.',
+  sectionId = 'categorias',
 }: HomeCategoriesProps) {
   const productsCta = (
     <Link
@@ -22,11 +30,11 @@ export function HomeCategories({
   )
 
   return (
-    <section id="categorias" aria-labelledby="home-categorias-heading">
+    <section id={sectionId} aria-labelledby={headingId}>
       <HomeSectionHeading
-        id="home-categorias-heading"
-        title="Categorías"
-        description="Empezá por el rubro que te interesa."
+        id={headingId}
+        title={title}
+        description={description}
         action={<span className="hidden sm:inline">{productsCta}</span>}
       />
 

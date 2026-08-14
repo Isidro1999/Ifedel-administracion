@@ -11,6 +11,9 @@ import styles from '@/components/catalog/home/HomeBrands.module.css'
 
 type HomeBrandsProps = {
   brands?: HomeBrand[]
+  headingId?: string
+  title?: string
+  description?: string
 }
 
 const SCALE_CLASS: Record<NonNullable<HomeBrand['scale']>, string> = {
@@ -79,7 +82,12 @@ function BrandList({
  * Franja de marcas con carrusel continuo (CSS).
  * Loop por track duplicado + translateX(-50%), 35s por vuelta.
  */
-export function HomeBrands({ brands = HOME_BRANDS }: HomeBrandsProps) {
+export function HomeBrands({
+  brands = HOME_BRANDS,
+  headingId = 'home-marcas-heading',
+  title = 'Marcas con las que trabajamos',
+  description = 'Productos y soluciones de marcas seleccionadas para el sector.',
+}: HomeBrandsProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const touchResumeTimer = useRef<number | null>(null)
 
@@ -152,14 +160,14 @@ export function HomeBrands({ brands = HOME_BRANDS }: HomeBrandsProps) {
 
   return (
     <section
-      aria-labelledby="home-marcas-heading"
+      aria-labelledby={headingId}
       className="border-b border-slate-200/80 bg-white/80"
     >
       <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
         <HomeSectionHeading
-          id="home-marcas-heading"
-          title="Marcas con las que trabajamos"
-          description="Productos y soluciones de marcas seleccionadas para el sector."
+          id={headingId}
+          title={title}
+          description={description}
         />
 
         <div

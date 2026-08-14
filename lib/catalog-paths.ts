@@ -52,7 +52,7 @@ export function isWwwCatalogRedirectHost(
 
 /**
  * Construye un path de UI del catálogo.
- * @param path segmento relativo, ej: "", "productos", "productos/mi-slug", "consulta", "categorias/x"
+ * @param path segmento relativo, ej: "", "productos", "nosotros", "consulta", "categorias/x"
  * @param onCatalogHost si true, omite el prefijo /catalogo (host catálogo / simulación local)
  */
 export function catalogPath(

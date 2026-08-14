@@ -26,6 +26,7 @@ export function CatalogHeader() {
       { href: path('productos'), label: 'Productos' },
       // Sección #categorias de la home (respeta /catalogo vs subdominio).
       { href: `${path()}#categorias`, label: 'Categorías' },
+      { href: path('nosotros'), label: 'Nosotros' },
       { href: path('consulta'), label: 'Consulta' },
     ],
     [path],
@@ -68,7 +69,7 @@ export function CatalogHeader() {
         </Link>
 
         <div className="flex items-center gap-2">
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 lg:flex">
             {nav.map((item) => {
               const active = navActive(item.href)
               return (
@@ -107,7 +108,7 @@ export function CatalogHeader() {
 
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-white md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-white lg:hidden"
             aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
             onClick={() => setOpen((v) => !v)}
           >
@@ -117,7 +118,7 @@ export function CatalogHeader() {
       </div>
 
       {open ? (
-        <nav className="border-t border-white/10 px-4 py-3 md:hidden">
+        <nav className="border-t border-white/10 px-4 py-3 lg:hidden">
           <ul className="flex flex-col gap-1">
             {nav.map((item) => (
               <li key={item.href}>
