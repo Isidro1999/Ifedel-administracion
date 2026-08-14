@@ -3,6 +3,16 @@ import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { PAYABLE_DEFAULT_DUE_DAYS } from '@/lib/payable-config'
+import {
+  getInitialPurchaseExchangeRate,
+  InvalidUsdArsExchangeRateError,
+  isValidUsdArsExchangeRate,
+} from '@/lib/exchange-rate'
+import {
+  computePurchaseLineTotals,
+  computePurchaseTotals,
+  resolvePurchaseExchangeRateForCreate,
+} from '@/lib/purchases/purchase-totals'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -25,6 +35,7 @@ const SupplierInputSchema = z.object({
 
 const PurchaseMetaInputSchema = z.object({
   currency: z.enum(['USD', 'ARS']).default('USD'),
+  /** Override opcional; si falta o es inválido, se usa Settings.usdArsRate. */
   exchangeRateARS: z.number().positive().optional(),
   discountPct: z.number().min(0).max(100).default(0),
   issuedAt: z.string().optional(), // ISO date
@@ -38,54 +49,6 @@ const PurchasePayloadSchema = z.object({
 })
 
 type PurchasePayload = z.infer<typeof PurchasePayloadSchema>
-
-function normalizeNumber(value: number | undefined, fallback: number): number {
-  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
-    return fallback
-  }
-  return value
-}
-
-function computePurchaseTotals(payload: PurchasePayload) {
-  const currency = payload.meta.currency
-
-  const subtotal = payload.items.reduce(
-    (acc, item) => acc + item.unitCost * item.qty,
-    0
-  )
-
-  const total = payload.items.reduce((acc, item) => {
-    const lineBase = item.unitCost * item.qty
-    return acc + lineBase * (1 + item.taxRate / 100)
-  }, 0)
-
-  const exchangeRate = normalizeNumber(payload.meta.exchangeRateARS, 1000)
-  const discountPct = normalizeNumber(payload.meta.discountPct, 0)
-  const clampedDiscountPct = Math.min(100, Math.max(0, discountPct))
-
-  const discountAmount = total * (clampedDiscountPct / 100)
-  const totalWithDiscount = total - discountAmount
-  const totalARS =
-    currency === 'ARS' ? totalWithDiscount : totalWithDiscount * exchangeRate
-
-  return {
-    currency,
-    subtotal,
-    total,
-    discountPct: clampedDiscountPct,
-    discountAmount,
-    totalWithDiscount,
-    totalARS,
-    exchangeRateARS: exchangeRate,
-  }
-}
-
-function computeLineTotals(item: z.infer<typeof PurchaseItemInputSchema>) {
-  const subtotal = item.unitCost * item.qty
-  const taxAmount = subtotal * (item.taxRate / 100)
-  const total = subtotal + taxAmount
-  return { subtotal, taxAmount, total }
-}
 
 function hasMeaningfulSupplierData(s: PurchasePayload['supplier']) {
   const hasName = !!s.name && s.name.trim().length > 0
@@ -156,6 +119,12 @@ async function generatePurchaseNumber(tx: Prisma.TransactionClient): Promise<str
   return `${prefix}${seqStr}`
 }
 
+/**
+ * Crea Purchase con snapshot de TC.
+ * - Si el cliente envía exchangeRateARS válido → override manual (comportamiento previo).
+ * - Si no → Settings.usdArsRate (sin fallback 1000).
+ * El TC se resuelve una sola vez antes de la transacción.
+ */
 export async function POST(request: NextRequest) {
   const [{ prisma }, { requireApprovedSession }] = await Promise.all([
     import('@/lib/prisma'),
@@ -197,10 +166,33 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  let exchangeRateARS: number
+  try {
+    if (isValidUsdArsExchangeRate(payload.meta.exchangeRateARS)) {
+      exchangeRateARS = payload.meta.exchangeRateARS
+    } else {
+      const globalRate = await getInitialPurchaseExchangeRate()
+      exchangeRateARS = resolvePurchaseExchangeRateForCreate({
+        clientRate: payload.meta.exchangeRateARS,
+        globalRate,
+      })
+    }
+  } catch (error) {
+    if (error instanceof InvalidUsdArsExchangeRateError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    throw error
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const supplierId = await getOrCreateSupplierId(payload, tx)
-      const totals = computePurchaseTotals(payload)
+      const totals = computePurchaseTotals({
+        items: payload.items,
+        currency: payload.meta.currency,
+        discountPct: payload.meta.discountPct,
+        exchangeRateARS,
+      })
 
       const issuedAt =
         payload.meta.issuedAt && payload.meta.issuedAt.length > 0
@@ -242,7 +234,7 @@ export async function POST(request: NextRequest) {
 
           items: {
             create: payload.items.map((item, index) => {
-              const lineTotals = computeLineTotals(item)
+              const lineTotals = computePurchaseLineTotals(item)
               return {
                 productId: item.productId,
                 sku: item.sku,
@@ -313,4 +305,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
