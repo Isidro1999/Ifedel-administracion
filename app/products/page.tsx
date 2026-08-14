@@ -15,6 +15,8 @@ import {
   type ProductsListState,
   buildProductsListHref,
   parseProductsListState,
+  buildProductsListReturnUrl,
+  buildProductDetailHref,
 } from '@/lib/products-list-url'
 
 interface Product {
@@ -183,6 +185,16 @@ function ProductsPageContent() {
 
   const totalItems = items.reduce((acc, item) => acc + item.qty, 0)
 
+  const listReturnUrl = useMemo(
+    () => buildProductsListReturnUrl(searchParams),
+    [searchParams],
+  )
+
+  const productDetailHref = useCallback(
+    (productId: number) => buildProductDetailHref(productId, listReturnUrl),
+    [listReturnUrl],
+  )
+
   return (
     <div className="space-y-6 relative">
       <PageHeader
@@ -337,7 +349,7 @@ function ProductsPageContent() {
                   key={product.id}
                   className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow transition hover:border-ifedel-primary hover:shadow-lg"
                 >
-                  <Link href={`/products/${product.id}`} className="block">
+                  <Link href={productDetailHref(product.id)} className="block">
                     {product.images.length > 0 && (
                       <div className="aspect-square bg-gray-100">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -353,7 +365,7 @@ function ProductsPageContent() {
                     <div className="text-sm text-gray-500">
                       {product.brand.name} • {product.category.name}
                     </div>
-                    <Link href={`/products/${product.id}`} className="block">
+                    <Link href={productDetailHref(product.id)} className="block">
                       <h3 className="mb-1 line-clamp-2 font-semibold">
                         {product.title}
                       </h3>

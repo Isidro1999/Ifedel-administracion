@@ -4,10 +4,15 @@ import {
   PRODUCTS_LIST_DEFAULTS,
   PRODUCTS_LIST_DEFAULT_SORT,
   PRODUCTS_LIST_PATH,
+  buildProductDetailHref,
   buildProductsListHref,
+  buildProductsListReturnUrl,
   buildProductsListSearchParams,
   canSafelyBackToProductsList,
+  isValidProductsListReturnUrl,
+  parseProductsListReturnUrl,
   parseProductsListState,
+  resolveProductsListBackHref,
 } from './products-list-url'
 
 describe('parseProductsListState', () => {
@@ -101,5 +106,89 @@ describe('canSafelyBackToProductsList', () => {
     assert.equal(canSafelyBackToProductsList({ idx: 0 }), false)
     assert.equal(canSafelyBackToProductsList({}), false)
     assert.equal(canSafelyBackToProductsList(null), false)
+  })
+})
+
+describe('buildProductsListReturnUrl', () => {
+  it('preserva query string crudo del listado', () => {
+    const sp = new URLSearchParams('q=gall&brand=Gallagher&page=3')
+    assert.equal(
+      buildProductsListReturnUrl(sp),
+      '/products?q=gall&brand=Gallagher&page=3',
+    )
+  })
+
+  it('sin params devuelve /products', () => {
+    assert.equal(buildProductsListReturnUrl(new URLSearchParams()), PRODUCTS_LIST_PATH)
+  })
+})
+
+describe('buildProductDetailHref', () => {
+  it('arma href con from encoded', () => {
+    const origin = '/products?q=gall&brand=Gallagher&page=3'
+    assert.equal(
+      buildProductDetailHref(8, origin),
+      '/products/8?from=%2Fproducts%3Fq%3Dgall%26brand%3DGallagher%26page%3D3',
+    )
+  })
+
+  it('return inválido → from=/products', () => {
+    assert.equal(
+      buildProductDetailHref(8, 'https://evil.com'),
+      '/products/8?from=%2Fproducts',
+    )
+  })
+})
+
+describe('isValidProductsListReturnUrl', () => {
+  it('acepta /products y /products?...', () => {
+    assert.equal(isValidProductsListReturnUrl('/products'), true)
+    assert.equal(
+      isValidProductsListReturnUrl('/products?q=gall&brand=Gallagher&page=3'),
+      true,
+    )
+  })
+
+  it('rechaza URLs externas y protocol-relative', () => {
+    assert.equal(isValidProductsListReturnUrl('https://evil.com'), false)
+    assert.equal(isValidProductsListReturnUrl('//evil.com/products'), false)
+    assert.equal(isValidProductsListReturnUrl('/admin/catalog'), false)
+    assert.equal(isValidProductsListReturnUrl('/products/8'), false)
+  })
+
+  it('rechaza query params desconocidos', () => {
+    assert.equal(isValidProductsListReturnUrl('/products?redirect=https://x'), false)
+  })
+})
+
+describe('parseProductsListReturnUrl', () => {
+  it('decodifica from válido', () => {
+    const encoded = encodeURIComponent('/products?q=gall&page=3')
+    assert.equal(
+      parseProductsListReturnUrl(encoded),
+      '/products?q=gall&page=3',
+    )
+  })
+
+  it('rechaza from malicioso', () => {
+    assert.equal(
+      parseProductsListReturnUrl(encodeURIComponent('https://evil.com')),
+      null,
+    )
+  })
+})
+
+describe('resolveProductsListBackHref', () => {
+  it('usa from válido', () => {
+    const encoded = encodeURIComponent('/products?q=gall&page=3')
+    assert.equal(resolveProductsListBackHref(encoded), '/products?q=gall&page=3')
+  })
+
+  it('fallback /products sin from o inválido', () => {
+    assert.equal(resolveProductsListBackHref(null), PRODUCTS_LIST_PATH)
+    assert.equal(
+      resolveProductsListBackHref(encodeURIComponent('//evil.com')),
+      PRODUCTS_LIST_PATH,
+    )
   })
 })

@@ -176,7 +176,89 @@ export function buildProductsListHref(
   return qs ? `${pathname}?${qs}` : pathname
 }
 
+/** URL exacta del listado actual (pathname + query string crudo). */
+export function buildProductsListReturnUrl(
+  searchParams: URLSearchParams | string,
+  pathname: string = PRODUCTS_LIST_PATH,
+): string {
+  const qs =
+    typeof searchParams === 'string'
+      ? searchParams.replace(/^\?/, '')
+      : searchParams.toString()
+  return qs ? `${pathname}?${qs}` : pathname
+}
+
+const PRODUCTS_LIST_RETURN_QUERY_KEYS = new Set([
+  'q',
+  'brand',
+  'category',
+  'sort',
+  'page',
+  'pageSize',
+])
+
 /**
+ * Valida un `from` decodificado: solo rutas internas `/products` o `/products?...`.
+ * Rechaza URLs externas, protocol-relative y paths fuera del listado.
+ */
+export function isValidProductsListReturnUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false
+  const trimmed = url.trim()
+  if (!trimmed.startsWith('/')) return false
+  if (trimmed.startsWith('//')) return false
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return false
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed, 'http://internal.local')
+  } catch {
+    return false
+  }
+
+  if (parsed.pathname !== PRODUCTS_LIST_PATH) return false
+
+  for (const key of parsed.searchParams.keys()) {
+    if (!PRODUCTS_LIST_RETURN_QUERY_KEYS.has(key)) return false
+  }
+
+  return true
+}
+
+/** Decodifica `from` con un nivel; rechaza valores inválidos. */
+export function parseProductsListReturnUrl(
+  fromParam: string | null | undefined,
+): string | null {
+  if (fromParam == null || fromParam === '') return null
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(fromParam)
+  } catch {
+    return null
+  }
+  return isValidProductsListReturnUrl(decoded) ? decoded : null
+}
+
+/** Destino del botón «Volver al catálogo»: `from` válido o fallback. */
+export function resolveProductsListBackHref(
+  fromParam: string | null | undefined,
+): string {
+  return parseProductsListReturnUrl(fromParam) ?? PRODUCTS_LIST_PATH
+}
+
+/** Href al detalle preservando el listado de origen en `from`. */
+export function buildProductDetailHref(
+  productId: number,
+  returnUrl: string,
+): string {
+  const safeReturn = isValidProductsListReturnUrl(returnUrl)
+    ? returnUrl
+    : PRODUCTS_LIST_PATH
+  const from = encodeURIComponent(safeReturn)
+  return `/products/${productId}?from=${from}`
+}
+
+/**
+ * @deprecated Preferir `from` en la URL del detalle (`resolveProductsListBackHref`).
  * ¿Es seguro usar history.back() hacia el listado?
  * Next.js App Router guarda `idx` en history.state en navegaciones client-side.
  */
