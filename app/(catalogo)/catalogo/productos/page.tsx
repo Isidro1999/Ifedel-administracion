@@ -10,6 +10,12 @@ import {
   type CatalogProductsResponse,
 } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
+import {
+  catalogListingSeo,
+  firstSearchParam,
+  PRODUCTOS_UTILITY_PARAM_KEYS,
+  hasUtilitySearchParams,
+} from '@/lib/catalog-seo'
 import { ProductFilters } from '@/components/catalog/ProductFilters'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { CatalogPagination } from '@/components/catalog/CatalogPagination'
@@ -18,19 +24,63 @@ import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclai
 
 export const revalidate = 60
 
-export const metadata: Metadata = {
-  title: 'Productos',
-  description:
-    'Consultá productos agropecuarios, identificación animal, pesaje, caravanas, lectores y soluciones rurales.',
-}
+const PRODUCTOS_DESCRIPTION =
+  'Consultá productos agropecuarios, identificación animal, pesaje, caravanas, lectores y soluciones rurales.'
 
 type PageProps = {
   searchParams: Record<string, string | string[] | undefined>
 }
 
-function first(v: string | string[] | undefined): string {
-  if (Array.isArray(v)) return v[0] ?? ''
-  return v ?? ''
+/**
+ * `/productos` indexable; cualquier query utilitaria → noindex,follow.
+ * Si el único filtro es `category` (= slug) y es categoría pública,
+ * canonical → `/categorias/[slug]`; si no → `/productos`.
+ */
+export async function generateMetadata({
+  searchParams,
+}: PageProps): Promise<Metadata> {
+  const q = firstSearchParam(searchParams.q)
+  const brand = firstSearchParam(searchParams.brand)
+  const category = firstSearchParam(searchParams.category)
+  const page = firstSearchParam(searchParams.page)
+  const sort = firstSearchParam(searchParams.sort)
+
+  const hasUtility = hasUtilitySearchParams(
+    searchParams,
+    PRODUCTOS_UTILITY_PARAM_KEYS,
+  )
+
+  let canonicalPath = '/productos'
+
+  if (hasUtility) {
+    const onlyCategory =
+      Boolean(category) &&
+      !q &&
+      !brand &&
+      !sort &&
+      (!page || page === '1')
+
+    if (onlyCategory) {
+      try {
+        const cats = await fetchCatalogCategories()
+        const cat = cats.find((c) => c.slug === category)
+        if (cat) {
+          canonicalPath = `/categorias/${cat.slug}`
+        }
+      } catch {
+        // fallback: /productos
+      }
+    }
+  }
+
+  return {
+    title: 'Productos',
+    description: PRODUCTOS_DESCRIPTION,
+    ...catalogListingSeo({
+      hasUtilityParams: hasUtility,
+      canonicalPath,
+    }),
+  }
 }
 
 function devError(label: string, err: unknown) {
@@ -44,10 +94,10 @@ export default async function CatalogoProductosPage({ searchParams }: PageProps)
   const p = (segment = '') => catalogPath(segment, onCatalogHost)
   const productosBase = p('productos')
 
-  const q = first(searchParams.q)
-  const category = first(searchParams.category)
-  const brand = first(searchParams.brand)
-  const page = first(searchParams.page) || '1'
+  const q = firstSearchParam(searchParams.q)
+  const category = firstSearchParam(searchParams.category)
+  const brand = firstSearchParam(searchParams.brand)
+  const page = firstSearchParam(searchParams.page) || '1'
 
   let products: CatalogProductsResponse | null = null
   let categories: CatalogCategory[] = []

@@ -4,6 +4,10 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { fetchCatalogProduct } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
+import {
+  catalogCanonicalPath,
+  catalogIndexFollowRobots,
+} from '@/lib/catalog-seo'
 import { ProductGallery } from '@/components/catalog/ProductGallery'
 import { ProductDetailActions } from '@/components/catalog/ProductDetailActions'
 import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
@@ -27,6 +31,10 @@ export async function generateMetadata({
     return {
       title: { absolute: `${product.title} | IFEDEL` },
       description: product.shortDescription || undefined,
+      robots: catalogIndexFollowRobots,
+      alternates: {
+        canonical: catalogCanonicalPath(`/productos/${product.slug}`),
+      },
     }
   } catch {
     return { title: { absolute: `Producto | ${IFEDelBrand.companyName}` } }
