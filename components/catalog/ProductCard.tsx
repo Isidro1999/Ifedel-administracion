@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import type { CatalogProductListItem } from '@/lib/catalog-client'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 import { AddToInquiryButton } from '@/components/catalog/AddToInquiryButton'
+import { CatalogCloudinaryImage } from '@/components/catalog/CatalogCloudinaryImage'
 import { CatalogPriceDisplay } from '@/components/catalog/CatalogPriceDisplay'
 import { useCatalogPath } from '@/components/catalog/CatalogPathProvider'
 
@@ -28,7 +28,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         className="relative block aspect-[4/3] overflow-hidden bg-slate-100"
       >
         {src ? (
-          <Image
+          <CatalogCloudinaryImage
             src={src}
             alt={product.title}
             fill

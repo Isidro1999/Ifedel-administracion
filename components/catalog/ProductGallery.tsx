@@ -1,8 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import { useState } from 'react'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import { CatalogCloudinaryImage } from '@/components/catalog/CatalogCloudinaryImage'
 
 type GalleryImage = {
   id: number
@@ -32,7 +32,7 @@ export function ProductGallery({ images, title }: ProductGalleryProps) {
   return (
     <div className="space-y-3">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100">
-        <Image
+        <CatalogCloudinaryImage
           src={getOptimizedImageUrl(current.url, 1200)}
           alt={title}
           fill
@@ -55,7 +55,7 @@ export function ProductGallery({ images, title }: ProductGalleryProps) {
               }`}
               aria-label={`Imagen ${i + 1}`}
             >
-              <Image
+              <CatalogCloudinaryImage
                 src={getOptimizedImageUrl(img.url, 200)}
                 alt=""
                 fill
