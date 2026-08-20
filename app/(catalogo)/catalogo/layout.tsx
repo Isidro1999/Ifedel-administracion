@@ -4,15 +4,21 @@ import { CatalogHeader } from '@/components/catalog/CatalogHeader'
 import { CatalogFooter } from '@/components/catalog/CatalogFooter'
 import { CatalogPathProvider } from '@/components/catalog/CatalogPathProvider'
 import { CatalogPromotionBar } from '@/components/catalog/CatalogPromotionBar'
+import { CATALOG_PUBLIC_ORIGIN } from '@/lib/catalog-paths'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(CATALOG_PUBLIC_ORIGIN),
   title: {
     default: 'Catálogo IFEDEL',
     template: '%s | Catálogo IFEDEL',
   },
   description:
     'Catálogo online de productos y soluciones agropecuarias de IFEDEL.',
+  robots: {
+    index: true,
+    follow: true,
+  },
   openGraph: {
     title: 'Catálogo IFEDEL',
     description:

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import {
+  CATALOG_PUBLIC_ORIGIN,
+  catalogUiPathToPublicPathname,
+  isAppHostName,
   isCatalogHostName,
   isLegacyCatalogRedirectHost,
   isWwwCatalogRedirectHost,
@@ -9,7 +12,8 @@ import {
 /**
  * - ifedel.com / catalogo.localhost → reescribe UI a `/catalogo/*`.
  * - catalogo.ifedel.com / www.catalogo.ifedel.com / www.ifedel.com → 308 a ifedel.com.
- * - app.ifedel.com / localhost / *.vercel.app → backoffice o `/catalogo` con prefijo.
+ * - app.ifedel.com/catalogo/* → 308 a ifedel.com paths limpios (sin duplicar catálogo).
+ * - app.ifedel.com (resto) / localhost / *.vercel.app → backoffice o `/catalogo` con prefijo.
  * - `/api/*` nunca se reescribe ni se marca como ruta de catálogo UI.
  */
 function redirectToPublicCatalogOrigin(req: NextRequest): NextResponse {
@@ -21,19 +25,32 @@ function redirectToPublicCatalogOrigin(req: NextRequest): NextResponse {
   return NextResponse.redirect(target, 308)
 }
 
+/** app.ifedel.com/catalogo[/...] → https://ifedel.com[/...] (paths limpios). */
+function redirectAppCatalogToPublicOrigin(req: NextRequest): NextResponse {
+  const target = new URL(CATALOG_PUBLIC_ORIGIN)
+  target.pathname = catalogUiPathToPublicPathname(req.nextUrl.pathname)
+  target.search = req.nextUrl.search
+  return NextResponse.redirect(target, 308)
+}
+
 export function middleware(req: NextRequest) {
   const host = req.headers.get('host') || ''
+  const { pathname } = req.nextUrl
+  const isCatalogUiPath =
+    pathname === '/catalogo' || pathname.startsWith('/catalogo/')
 
   // Redirects de host primero (evitan servir contenido indexable en hosts legacy/www).
   if (isLegacyCatalogRedirectHost(host) || isWwwCatalogRedirectHost(host)) {
     return redirectToPublicCatalogOrigin(req)
   }
 
+  // Backoffice no debe servir el catálogo con prefijo (duplicado SEO).
+  if (isAppHostName(host) && isCatalogUiPath) {
+    return redirectAppCatalogToPublicOrigin(req)
+  }
+
   const catalogHost = isCatalogHostName(host)
-  const { pathname } = req.nextUrl
   const isApi = pathname.startsWith('/api')
-  const isCatalogUiPath =
-    pathname === '/catalogo' || pathname.startsWith('/catalogo/')
 
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set('x-pathname', pathname)
@@ -68,13 +85,7 @@ export function middleware(req: NextRequest) {
   // En host catálogo, URLs con prefijo /catalogo → redirect limpio (SEO / UX)
   if (isCatalogUiPath) {
     const url = req.nextUrl.clone()
-    const rest =
-      pathname === '/catalogo' ? '/' : pathname.slice('/catalogo'.length) || '/'
-    const clean =
-      rest === '/catalogo' || rest.startsWith('/catalogo/')
-        ? rest.replace(/^\/catalogo/, '') || '/'
-        : rest
-    url.pathname = clean.startsWith('/') ? clean : `/${clean}`
+    url.pathname = catalogUiPathToPublicPathname(pathname)
     return NextResponse.redirect(url)
   }
 
