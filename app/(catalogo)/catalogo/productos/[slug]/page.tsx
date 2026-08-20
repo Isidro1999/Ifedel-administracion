@@ -12,7 +12,12 @@ import { ProductGallery } from '@/components/catalog/ProductGallery'
 import { ProductDetailActions } from '@/components/catalog/ProductDetailActions'
 import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
 import { CatalogPriceDisplay } from '@/components/catalog/CatalogPriceDisplay'
+import { JsonLd } from '@/components/catalog/JsonLd'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
+import {
+  buildProductBreadcrumbJsonLd,
+  buildProductJsonLd,
+} from '@/lib/catalog-structured-data'
 
 export const revalidate = 60
 
@@ -73,6 +78,8 @@ export default async function CatalogoProductoDetallePage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <JsonLd data={buildProductJsonLd(product)} />
+      <JsonLd data={buildProductBreadcrumbJsonLd(product)} />
       <nav className="mb-6 text-sm text-slate-500">
         <Link href={p()} className="hover:text-ifedel-brown">
           Inicio
