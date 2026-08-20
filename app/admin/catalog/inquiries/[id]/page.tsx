@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Mail, MessageCircle, Phone } from 'lucide-react'
@@ -19,6 +18,7 @@ import {
 } from '@/lib/catalog-inquiry-schemas'
 import { formatPublicCatalogPriceLabel } from '@/lib/catalog-public-price'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import { CatalogCloudinaryImage } from '@/components/catalog/CatalogCloudinaryImage'
 import { InquiryStatusForm } from '../InquiryStatusForm'
 
 export const dynamic = 'force-dynamic'
@@ -309,7 +309,7 @@ export default async function AdminCatalogInquiryDetailPage({
                 <div className="flex gap-3">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100">
                     {img ? (
-                      <Image
+                      <CatalogCloudinaryImage
                         src={img}
                         alt=""
                         fill
@@ -389,7 +389,7 @@ export default async function AdminCatalogInquiryDetailPage({
                         <div className="flex items-center gap-3">
                           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-slate-100">
                             {img ? (
-                              <Image
+                              <CatalogCloudinaryImage
                                 src={img}
                                 alt=""
                                 fill

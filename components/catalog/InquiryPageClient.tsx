@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, Trash2 } from 'lucide-react'
@@ -22,6 +21,7 @@ import {
 import { formatPublicCatalogPriceLabel } from '@/lib/catalog-public-price'
 import { isValidTaxIdInput } from '@/lib/tax-id'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import { CatalogCloudinaryImage } from '@/components/catalog/CatalogCloudinaryImage'
 import { CatalogPriceDisplay } from '@/components/catalog/CatalogPriceDisplay'
 import { CATALOG_MONEY_NUMERIC_CLASS } from '@/components/catalog/catalog-money-numeric'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
@@ -383,7 +383,7 @@ export function InquiryPageClient() {
                       className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100"
                     >
                       {img ? (
-                        <Image
+                        <CatalogCloudinaryImage
                           src={img}
                           alt=""
                           fill
