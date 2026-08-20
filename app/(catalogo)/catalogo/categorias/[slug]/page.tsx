@@ -10,6 +10,12 @@ import {
   type CatalogBrand,
 } from '@/lib/catalog-client'
 import { catalogPath } from '@/lib/catalog-paths'
+import {
+  catalogListingSeo,
+  CATEGORIA_UTILITY_PARAM_KEYS,
+  firstSearchParam,
+  hasUtilitySearchParams,
+} from '@/lib/catalog-seo'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { CatalogPagination } from '@/components/catalog/CatalogPagination'
 import { CatalogBrandChips } from '@/components/catalog/CatalogBrandChips'
@@ -23,22 +29,34 @@ type PageProps = {
   searchParams: Record<string, string | string[] | undefined>
 }
 
-function first(v: string | string[] | undefined): string {
-  if (Array.isArray(v)) return v[0] ?? ''
-  return v ?? ''
-}
-
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps): Promise<Metadata> {
+  const hasUtility = hasUtilitySearchParams(
+    searchParams,
+    CATEGORIA_UTILITY_PARAM_KEYS,
+  )
+  const canonicalPath = `/categorias/${params.slug}`
+
   try {
     const cats = await fetchCatalogCategories()
     const cat = cats.find((c) => c.slug === params.slug)
     return {
       title: cat ? cat.name : 'Categoría',
+      ...catalogListingSeo({
+        hasUtilityParams: hasUtility,
+        canonicalPath: cat ? `/categorias/${cat.slug}` : canonicalPath,
+      }),
     }
   } catch {
-    return { title: 'Categoría' }
+    return {
+      title: 'Categoría',
+      ...catalogListingSeo({
+        hasUtilityParams: hasUtility,
+        canonicalPath,
+      }),
+    }
   }
 }
 
@@ -48,8 +66,8 @@ export default async function CatalogoCategoriaPage({
 }: PageProps) {
   const onCatalogHost = headers().get('x-ifedel-catalog') === '1'
   const p = (segment = '') => catalogPath(segment, onCatalogHost)
-  const page = first(searchParams.page) || '1'
-  const brand = first(searchParams.brand)
+  const page = firstSearchParam(searchParams.page) || '1'
+  const brand = firstSearchParam(searchParams.brand)
 
   let categoryName = params.slug
   let products: Awaited<ReturnType<typeof fetchCatalogProducts>> | null = null
