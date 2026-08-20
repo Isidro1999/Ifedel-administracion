@@ -1,14 +1,15 @@
 import type { MetadataRoute } from 'next'
 import { headers } from 'next/headers'
 import {
+  CATALOG_PUBLIC_ORIGIN,
   isCatalogHostName,
   shouldDisallowRobotsCrawling,
 } from '@/lib/catalog-paths'
 
 /**
  * robots.txt host-aware.
- * - ifedel.com / catalogo.localhost → allow catálogo (sin Sitemap hasta P5.3).
- * - app.ifedel.com / *.vercel.app → Disallow: /
+ * - ifedel.com / catalogo.localhost → allow catálogo + Sitemap público.
+ * - app.ifedel.com / *.vercel.app → Disallow: / (sin Sitemap).
  * Complementa metadata noindex del backoffice; no es la única defensa.
  */
 export default function robots(): MetadataRoute.Robots {
@@ -20,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: '/',
       },
+      sitemap: `${CATALOG_PUBLIC_ORIGIN}/sitemap.xml`,
     }
   }
 

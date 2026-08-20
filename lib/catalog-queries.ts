@@ -352,6 +352,60 @@ async function getCatalogCategoriesUncached(): Promise<CatalogCategory[]> {
   }))
 }
 
+/** Entrada mínima de producto para sitemap (sin precios ni media). */
+export type CatalogSitemapProduct = {
+  slug: string
+  updatedAt: Date
+}
+
+async function getCatalogSitemapProductsUncached(): Promise<
+  CatalogSitemapProduct[]
+> {
+  const { prisma } = await import('@/lib/prisma')
+
+  return prisma.product.findMany({
+    where: {
+      catalogVisible: true,
+      isActive: true,
+      NOT: { slug: '' },
+    },
+    select: {
+      slug: true,
+      updatedAt: true,
+    },
+    orderBy: [{ catalogSort: 'asc' }, { slug: 'asc' }],
+  })
+}
+
+/**
+ * Slugs de productos públicos para sitemap XML.
+ * Select mínimo; misma visibilidad que el catálogo (`catalogVisible` + `isActive`).
+ */
+export async function getCatalogSitemapProducts(): Promise<
+  CatalogSitemapProduct[]
+> {
+  return withPerf(
+    'getCatalogSitemapProducts',
+    async () => {
+      try {
+        const cached = unstable_cache(
+          () => getCatalogSitemapProductsUncached(),
+          ['catalog-sitemap-products'],
+          {
+            revalidate: CATALOG_REVALIDATE_SECONDS,
+            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.products],
+          },
+        )
+        return await cached()
+      } catch (error) {
+        logCatalogError('[catalog.sitemap.products]', error)
+        throw error
+      }
+    },
+    (r) => r.length,
+  )
+}
+
 async function getCatalogBrandsUncached(
   params: { category?: string } = {},
 ): Promise<CatalogBrand[]> {
