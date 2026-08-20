@@ -16,6 +16,7 @@ export function revalidateCatalogPublicCache(opts?: {
 
   revalidatePath('/catalogo')
   revalidatePath('/catalogo/productos')
+  revalidatePath('/sitemap.xml')
   revalidatePath(catalogPath(''))
   revalidatePath(catalogPath('productos'))
 
