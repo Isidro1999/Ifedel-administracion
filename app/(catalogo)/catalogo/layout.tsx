@@ -4,6 +4,8 @@ import { CatalogHeader } from '@/components/catalog/CatalogHeader'
 import { CatalogFooter } from '@/components/catalog/CatalogFooter'
 import { CatalogPathProvider } from '@/components/catalog/CatalogPathProvider'
 import { CatalogPromotionBar } from '@/components/catalog/CatalogPromotionBar'
+import { CatalogGoogleAnalytics } from '@/components/catalog/CatalogGoogleAnalytics'
+import { getCatalogGaMeasurementId } from '@/lib/catalog-analytics'
 import { CATALOG_PUBLIC_ORIGIN } from '@/lib/catalog-paths'
 import {
   CATALOG_DEFAULT_OG_DESCRIPTION,
@@ -33,6 +35,7 @@ export const metadata: Metadata = {
 /**
  * Layout público del catálogo.
  * Sin AuthGuard / AppShell (RootShell los omite en host catálogo o /catalogo/*).
+ * GA4 solo aquí (no en app/layout ni backoffice).
  */
 export default function CatalogoLayout({
   children,
@@ -40,9 +43,13 @@ export default function CatalogoLayout({
   children: React.ReactNode
 }) {
   const onCatalogHost = headers().get('x-ifedel-catalog') === '1'
+  const gaMeasurementId = getCatalogGaMeasurementId()
 
   return (
     <CatalogPathProvider onCatalogHost={onCatalogHost}>
+      {gaMeasurementId ? (
+        <CatalogGoogleAnalytics measurementId={gaMeasurementId} />
+      ) : null}
       <div className="flex min-h-screen flex-col bg-[#f4f7f0] text-slate-900">
         <CatalogPromotionBar />
         <CatalogHeader />
