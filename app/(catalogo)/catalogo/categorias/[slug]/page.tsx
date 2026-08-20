@@ -16,6 +16,10 @@ import {
   firstSearchParam,
   hasUtilitySearchParams,
 } from '@/lib/catalog-seo'
+import {
+  catalogCategorySocialImagePath,
+  catalogSocialMetadata,
+} from '@/lib/catalog-social-metadata'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { CatalogPagination } from '@/components/catalog/CatalogPagination'
 import { CatalogBrandChips } from '@/components/catalog/CatalogBrandChips'
@@ -44,11 +48,26 @@ export async function generateMetadata({
   try {
     const cats = await fetchCatalogCategories()
     const cat = cats.find((c) => c.slug === params.slug)
+    const name = cat ? cat.name : 'Categoría'
+    const slug = cat?.slug ?? params.slug
+    const description = cat
+      ? `Productos publicados en ${cat.name}.`
+      : 'Productos publicados en esta categoría.'
+    const title = cat ? `${cat.name} | Catálogo IFEDEL` : 'Categoría | Catálogo IFEDEL'
+
     return {
       title: cat ? cat.name : 'Categoría',
+      description,
       ...catalogListingSeo({
         hasUtilityParams: hasUtility,
         canonicalPath: cat ? `/categorias/${cat.slug}` : canonicalPath,
+      }),
+      ...catalogSocialMetadata({
+        title,
+        description,
+        path: `categorias/${slug}`,
+        image: catalogCategorySocialImagePath(slug),
+        imageAlt: name,
       }),
     }
   } catch {
@@ -57,6 +76,11 @@ export async function generateMetadata({
       ...catalogListingSeo({
         hasUtilityParams: hasUtility,
         canonicalPath,
+      }),
+      ...catalogSocialMetadata({
+        title: 'Categoría | Catálogo IFEDEL',
+        description: 'Productos publicados en esta categoría.',
+        path: `categorias/${params.slug}`,
       }),
     }
   }

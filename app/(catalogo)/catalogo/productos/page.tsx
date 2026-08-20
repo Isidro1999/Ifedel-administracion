@@ -16,6 +16,7 @@ import {
   PRODUCTOS_UTILITY_PARAM_KEYS,
   hasUtilitySearchParams,
 } from '@/lib/catalog-seo'
+import { catalogSocialMetadata } from '@/lib/catalog-social-metadata'
 import { ProductFilters } from '@/components/catalog/ProductFilters'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { CatalogPagination } from '@/components/catalog/CatalogPagination'
@@ -79,6 +80,12 @@ export async function generateMetadata({
     ...catalogListingSeo({
       hasUtilityParams: hasUtility,
       canonicalPath,
+    }),
+    // Preview social siempre de la URL base /productos (filtros son noindex).
+    ...catalogSocialMetadata({
+      title: 'Productos | Catálogo IFEDEL',
+      description: PRODUCTOS_DESCRIPTION,
+      path: 'productos',
     }),
   }
 }

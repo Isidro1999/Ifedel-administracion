@@ -5,7 +5,7 @@ import {
   fetchCatalogProducts,
 } from '@/lib/catalog-client'
 import { CATALOG_PUBLIC_ORIGIN, catalogPath } from '@/lib/catalog-paths'
-import { IFEDelBrand } from '@/lib/ifedel-brand'
+import { catalogSocialMetadata } from '@/lib/catalog-social-metadata'
 import { HOME_BRANDS } from '@/components/catalog/home/home-brands'
 import { toHomeCategoryItems } from '@/components/catalog/home/home-categories'
 import { HomeHero } from '@/components/catalog/home/HomeHero'
@@ -27,8 +27,10 @@ export const revalidate = 60
 const HOME_DESCRIPTION =
   'Explorá productos para electrificación rural, alambrados, pesaje, ganadería y más. Armá tu consulta y recibí asesoramiento por WhatsApp.'
 
+const HOME_TITLE = 'Catálogo de soluciones agropecuarias | IFEDEL'
+
 export const metadata: Metadata = {
-  title: { absolute: 'Catálogo de soluciones agropecuarias | IFEDEL' },
+  title: { absolute: HOME_TITLE },
   description: HOME_DESCRIPTION,
   robots: {
     index: true,
@@ -37,18 +39,11 @@ export const metadata: Metadata = {
   alternates: {
     canonical: `${CATALOG_PUBLIC_ORIGIN}/`,
   },
-  openGraph: {
-    title: 'Catálogo de soluciones agropecuarias | IFEDEL',
+  ...catalogSocialMetadata({
+    title: HOME_TITLE,
     description: HOME_DESCRIPTION,
-    url: `${CATALOG_PUBLIC_ORIGIN}/`,
-    siteName: IFEDelBrand.companyName,
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Catálogo de soluciones agropecuarias | IFEDEL',
-    description: HOME_DESCRIPTION,
-  },
+    path: '',
+  }),
 }
 
 export default async function CatalogoHomePage() {

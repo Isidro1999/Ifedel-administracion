@@ -8,6 +8,7 @@ import {
   catalogCanonicalPath,
   catalogIndexFollowRobots,
 } from '@/lib/catalog-seo'
+import { catalogSocialMetadata } from '@/lib/catalog-social-metadata'
 import { ProductGallery } from '@/components/catalog/ProductGallery'
 import { ProductDetailActions } from '@/components/catalog/ProductDetailActions'
 import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
@@ -33,13 +34,32 @@ export async function generateMetadata({
     if (!product) {
       return { title: { absolute: `Producto | ${IFEDelBrand.companyName}` } }
     }
+    const title = `${product.title} | IFEDEL`
+    const description =
+      product.shortDescription?.trim() ||
+      product.description?.trim() ||
+      undefined
+    const primaryImage =
+      product.images.find((i) => i.isPrimary)?.url ??
+      product.images[0]?.url ??
+      null
+
     return {
-      title: { absolute: `${product.title} | IFEDEL` },
-      description: product.shortDescription || undefined,
+      title: { absolute: title },
+      description,
       robots: catalogIndexFollowRobots,
       alternates: {
         canonical: catalogCanonicalPath(`/productos/${product.slug}`),
       },
+      ...catalogSocialMetadata({
+        title,
+        description:
+          description ||
+          `${product.title} — catálogo IFEDEL.`,
+        path: `productos/${product.slug}`,
+        image: primaryImage,
+        imageAlt: product.title,
+      }),
     }
   } catch {
     return { title: { absolute: `Producto | ${IFEDelBrand.companyName}` } }
