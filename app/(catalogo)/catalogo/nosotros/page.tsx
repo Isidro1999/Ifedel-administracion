@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 import type { Metadata } from 'next'
 import { fetchCatalogCategories } from '@/lib/catalog-client'
 import { CATALOG_PUBLIC_ORIGIN, catalogPath } from '@/lib/catalog-paths'
-import { IFEDelBrand } from '@/lib/ifedel-brand'
+import { catalogSocialMetadata } from '@/lib/catalog-social-metadata'
 import { HomeFinalCta } from '@/components/catalog/home/HomeFinalCta'
 import { AboutHero } from '@/components/catalog/nosotros/AboutHero'
 import { AboutWhoWeAre } from '@/components/catalog/nosotros/AboutWhoWeAre'
@@ -19,8 +19,10 @@ export const revalidate = 60
 const NOSOTROS_DESCRIPTION =
   'Conocé IFEDEL y nuestras soluciones para ganadería, electrificación rural, alambrados, pesaje y equipamiento para el campo.'
 
+const NOSOTROS_TITLE = 'Nosotros | IFEDEL'
+
 export const metadata: Metadata = {
-  title: { absolute: 'Nosotros | IFEDEL' },
+  title: { absolute: NOSOTROS_TITLE },
   description: NOSOTROS_DESCRIPTION,
   robots: {
     index: true,
@@ -29,18 +31,11 @@ export const metadata: Metadata = {
   alternates: {
     canonical: `${CATALOG_PUBLIC_ORIGIN}/nosotros`,
   },
-  openGraph: {
-    title: 'Nosotros | IFEDEL',
+  ...catalogSocialMetadata({
+    title: NOSOTROS_TITLE,
     description: NOSOTROS_DESCRIPTION,
-    url: `${CATALOG_PUBLIC_ORIGIN}/nosotros`,
-    siteName: IFEDelBrand.companyName,
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Nosotros | IFEDEL',
-    description: NOSOTROS_DESCRIPTION,
-  },
+    path: 'nosotros',
+  }),
 }
 
 export default async function CatalogoNosotrosPage() {
