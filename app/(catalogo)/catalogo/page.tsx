@@ -15,6 +15,11 @@ import { HomeFeaturedProducts } from '@/components/catalog/home/HomeFeaturedProd
 import { HomeHowItWorks } from '@/components/catalog/home/HomeHowItWorks'
 import { HomeTrust } from '@/components/catalog/home/HomeTrust'
 import { HomeFinalCta } from '@/components/catalog/home/HomeFinalCta'
+import { JsonLd } from '@/components/catalog/JsonLd'
+import {
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from '@/lib/catalog-structured-data'
 
 /** ISR 60s: demora de publicación 1–5 min aceptable en v1. */
 export const revalidate = 60
@@ -89,6 +94,8 @@ export default async function CatalogoHomePage() {
 
   return (
     <div className="min-w-0 overflow-x-clip">
+      <JsonLd data={buildOrganizationJsonLd()} />
+      <JsonLd data={buildWebSiteJsonLd()} />
       <HomeHero productsHref={productsHref} inquiryHref={inquiryHref} />
       <HomeBrands brands={HOME_BRANDS} />
 

@@ -21,6 +21,8 @@ import { CatalogPagination } from '@/components/catalog/CatalogPagination'
 import { CatalogBrandChips } from '@/components/catalog/CatalogBrandChips'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
+import { JsonLd } from '@/components/catalog/JsonLd'
+import { buildCategoryBreadcrumbJsonLd } from '@/lib/catalog-structured-data'
 
 export const revalidate = 60
 
@@ -118,6 +120,12 @@ export default async function CatalogoCategoriaPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6">
+      <JsonLd
+        data={buildCategoryBreadcrumbJsonLd({
+          name: categoryName,
+          slug: params.slug,
+        })}
+      />
       <nav className="text-sm text-slate-500">
         <Link href={p()} className="hover:text-ifedel-brown">
           Inicio
