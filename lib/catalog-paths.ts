@@ -12,6 +12,7 @@
  *   localhost / *.vercel.app → `/catalogo`, `/catalogo/productos`, …
  *
  * Backoffice: app.ifedel.com (no es host de catálogo).
+ *   app.ifedel.com/catalogo/* → 308 a ifedel.com paths limpios.
  */
 
 export const CATALOG_PREFIX = '/catalogo'
@@ -48,6 +49,41 @@ export function isWwwCatalogRedirectHost(
   host: string | null | undefined,
 ): boolean {
   return normalizeHost(host) === 'www.ifedel.com'
+}
+
+/** Backoffice de producción (no sirve catálogo público). */
+export function isAppHostName(host: string | null | undefined): boolean {
+  return normalizeHost(host) === 'app.ifedel.com'
+}
+
+/**
+ * Hosts donde robots.txt debe desalentar crawling
+ * (backoffice + previews Vercel). El catálogo público no aplica.
+ */
+export function shouldDisallowRobotsCrawling(
+  host: string | null | undefined,
+): boolean {
+  if (isCatalogHostName(host)) return false
+  const h = normalizeHost(host)
+  return h === 'app.ifedel.com' || h.endsWith('.vercel.app')
+}
+
+/**
+ * Path UI `/catalogo` o `/catalogo/...` → path limpio público
+ * (`/` o `/productos/...`).
+ */
+export function catalogUiPathToPublicPathname(pathname: string): string {
+  const rest =
+    pathname === CATALOG_PREFIX || pathname === `${CATALOG_PREFIX}/`
+      ? '/'
+      : pathname.startsWith(`${CATALOG_PREFIX}/`)
+        ? pathname.slice(CATALOG_PREFIX.length) || '/'
+        : pathname
+  const clean =
+    rest === CATALOG_PREFIX || rest.startsWith(`${CATALOG_PREFIX}/`)
+      ? rest.replace(/^\/catalogo/, '') || '/'
+      : rest
+  return clean.startsWith('/') ? clean : `/${clean}`
 }
 
 /**

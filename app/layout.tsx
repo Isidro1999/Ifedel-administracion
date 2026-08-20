@@ -12,15 +12,6 @@ const raleway = Raleway({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Base de Productos - IFEDEL",
-  description: "Sistema de gestión de productos y cotizaciones",
-  icons: {
-    icon: IFEDelBrand.logo.src,
-    apple: IFEDelBrand.logo.src,
-  },
-};
-
 function isCatalogUiRequest(headerList: Headers): boolean {
   const pathname = headerList.get("x-pathname") || "";
   // Nunca tratar /api/* como catálogo UI (incluye /api/products).
@@ -32,6 +23,36 @@ function isCatalogUiRequest(headerList: Headers): boolean {
     pathname === "/catalogo" || pathname.startsWith("/catalogo/");
 
   return forceCatalog || catalogRoute || isCatalogPath;
+}
+
+/**
+ * Metadata root: backoffice → noindex.
+ * El catálogo NO hereda noindex: en rutas de catálogo omitimos robots aquí
+ * y el layout `app/(catalogo)/catalogo/layout.tsx` declara index/follow.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const isCatalogRoute = isCatalogUiRequest(headers());
+
+  return {
+    title: "Base de Productos - IFEDEL",
+    description: "Sistema de gestión de productos y cotizaciones",
+    icons: {
+      icon: IFEDelBrand.logo.src,
+      apple: IFEDelBrand.logo.src,
+    },
+    ...(isCatalogRoute
+      ? {}
+      : {
+          robots: {
+            index: false,
+            follow: false,
+            googleBot: {
+              index: false,
+              follow: false,
+            },
+          },
+        }),
+  };
 }
 
 export default async function RootLayout({
