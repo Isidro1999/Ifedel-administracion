@@ -36,7 +36,7 @@ import {
   buildPublicCategoryIndex,
   buildPublicProductCategoryWhere,
   impossibleProductWhere,
-  resolveCatalogCategoryBySlug,
+  resolveCatalogCategoryFromTree,
   type PublicCategoryIndex,
 } from '@/lib/catalog-category-public'
 
@@ -672,7 +672,11 @@ export async function getCatalogCategoryTree(): Promise<CatalogCategoryNode[]> {
   )
 }
 
-/** Resuelve categoría V1 pública por slug (principal o hoja). */
+/** Resuelve categoría V1 pública por slug (principal o hoja).
+ * Reutiliza el mismo árbol cacheado que P4B (`getCatalogCategoryTree`),
+ * para que roots visibles por count agregado no dependan de un índice
+ * aparte que falle y se traduzca en 404 en P4C.
+ */
 export async function getCatalogCategoryBySlug(
   slugRaw: string,
 ): Promise<CatalogCategoryResolved | null> {
@@ -685,18 +689,8 @@ export async function getCatalogCategoryBySlug(
     'getCatalogCategoryBySlug',
     async () => {
       try {
-        const cached = unstable_cache(
-          async () => {
-            const index = await loadPublicCategoryIndexUncached()
-            return resolveCatalogCategoryBySlug(index, slug)
-          },
-          ['catalog-category-by-slug', slug],
-          {
-            revalidate: CATALOG_REVALIDATE_SECONDS,
-            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.categories],
-          },
-        )
-        return await cached()
+        const tree = await getCatalogCategoryTree()
+        return resolveCatalogCategoryFromTree(tree, slug)
       } catch (error) {
         logCatalogError('[catalog.category.slug]', error)
         throw error

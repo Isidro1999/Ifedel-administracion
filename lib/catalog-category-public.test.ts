@@ -7,6 +7,7 @@ import {
   buildPublicCategoryIndex,
   buildPublicProductCategoryWhere,
   resolveCatalogCategoryBySlug,
+  resolveCatalogCategoryFromTree,
   type PublicCategoryRow,
 } from '@/lib/catalog-category-public'
 
@@ -246,6 +247,61 @@ describe('resolveCatalogCategoryBySlug', () => {
   it('inactive no se expone', () => {
     const { index } = miniV1Fixture()
     assert.equal(resolveCatalogCategoryBySlug(index, 'cercos-moviles'), null)
+  })
+})
+
+describe('resolveCatalogCategoryFromTree (P4C / cache compartido)', () => {
+  it('root con 0 productos directos pero hijos con productos → visible', () => {
+    const { index } = miniV1Fixture()
+    const tree = buildCatalogCategoryTree(index)
+    const resolved = resolveCatalogCategoryFromTree(
+      tree,
+      'electrificacion-y-alambrados',
+    )
+    assert.ok(resolved)
+    assert.equal(resolved?.kind, 'root')
+    assert.equal(resolved?.count, 80)
+    assert.ok((resolved?.count ?? 0) > 0)
+  })
+
+  it('root count = suma de hojas del árbol', () => {
+    const { index } = miniV1Fixture()
+    const tree = buildCatalogCategoryTree(index)
+    const resolved = resolveCatalogCategoryFromTree(
+      tree,
+      'electrificacion-y-alambrados',
+    )
+    const childSum = (resolved?.children ?? []).reduce((s, c) => s + c.count, 0)
+    assert.equal(resolved?.count, childSum)
+    assert.equal(resolved?.count, 80)
+  })
+
+  it('leaf válida sigue resolviendo con parent', () => {
+    const { index } = miniV1Fixture()
+    const tree = buildCatalogCategoryTree(index)
+    const resolved = resolveCatalogCategoryFromTree(tree, 'aisladores')
+    assert.ok(resolved)
+    assert.equal(resolved?.kind, 'leaf')
+    assert.equal(resolved?.parent?.slug, 'electrificacion-y-alambrados')
+    assert.equal(resolved?.count, 50)
+  })
+
+  it('legacy sigue 404', () => {
+    const { index } = miniV1Fixture()
+    const tree = buildCatalogCategoryTree(index)
+    assert.equal(resolveCatalogCategoryFromTree(tree, 'lectores'), null)
+  })
+
+  it('inactive sigue 404', () => {
+    const { index } = miniV1Fixture()
+    const tree = buildCatalogCategoryTree(index)
+    assert.equal(resolveCatalogCategoryFromTree(tree, 'cercos-moviles'), null)
+  })
+
+  it('inexistente sigue 404', () => {
+    const { index } = miniV1Fixture()
+    const tree = buildCatalogCategoryTree(index)
+    assert.equal(resolveCatalogCategoryFromTree(tree, 'no-existe'), null)
   })
 })
 

@@ -88,15 +88,37 @@ export function buildProductBreadcrumbJsonLd(product: {
   ])
 }
 
-export function buildCategoryBreadcrumbJsonLd(category: {
-  name: string
-  slug: string
-}): JsonLdObject {
-  return buildBreadcrumbListJsonLd([
+export type CategoryBreadcrumbJsonLdInput =
+  | {
+      kind: 'root'
+      root: { name: string; slug: string }
+    }
+  | {
+      kind: 'leaf'
+      root: { name: string; slug: string }
+      leaf: { name: string; slug: string }
+    }
+
+export function buildCategoryBreadcrumbJsonLd(
+  input: CategoryBreadcrumbJsonLdInput,
+): JsonLdObject {
+  const items: BreadcrumbItem[] = [
     { name: 'Inicio', path: '' },
-    { name: 'Productos', path: 'productos' },
-    { name: category.name, path: `categorias/${category.slug}` },
-  ])
+    { name: 'Categorías', path: 'productos' },
+    {
+      name: input.root.name,
+      path: `categorias/${input.root.slug}`,
+    },
+  ]
+
+  if (input.kind === 'leaf') {
+    items.push({
+      name: input.leaf.name,
+      path: `categorias/${input.leaf.slug}`,
+    })
+  }
+
+  return buildBreadcrumbListJsonLd(items)
 }
 
 /**
