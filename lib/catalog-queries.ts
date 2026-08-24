@@ -26,6 +26,19 @@ import type {
   CatalogProductDetail,
   CatalogProductsResponse,
 } from '@/lib/catalog-client'
+import type {
+  CatalogCategoryNode,
+  CatalogCategoryResolved,
+} from '@/lib/catalog-category-public'
+import {
+  buildCatalogCategoryTree,
+  buildFlatPublicLeafCategories,
+  buildPublicCategoryIndex,
+  buildPublicProductCategoryWhere,
+  impossibleProductWhere,
+  resolveCatalogCategoryBySlug,
+  type PublicCategoryIndex,
+} from '@/lib/catalog-category-public'
 
 const MAX_PAGE_SIZE = 48
 const DEFAULT_PAGE_SIZE = 12
@@ -122,7 +135,10 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
 export type CatalogProductListParams = {
   q?: string
   brand?: string
+  /** Slug de subcategoría hoja V1. */
   category?: string
+  /** Slug de categoría principal V1 (productos en cualquier hoja hija). */
+  categoryRoot?: string
   featured?: string
   page?: string
   pageSize?: string
@@ -146,6 +162,7 @@ function normalizeListParams(params: CatalogProductListParams = {}) {
   const q = (params.q || '').trim()
   const brand = (params.brand || '').trim()
   const category = (params.category || '').trim()
+  const categoryRoot = (params.categoryRoot || '').trim()
   const featuredRaw = (params.featured || '').trim().toLowerCase()
 
   if (
@@ -167,7 +184,7 @@ function normalizeListParams(params: CatalogProductListParams = {}) {
     MAX_PAGE_SIZE,
   )
 
-  return { q, brand, category, featuredOnly, page, pageSize }
+  return { q, brand, category, categoryRoot, featuredOnly, page, pageSize }
 }
 
 type PriceRow = {
@@ -213,12 +230,59 @@ async function loadPublicPricesForProducts(
   return map
 }
 
+async function loadPublicProductCountsByCategoryId(): Promise<
+  Map<number, number>
+> {
+  const { prisma } = await import('@/lib/prisma')
+  const grouped = await prisma.product.groupBy({
+    by: ['categoryId'],
+    where: { catalogVisible: true, isActive: true },
+    _count: { _all: true },
+  })
+  return new Map(
+    grouped.map((g) => [g.categoryId, g._count._all] as const)
+  )
+}
+
+async function loadPublicCategoryIndexUncached(): Promise<PublicCategoryIndex> {
+  const { prisma } = await import('@/lib/prisma')
+  const [categories, countsByCategoryId] = await Promise.all([
+    prisma.category.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        parentId: true,
+        shortDescription: true,
+        imageUrl: true,
+        sortOrder: true,
+        isActive: true,
+      },
+    }),
+    loadPublicProductCountsByCategoryId(),
+  ])
+  return buildPublicCategoryIndex({ categories, countsByCategoryId })
+}
+
+async function getPublicCategoryIndex(): Promise<PublicCategoryIndex> {
+  const cached = unstable_cache(
+    () => loadPublicCategoryIndexUncached(),
+    ['catalog-category-index'],
+    {
+      revalidate: CATALOG_REVALIDATE_SECONDS,
+      tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.categories],
+    }
+  )
+  return cached()
+}
+
 async function getCatalogProductsUncached(
   params: CatalogProductListParams = {},
   usdArsRate: number | null = null,
 ): Promise<CatalogProductsResponse> {
   const { prisma } = await import('@/lib/prisma')
-  const { q, brand, category, featuredOnly, page, pageSize } =
+  const { q, brand, category, categoryRoot, featuredOnly, page, pageSize } =
     normalizeListParams(params)
   const skip = (page - 1) * pageSize
 
@@ -241,8 +305,17 @@ async function getCatalogProductsUncached(
     where.brand = { slug: brand }
   }
 
-  if (category) {
-    where.category = { slug: category }
+  if (category || categoryRoot) {
+    const index = await getPublicCategoryIndex()
+    const categoryWhere = buildPublicProductCategoryWhere(index, {
+      category: category || undefined,
+      categoryRoot: categoryRoot || undefined,
+    })
+    if (categoryWhere === null) {
+      Object.assign(where, impossibleProductWhere())
+    } else {
+      Object.assign(where, categoryWhere)
+    }
   }
 
   // Secuencial (no Promise.all): con PgBouncer evita choques de prepared statements.
@@ -324,32 +397,8 @@ async function getCatalogProductBySlugUncached(
 }
 
 async function getCatalogCategoriesUncached(): Promise<CatalogCategory[]> {
-  const { prisma } = await import('@/lib/prisma')
-
-  // groupBy sobre Product evita traer productos y escala mejor que _count por fila.
-  const grouped = await prisma.product.groupBy({
-    by: ['categoryId'],
-    where: { catalogVisible: true, isActive: true },
-    _count: { _all: true },
-  })
-
-  if (grouped.length === 0) return []
-
-  const counts = new Map(
-    grouped.map((g) => [g.categoryId, g._count._all] as const),
-  )
-  const categories = await prisma.category.findMany({
-    where: { id: { in: [...counts.keys()] } },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, slug: true },
-  })
-
-  return categories.map((c) => ({
-    id: c.id,
-    name: c.name,
-    slug: c.slug,
-    count: counts.get(c.id) ?? 0,
-  }))
+  const index = await loadPublicCategoryIndexUncached()
+  return buildFlatPublicLeafCategories(index)
 }
 
 /** Entrada mínima de producto para sitemap (sin precios ni media). */
@@ -407,18 +456,32 @@ export async function getCatalogSitemapProducts(): Promise<
 }
 
 async function getCatalogBrandsUncached(
-  params: { category?: string } = {},
+  params: { category?: string; categoryRoot?: string } = {},
 ): Promise<CatalogBrand[]> {
   const { prisma } = await import('@/lib/prisma')
   const categorySlug = (params.category || '').trim()
+  const categoryRootSlug = (params.categoryRoot || '').trim()
+
+  const productWhere: Record<string, unknown> = {
+    catalogVisible: true,
+    isActive: true,
+  }
+
+  if (categorySlug || categoryRootSlug) {
+    const index = await loadPublicCategoryIndexUncached()
+    const categoryWhere = buildPublicProductCategoryWhere(index, {
+      category: categorySlug || undefined,
+      categoryRoot: categoryRootSlug || undefined,
+    })
+    if (categoryWhere === null) {
+      return []
+    }
+    Object.assign(productWhere, categoryWhere)
+  }
 
   const grouped = await prisma.product.groupBy({
     by: ['brandId'],
-    where: {
-      catalogVisible: true,
-      isActive: true,
-      ...(categorySlug ? { category: { slug: categorySlug } } : {}),
-    },
+    where: productWhere,
     _count: { _all: true },
   })
 
@@ -523,7 +586,7 @@ export async function getCatalogProductBySlug(
   )
 }
 
-/** Categorías con al menos un producto visible en catálogo. */
+/** Categorías con al menos un producto visible en catálogo (lista plana de hojas V1). */
 export async function getCatalogCategories(): Promise<CatalogCategory[]> {
   return withPerf(
     'getCatalogCategories',
@@ -531,7 +594,7 @@ export async function getCatalogCategories(): Promise<CatalogCategory[]> {
       try {
         const cached = unstable_cache(
           () => getCatalogCategoriesUncached(),
-          ['catalog-categories'],
+          ['catalog-categories-flat'],
           {
             revalidate: CATALOG_REVALIDATE_SECONDS,
             tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.categories],
@@ -547,20 +610,92 @@ export async function getCatalogCategories(): Promise<CatalogCategory[]> {
   )
 }
 
+/** Árbol jerárquico V1 para navegación pública (P4A). */
+export async function getCatalogCategoryTree(): Promise<CatalogCategoryNode[]> {
+  return withPerf(
+    'getCatalogCategoryTree',
+    async () => {
+      try {
+        const cached = unstable_cache(
+          async () => {
+            const index = await loadPublicCategoryIndexUncached()
+            return buildCatalogCategoryTree(index)
+          },
+          ['catalog-categories-tree'],
+          {
+            revalidate: CATALOG_REVALIDATE_SECONDS,
+            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.categories],
+          },
+        )
+        return await cached()
+      } catch (error) {
+        logCatalogError('[catalog.categories.tree]', error)
+        throw error
+      }
+    },
+    (r) => r.length,
+  )
+}
+
+/** Resuelve categoría V1 pública por slug (principal o hoja). */
+export async function getCatalogCategoryBySlug(
+  slugRaw: string,
+): Promise<CatalogCategoryResolved | null> {
+  const slug = decodeURIComponent(slugRaw || '').trim()
+  if (!slug) {
+    throw new CatalogQueryError('Slug inválido', 400)
+  }
+
+  return withPerf(
+    'getCatalogCategoryBySlug',
+    async () => {
+      try {
+        const cached = unstable_cache(
+          async () => {
+            const index = await loadPublicCategoryIndexUncached()
+            return resolveCatalogCategoryBySlug(index, slug)
+          },
+          ['catalog-category-by-slug', slug],
+          {
+            revalidate: CATALOG_REVALIDATE_SECONDS,
+            tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.categories],
+          },
+        )
+        return await cached()
+      } catch (error) {
+        logCatalogError('[catalog.category.slug]', error)
+        throw error
+      }
+    },
+    (r) => (r ? 1 : 0),
+  )
+}
+
 /** Marcas con al menos un producto visible en catálogo (opcionalmente por categoría). */
 export async function getCatalogBrands(
-  params: { category?: string } = {},
+  params: { category?: string; categoryRoot?: string } = {},
 ): Promise<CatalogBrand[]> {
   const categorySlug = (params.category || '').trim()
+  const categoryRootSlug = (params.categoryRoot || '').trim()
+  const cacheKey =
+    categorySlug && categoryRootSlug
+      ? ['catalog-brands', categorySlug, categoryRootSlug]
+      : categorySlug
+        ? ['catalog-brands', 'leaf', categorySlug]
+        : categoryRootSlug
+          ? ['catalog-brands', 'root', categoryRootSlug]
+          : ['catalog-brands']
   return withPerf(
     'getCatalogBrands',
     async () => {
       try {
         const cached = unstable_cache(
-          () => getCatalogBrandsUncached({ category: categorySlug || undefined }),
-          categorySlug
-            ? ['catalog-brands', categorySlug]
-            : ['catalog-brands'],
+          () =>
+            getCatalogBrandsUncached({
+              category: categorySlug || undefined,
+              categoryRoot: categoryRootSlug || undefined,
+            }),
+          cacheKey,
           {
             revalidate: CATALOG_REVALIDATE_SECONDS,
             tags: [CATALOG_CACHE_TAGS.all, CATALOG_CACHE_TAGS.brands],
@@ -652,4 +787,6 @@ export async function getPublicCatalogPricesByProductIds(
 export const queryCatalogProducts = getCatalogProducts
 export const queryCatalogProductBySlug = getCatalogProductBySlug
 export const queryCatalogCategories = getCatalogCategories
+export const queryCatalogCategoryTree = getCatalogCategoryTree
+export const queryCatalogCategoryBySlug = getCatalogCategoryBySlug
 export const queryCatalogBrands = getCatalogBrands

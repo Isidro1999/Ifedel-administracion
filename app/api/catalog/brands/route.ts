@@ -1,6 +1,8 @@
 /**
  * GET /api/catalog/brands — API pública (sin auth).
- * Query opcional: `category` (slug) para marcas con productos en esa categoría.
+ * Query opcional:
+ *   category=<leaf slug>
+ *   categoryRoot=<root slug>
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { CATALOG_API_CACHE_CONTROL } from '@/lib/catalog-cache'
@@ -12,7 +14,9 @@ export const runtime = 'nodejs'
 export async function GET(request: NextRequest) {
   try {
     const category = request.nextUrl.searchParams.get('category') || undefined
-    const items = await getCatalogBrands({ category })
+    const categoryRoot =
+      request.nextUrl.searchParams.get('categoryRoot') || undefined
+    const items = await getCatalogBrands({ category, categoryRoot })
     return NextResponse.json(
       { items },
       { headers: { 'Cache-Control': CATALOG_API_CACHE_CONTROL } },
