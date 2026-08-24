@@ -34,10 +34,10 @@ export const PRODUCTOS_UTILITY_PARAM_KEYS = [
 
 /** Query params utilitarios de `/categorias/[slug]`. */
 export const CATEGORIA_UTILITY_PARAM_KEYS = [
+  'category',
   'brand',
   'page',
   'sort',
-  'q',
 ] as const
 
 export function hasUtilitySearchParams(

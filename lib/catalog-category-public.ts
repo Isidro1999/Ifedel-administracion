@@ -214,6 +214,7 @@ export function resolveCatalogCategoryBySlug(
     }
   }
 
+  // Root: count = suma de hojas (no productos directos en el root).
   const childRows = index.rows
     .filter((c) => c.parentId === row.id)
     .sort(categoryOrder)
@@ -244,6 +245,55 @@ export function resolveCatalogCategoryBySlug(
     parent: null,
     children,
   }
+}
+
+/**
+ * Resuelve slug contra el árbol público cacheado (P4A/P4B).
+ * Misma fuente que `/productos` — roots visibles por count agregado de hojas.
+ */
+export function resolveCatalogCategoryFromTree(
+  tree: CatalogCategoryNode[],
+  slugRaw: string,
+): CatalogCategoryResolved | null {
+  const slug = slugRaw.trim()
+  if (!slug) return null
+
+  for (const root of tree) {
+    if (root.slug === slug) {
+      return {
+        kind: 'root',
+        id: root.id,
+        name: root.name,
+        slug: root.slug,
+        parentId: root.parentId,
+        shortDescription: root.shortDescription,
+        imageUrl: root.imageUrl,
+        sortOrder: root.sortOrder,
+        count: root.count,
+        parent: null,
+        children: root.children ?? [],
+      }
+    }
+
+    for (const leaf of root.children ?? []) {
+      if (leaf.slug === slug) {
+        return {
+          kind: 'leaf',
+          id: leaf.id,
+          name: leaf.name,
+          slug: leaf.slug,
+          parentId: leaf.parentId,
+          shortDescription: leaf.shortDescription,
+          imageUrl: leaf.imageUrl,
+          sortOrder: leaf.sortOrder,
+          count: leaf.count,
+          parent: { id: root.id, name: root.name, slug: root.slug },
+        }
+      }
+    }
+  }
+
+  return null
 }
 
 export type PublicCategoryFilterInput = {

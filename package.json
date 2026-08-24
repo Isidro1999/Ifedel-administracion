@@ -25,6 +25,7 @@
     "test:catalog-price": "tsx --test lib/catalog-public-price.test.ts",
     "test:catalog-category-public": "tsx --test lib/catalog-category-public.test.ts",
     "test:catalog-productos-url": "tsx --test lib/catalog-productos-url.test.ts",
+    "test:catalog-categoria-url": "tsx --test lib/catalog-categoria-url.test.ts",
     "test:product-search": "tsx --test lib/product-search.test.ts",
     "test:products-list-url": "tsx --test lib/products-list-url.test.ts",
     "test:inquiry-totals": "tsx --test lib/catalog-inquiry-totals.test.ts lib/catalog-inquiry-schemas.test.ts lib/tax-id.test.ts",
