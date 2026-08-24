@@ -3,6 +3,8 @@ import { slugify } from '@/lib/utils'
 import { ImportProductSchema } from '@/lib/import-schemas'
 import { resolveProductSlugForSave } from '@/lib/product-slug'
 import { serializeProductForApi } from '@/lib/product-api'
+import { AdminCategoryError } from '@/lib/admin-categories'
+import { resolveProductCategoryFromInput } from '@/lib/admin-categories-service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -33,18 +35,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Buscar o crear category
-    const categorySlug = slugify(data.category)
-    let category = await prisma.category.findUnique({
-      where: { slug: categorySlug },
-    })
-    if (!category) {
-      category = await prisma.category.create({
-        data: {
-          name: data.category,
-          slug: categorySlug,
-        },
+    let category: { id: number }
+    try {
+      category = await resolveProductCategoryFromInput({
+        categoryId: data.categoryId,
+        categorySlug: data.categorySlug,
+        category: data.category,
       })
+    } catch (catErr) {
+      if (catErr instanceof AdminCategoryError) {
+        return NextResponse.json(
+          { error: catErr.message, code: catErr.code },
+          { status: catErr.status }
+        )
+      }
+      throw catErr
     }
 
     let slug: string

@@ -5,7 +5,13 @@
  */
 
 type BrandLike = { id: number; name: string; slug: string }
-type CategoryLike = { id: number; name: string; slug: string }
+type CategoryLike = {
+  id: number
+  name: string
+  slug: string
+  parentId?: number | null
+  parent?: { id: number; name: string; slug: string } | null
+}
 
 type ImageLike = {
   id: number
@@ -138,6 +144,14 @@ export function serializeProductForApi(
       id: product.category.id,
       name: product.category.name,
       slug: product.category.slug,
+      parentId: product.category.parentId ?? null,
+      parent: product.category.parent
+        ? {
+            id: product.category.parent.id,
+            name: product.category.parent.name,
+            slug: product.category.parent.slug,
+          }
+        : null,
     }
   }
 

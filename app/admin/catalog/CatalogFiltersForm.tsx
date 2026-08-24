@@ -9,6 +9,7 @@ import type {
 type CatalogFiltersFormProps = {
   filters: AdminCatalogFilters
   brands: AdminCatalogFacetOption[]
+  categoryRoots: AdminCatalogFacetOption[]
   categories: AdminCatalogFacetOption[]
   pageSize: number
 }
@@ -27,6 +28,7 @@ const labelClass = 'text-[11px] font-semibold uppercase tracking-wide text-slate
 export function CatalogFiltersForm({
   filters,
   brands,
+  categoryRoots,
   categories,
   pageSize,
 }: CatalogFiltersFormProps) {
@@ -67,7 +69,23 @@ export function CatalogFiltersForm({
         </label>
 
         <label className="flex min-w-0 flex-col gap-1">
-          <span className={labelClass}>Categoría</span>
+          <span className={labelClass}>Categoría principal</span>
+          <select
+            name="categoryRoot"
+            defaultValue={filters.categoryRoot}
+            className={selectClass}
+          >
+            <option value="">Todas</option>
+            {categoryRoots.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex min-w-0 flex-col gap-1">
+          <span className={labelClass}>Subcategoría</span>
           <select
             name="category"
             defaultValue={filters.category}

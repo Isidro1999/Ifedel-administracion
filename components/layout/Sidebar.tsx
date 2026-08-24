@@ -18,6 +18,7 @@ import {
   Users,
   Wallet,
   FileSpreadsheet,
+  Folders,
 } from 'lucide-react'
 
 type SidebarProps = {
@@ -75,6 +76,7 @@ const SECTIONS: Section[] = [
     title: 'Admin',
     items: [
       { href: '/admin/users', label: 'Usuarios', icon: Users },
+      { href: '/admin/categories', label: 'Categorías', icon: Folders },
       { href: '/admin/catalog', label: 'Catálogo online', icon: Globe },
       {
         href: '/admin/catalog/inquiries',

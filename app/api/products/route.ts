@@ -57,7 +57,15 @@ function buildProductListWhereSql(
   if (category) {
     const pat = `%${escapeLikePattern(category)}%`
     parts.push(
-      Prisma.sql`(ca."slug" = ${category} OR ca."name" ILIKE ${pat} ESCAPE '\\')`,
+      Prisma.sql`(
+        ca."slug" = ${category}
+        OR ca."name" ILIKE ${pat} ESCAPE '\\'
+        OR EXISTS (
+          SELECT 1 FROM "categories" cap
+          WHERE cap."id" = ca."parentId"
+            AND (cap."slug" = ${category} OR cap."name" ILIKE ${pat} ESCAPE '\\')
+        )
+      )`,
     )
   }
 
@@ -184,6 +192,14 @@ export async function GET(request: NextRequest) {
         OR: [
           { slug: category },
           { name: { contains: category, mode: 'insensitive' } },
+          {
+            parent: {
+              OR: [
+                { slug: category },
+                { name: { contains: category, mode: 'insensitive' } },
+              ],
+            },
+          },
         ],
       }
     }
@@ -318,8 +334,13 @@ export async function GET(request: NextRequest) {
             },
           }),
           prisma.category.findMany({
+            where: {
+              parentId: { not: null },
+            },
             select: {
               name: true,
+              slug: true,
+              parent: { select: { name: true } },
               _count: {
                 select: {
                   products: {
@@ -337,7 +358,11 @@ export async function GET(request: NextRequest) {
             .map((b) => ({ name: b.name, count: b._count.products })),
           categories: categoryFacets
             .filter((c) => c._count.products > 0)
-            .map((c) => ({ name: c.name, count: c._count.products })),
+            .map((c) => ({
+              name: c.parent ? `${c.parent.name} › ${c.name}` : c.name,
+              slug: c.slug,
+              count: c._count.products,
+            })),
         }
       },
       (f) => f.brands.length + f.categories.length,

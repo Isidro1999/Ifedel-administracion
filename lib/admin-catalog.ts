@@ -23,6 +23,9 @@ export type TriFilter = 'true' | 'false' | 'all'
 export type AdminCatalogFilters = {
   q: string
   brand: string
+  /** Slug de principal V1 (incluye productos de todas sus hojas). */
+  categoryRoot: string
+  /** Slug de subcategoría hoja. */
   category: string
   /** Publicado en catálogo (catalogVisible). Default: false */
   published: TriFilter
@@ -37,6 +40,7 @@ export type AdminCatalogFilters = {
 export const ADMIN_CATALOG_DEFAULT_FILTERS: AdminCatalogFilters = {
   q: '',
   brand: '',
+  categoryRoot: '',
   category: '',
   published: 'false',
   hasImage: 'true',
@@ -77,6 +81,7 @@ export function parseAdminCatalogFilters(
   return {
     q: (get('q') ?? '').trim(),
     brand: (get('brand') ?? '').trim(),
+    categoryRoot: (get('categoryRoot') ?? '').trim(),
     category: (get('category') ?? '').trim(),
     published: parseTriFilter(get('published'), ADMIN_CATALOG_DEFAULT_FILTERS.published),
     hasImage: parseTriFilter(get('hasImage'), ADMIN_CATALOG_DEFAULT_FILTERS.hasImage),
@@ -109,6 +114,15 @@ export function buildAdminCatalogWhere(
         { slug: filters.category },
         { name: { contains: filters.category, mode: 'insensitive' } },
       ],
+    }
+  } else if (filters.categoryRoot) {
+    where.category = {
+      parent: {
+        OR: [
+          { slug: filters.categoryRoot },
+          { name: { contains: filters.categoryRoot, mode: 'insensitive' } },
+        ],
+      },
     }
   }
 
@@ -200,6 +214,12 @@ export type AdminCatalogFacetOption = {
   name: string
 }
 
+export type AdminCatalogFacets = {
+  brands: AdminCatalogFacetOption[]
+  categoryRoots: AdminCatalogFacetOption[]
+  categories: AdminCatalogFacetOption[]
+}
+
 export type AdminCatalogListResult = {
   items: AdminCatalogListItem[]
   pagination: {
@@ -209,10 +229,7 @@ export type AdminCatalogListResult = {
     totalPages: number
   }
   filters: AdminCatalogFilters
-  facets: {
-    brands: AdminCatalogFacetOption[]
-    categories: AdminCatalogFacetOption[]
-  }
+  facets: AdminCatalogFacets
 }
 
 export async function listAdminCatalogProducts(
@@ -239,17 +256,35 @@ export async function listAdminCatalogProducts(
       (n) => n,
     ),
     withPerf('admin.catalog.list.facets', async () => {
-      const [brands, categories] = await Promise.all([
+      const { isLegacyCategorySlug } = await import('@/lib/admin-categories')
+      const [brands, allCats] = await Promise.all([
         prisma.brand.findMany({
           orderBy: { name: 'asc' },
           select: { slug: true, name: true },
         }),
         prisma.category.findMany({
-          orderBy: { name: 'asc' },
-          select: { slug: true, name: true },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          select: {
+            slug: true,
+            name: true,
+            parentId: true,
+            parent: { select: { slug: true, name: true } },
+          },
         }),
       ])
-      return { brands, categories }
+      const managed = allCats.filter((c) => !isLegacyCategorySlug(c.slug))
+      const categoryRoots = managed
+        .filter((c) => c.parentId == null)
+        .map((c) => ({ slug: c.slug, name: c.name }))
+      const categories = managed
+        .filter((c) => c.parentId != null)
+        .map((c) => ({
+          slug: c.slug,
+          name: c.parent
+            ? `${c.parent.name} › ${c.name}`
+            : c.name,
+        }))
+      return { brands, categoryRoots, categories }
     }),
   ])
 

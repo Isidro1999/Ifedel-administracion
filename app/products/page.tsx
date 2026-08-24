@@ -37,7 +37,7 @@ interface Product {
 
 interface Facets {
   brands: Array<{ name: string; count: number }>
-  categories: Array<{ name: string; count: number }>
+  categories: Array<{ name: string; slug?: string; count: number }>
 }
 
 interface ProductsResponse {
@@ -255,7 +255,7 @@ function ProductsPageContent() {
             >
               <option value="">Todas</option>
               {facets.categories.map((c) => (
-                <option key={c.name} value={c.name}>
+                <option key={c.slug ?? c.name} value={c.slug ?? c.name}>
                   {c.name} ({c.count})
                 </option>
               ))}

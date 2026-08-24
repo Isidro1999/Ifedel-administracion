@@ -31,6 +31,7 @@ export default async function AdminCatalogPage({ searchParams }: PageProps) {
   }
   if (filters.q) navParams.q = filters.q
   if (filters.brand) navParams.brand = filters.brand
+  if (filters.categoryRoot) navParams.categoryRoot = filters.categoryRoot
   if (filters.category) navParams.category = filters.category
 
   return (
@@ -43,6 +44,7 @@ export default async function AdminCatalogPage({ searchParams }: PageProps) {
       <CatalogFiltersForm
         filters={filters}
         brands={facets.brands}
+        categoryRoots={facets.categoryRoots}
         categories={facets.categories}
         pageSize={pagination.pageSize}
       />
