@@ -218,3 +218,71 @@ export function parseProductionFlags(argv: string[]): {
   }
   return { production, confirmProduction }
 }
+
+/**
+ * Transaction pooler de Supabase (PgBouncer transaction mode, :6543) no soporta
+ * interactive transactions de Prisma de forma fiable → P2028.
+ */
+export function isTransactionPoolerUrl(url: string | undefined): boolean {
+  if (!url) return false
+  try {
+    const u = new URL(url)
+    return u.port === '6543'
+  } catch {
+    return false
+  }
+}
+
+export type ApplyWriteDatasource = {
+  url: string
+  target: ClassifiedDbTarget
+  envKey: 'DIRECT_URL' | 'DATABASE_URL'
+}
+
+/**
+ * Resuelve la URL del PrismaClient de escritura del apply P2.
+ *
+ * - Producción: exige DIRECT_URL (no transaction pooler :6543), proyecto IFEDEL.
+ * - Local: DATABASE_URL (localhost:5433/ifedel_p1).
+ */
+export function resolveApplyWriteDatasourceUrl(input: {
+  isProduction: boolean
+  databaseUrl: string | undefined
+  directUrl: string | undefined
+}): ApplyWriteDatasource {
+  if (input.isProduction) {
+    if (!input.directUrl) {
+      throw new Error(
+        'ABORT: apply en producción requiere DIRECT_URL (session/direct :5432), no el transaction pooler.'
+      )
+    }
+    if (isTransactionPoolerUrl(input.directUrl)) {
+      throw new Error(
+        `ABORT: DIRECT_URL parece transaction pooler (:6543). ` +
+          `Usá la URL directa/session :5432 (${formatDbTargetLog(classifyDatabaseUrl(input.directUrl))}).`
+      )
+    }
+    const target = classifyDatabaseUrl(input.directUrl)
+    if (target.kind !== 'production-supabase') {
+      throw new Error(
+        `ABORT: DIRECT_URL no corresponde al Supabase esperado ` +
+          `(${formatDbTargetLog(target)}). Proyecto requerido: ${EXPECTED_SUPABASE_PROJECT_REF}.`
+      )
+    }
+    // Re-validar flags de escritura sobre DIRECT_URL
+    assertScriptDatabaseAccess(input.directUrl, {
+      mode: 'production-write',
+      allowProduction: true,
+      confirmProduction: true,
+    })
+    return { url: input.directUrl, target, envKey: 'DIRECT_URL' }
+  }
+
+  if (!input.databaseUrl) {
+    throw new Error('ABORT: DATABASE_URL no definida para apply local')
+  }
+  const target = assertScriptDatabaseAccess(input.databaseUrl, {
+    mode: 'local-only',
+  })
+  return { url: input.databaseUrl, target, envKey: 'DATABASE_URL' }
+}

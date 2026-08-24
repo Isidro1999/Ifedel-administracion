@@ -6,7 +6,9 @@ import {
   assertScriptDatabaseAccess,
   classifyDatabaseUrl,
   formatDbTargetLog,
+  isTransactionPoolerUrl,
   parseProductionFlags,
+  resolveApplyWriteDatasourceUrl,
   sanitizeDatabaseUrl,
 } from './db-local-safety'
 
@@ -177,6 +179,100 @@ describe('parseProductionFlags', () => {
         '--confirm-production',
       ]),
       { production: true, confirmProduction: true }
+    )
+  })
+})
+
+describe('resolveApplyWriteDatasourceUrl', () => {
+  const DIRECT = `postgresql://postgres:direct-secret@db.${EXPECTED_SUPABASE_PROJECT_REF}.supabase.co:5432/postgres`
+  const POOLER = `postgresql://postgres.${EXPECTED_SUPABASE_PROJECT_REF}:pool-secret@aws-1-sa-east-1.pooler.supabase.com:6543/postgres`
+  const LOCAL = 'postgresql://postgres:postgres@localhost:5433/ifedel_p1'
+  const BAD_DIRECT = 'postgresql://u:p@db.otherproject.supabase.co:5432/postgres'
+
+  it('production apply selecciona DIRECT_URL', () => {
+    const r = resolveApplyWriteDatasourceUrl({
+      isProduction: true,
+      databaseUrl: POOLER,
+      directUrl: DIRECT,
+    })
+    assert.equal(r.envKey, 'DIRECT_URL')
+    assert.equal(r.target.kind, 'production-supabase')
+    assert.equal(r.target.port, '5432')
+    assert.ok(!isTransactionPoolerUrl(r.url))
+  })
+
+  it('production apply rechaza DIRECT_URL de otro proyecto', () => {
+    assert.throws(
+      () =>
+        resolveApplyWriteDatasourceUrl({
+          isProduction: true,
+          databaseUrl: POOLER,
+          directUrl: BAD_DIRECT,
+        }),
+      /Supabase esperado|unknown/
+    )
+  })
+
+  it('production apply rechaza DIRECT_URL transaction pooler :6543', () => {
+    assert.throws(
+      () =>
+        resolveApplyWriteDatasourceUrl({
+          isProduction: true,
+          databaseUrl: POOLER,
+          directUrl: POOLER,
+        }),
+      /transaction pooler|6543/
+    )
+  })
+
+  it('production apply exige DIRECT_URL', () => {
+    assert.throws(
+      () =>
+        resolveApplyWriteDatasourceUrl({
+          isProduction: true,
+          databaseUrl: POOLER,
+          directUrl: undefined,
+        }),
+      /DIRECT_URL/
+    )
+  })
+
+  it('localhost apply usa DATABASE_URL', () => {
+    const r = resolveApplyWriteDatasourceUrl({
+      isProduction: false,
+      databaseUrl: LOCAL,
+      directUrl: DIRECT,
+    })
+    assert.equal(r.envKey, 'DATABASE_URL')
+    assert.equal(r.target.kind, 'local')
+  })
+
+  it('logs de write target no incluyen password', () => {
+    const r = resolveApplyWriteDatasourceUrl({
+      isProduction: true,
+      databaseUrl: POOLER,
+      directUrl: DIRECT,
+    })
+    const log = formatDbTargetLog(r.target)
+    assert.ok(!log.includes('direct-secret'))
+    assert.ok(!log.includes('pool-secret'))
+    assert.ok(!JSON.stringify(r.target).includes('direct-secret'))
+  })
+})
+
+describe('isTransactionPoolerUrl', () => {
+  it('detecta :6543', () => {
+    assert.equal(
+      isTransactionPoolerUrl(
+        'postgresql://u:p@aws-1-sa-east-1.pooler.supabase.com:6543/postgres'
+      ),
+      true
+    )
+    assert.equal(
+      isTransactionPoolerUrl(
+        `postgresql://u:p@db.${EXPECTED_SUPABASE_PROJECT_REF}.supabase.co:5432/postgres`
+      ),
+      false
     )
   })
 })
