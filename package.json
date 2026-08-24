@@ -29,6 +29,7 @@
     "test:category-taxonomy-v1": "tsx --test lib/category-taxonomy-v1.test.ts",
     "test:admin-categories": "tsx --test lib/admin-categories.test.ts",
     "test:product-taxonomy-v1-migration": "tsx --test lib/product-taxonomy-v1-migration.test.ts",
+    "test:db-local-safety": "tsx --test lib/db-local-safety.test.ts",
     "verify:bna-exchange-rate": "tsx scripts/verify-bna-exchange-rate.ts",
     "verify:inquiry-email": "tsx scripts/verify-inquiry-email.ts",
     "verify:taxonomy-v1": "tsx scripts/check-category-taxonomy-v1.ts",

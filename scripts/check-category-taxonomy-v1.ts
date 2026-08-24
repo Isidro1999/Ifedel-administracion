@@ -1,14 +1,22 @@
 /**
- * Check de integridad P1: taxonomía V1 + productos no reasignados.
+ * Check de integridad P1: taxonomía V1 + productos no reasignados (read-only).
  *
- * Uso (después de migración + seed en entorno seguro / localhost):
+ * Local:
  *   npx tsx scripts/check-category-taxonomy-v1.ts
+ *
+ * Producción Supabase:
+ *   npx tsx scripts/check-category-taxonomy-v1.ts --production
  *
  * No asume un conteo histórico fijo de productos (p. ej. 462).
  * Valida que ningún producto apunte a los nodos V1 efectivos.
  */
 
 import { prisma } from '../lib/prisma'
+import {
+  assertScriptDatabaseAccess,
+  formatDbTargetLog,
+  parseProductionFlags,
+} from '../lib/db-local-safety'
 import {
   TAXONOMY_V1_ROOTS,
   countTaxonomyV1Expected,
@@ -18,10 +26,16 @@ import {
 type Issue = { level: 'error' | 'warn'; message: string }
 
 async function main() {
+  const { production } = parseProductionFlags(process.argv.slice(2))
   const issues: Issue[] = []
   const expected = countTaxonomyV1Expected()
 
   console.log('=== Check integridad taxonomía V1 ===')
+  const target = assertScriptDatabaseAccess(process.env.DATABASE_URL, {
+    mode: production ? 'production-readonly' : 'local-only',
+    allowProduction: production,
+  })
+  console.log(`DB target: ${formatDbTargetLog(target)}`)
 
   const productCount = await prisma.product.count()
   console.log(`✓ Productos existentes: ${productCount} (baseline actual; P1 no exige un total histórico fijo)`)
