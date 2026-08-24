@@ -27,13 +27,36 @@ model Brand {
 
 model Category {
   id        Int      @id @default(autoincrement())
-  name      String   @unique
+  /// Visible; puede repetirse entre ramas / convivir con legacy. El id público es slug.
+  name      String
   slug      String   @unique
+
+  /// Jerarquía V1: principal (null) → subcategoría. El modelo admite más niveles.
+  parentId Int?
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryHierarchy")
+
+  /// Orden de listado (principales y subcategorías).
+  sortOrder Int @default(0)
+
+  /// Copy corto para Home / listados (MVP).
+  shortDescription String?
+
+  /// Imagen editorial (Home / categoría). Null hasta definir assets.
+  imageUrl String?
+
+  /// Si true, candidata a aparecer en Home del catálogo.
+  showInHome Boolean @default(false)
+
+  /// Soft-flag de disponibilidad (no borra filas).
+  isActive Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   products Product[]
 
+  @@index([parentId])
   @@map("categories")
 }
 
@@ -74,7 +97,7 @@ model Product {
   brandId    Int
   brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
   categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   images ProductImage[]
   specs  ProductSpec[]

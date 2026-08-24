@@ -20,6 +20,7 @@ import {
   Users,
   Wallet,
   MessageSquareText,
+  Folders,
 } from 'lucide-react'
 
 import { COMMAND_PALETTE_EVENT } from './command-palette-constants'
@@ -52,6 +53,7 @@ const ENTRIES: Entry[] = [
   { id: 'analytics-period', title: 'Analytics — Períodos', href: '/analytics/period', keywords: 'reporte mes', group: 'Analytics', Icon: BarChart3 },
   { id: 'mapa-ganadero', title: 'Mapa ganadero', href: '/comercial/mapa', keywords: 'provincias stock bovino comercial', group: 'Analytics', Icon: Map },
   { id: 'admin-users', title: 'Admin — Usuarios', href: '/admin/users', keywords: 'usuarios roles', group: 'Admin', Icon: Users },
+  { id: 'admin-categories', title: 'Admin — Categorías', href: '/admin/categories', keywords: 'taxonomía subcategoría jerarquía', group: 'Admin', Icon: Folders },
   { id: 'admin-catalog', title: 'Admin — Catálogo online', href: '/admin/catalog', keywords: 'publicar despublicar catálogo online', group: 'Admin', Icon: Globe },
   { id: 'admin-inquiries', title: 'Admin — Consultas comerciales', href: '/admin/catalog/inquiries', keywords: 'consulta lead catálogo ifd contacto', group: 'Admin', Icon: MessageSquareText },
   { id: 'admin-settings', title: 'Admin — Configuración', href: '/admin/settings', keywords: 'settings', group: 'Admin', Icon: Settings },

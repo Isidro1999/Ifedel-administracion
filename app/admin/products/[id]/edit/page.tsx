@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { ImportProduct } from '@/lib/import-schemas'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
 import { CatalogOnlineSection } from '@/components/admin/CatalogOnlineSection'
+import { CategoryHierarchySelect } from '@/components/admin/CategoryHierarchySelect'
 
 interface ProductImage {
   id: number
@@ -33,7 +34,14 @@ interface ProductFromApi {
   showPrice?: boolean
   catalogPriceList?: string | null
   brand: { name: string }
-  category: { name: string }
+  category: {
+    id?: number
+    name: string
+    slug?: string
+    parentId?: number | null
+    parent?: { id: number; name: string; slug: string } | null
+  }
+  categoryId?: number
   images: ProductImage[]
   specs: Array<{ label: string; value: string; sortOrder: number }>
   prices: Array<{
@@ -54,7 +62,9 @@ function productToForm(product: ProductFromApi): ImportProduct {
     sku: product.sku,
     title: product.title,
     brand: product.brand.name,
-    category: product.category.name,
+    categoryId: product.categoryId ?? product.category.id,
+    categorySlug: product.category.slug,
+    category: undefined,
     short: product.short ?? '',
     description: product.description ?? '',
     cost: product.cost ?? undefined,
@@ -136,6 +146,10 @@ export default function EditProductPage() {
       setError('Completá los campos requeridos')
       return
     }
+    if (!form.categoryId) {
+      setError('Seleccioná una subcategoría (hoja) antes de guardar')
+      return
+    }
     setError('')
     setSaving(true)
     try {
@@ -145,7 +159,12 @@ export default function EditProductPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          categoryId: form.categoryId,
+          categorySlug: undefined,
+          category: undefined,
+        }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -225,13 +244,16 @@ export default function EditProductPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Categoría</label>
-                <input
-                  type="text"
-                  value={form.category}
-                  onChange={(e) => update({ category: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md"
-                  required
+                <CategoryHierarchySelect
+                  categoryId={form.categoryId ?? null}
+                  onChange={(id) =>
+                    update({
+                      categoryId: id ?? undefined,
+                      categorySlug: undefined,
+                      category: undefined,
+                    })
+                  }
+                  disabled={saving}
                 />
               </div>
             </div>

@@ -10,7 +10,13 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const brandCategorySelect = {
-  select: { id: true, name: true, slug: true },
+  select: {
+    id: true,
+    name: true,
+    slug: true,
+    parentId: true,
+    parent: { select: { id: true, name: true, slug: true } },
+  },
 } as const
 
 const imageSelect = {

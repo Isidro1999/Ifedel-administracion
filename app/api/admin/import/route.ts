@@ -3,6 +3,7 @@ import { slugify } from '@/lib/utils'
 import { ImportProductSchema, ImportProduct } from '@/lib/import-schemas'
 import type { PrismaClient } from '@prisma/client'
 import { ensureUniqueProductSlug } from '@/lib/product-slug'
+import { resolveProductCategoryFromInput } from '@/lib/admin-categories-service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -41,19 +42,12 @@ async function processProduct(
       })
     }
 
-    // Buscar o crear category
-    const categorySlug = slugify(validated.category)
-    let category = await prisma.category.findUnique({
-      where: { slug: categorySlug },
+    // Resolver hoja existente (no crear categorías)
+    const category = await resolveProductCategoryFromInput({
+      categoryId: validated.categoryId,
+      categorySlug: validated.categorySlug,
+      category: validated.category,
     })
-    if (!category) {
-      category = await prisma.category.create({
-        data: {
-          name: validated.category,
-          slug: categorySlug,
-        },
-      })
-    }
 
     // Buscar producto existente por SKU
     const existingProduct = await prisma.product.findUnique({
@@ -193,6 +187,11 @@ function parseCSVRow(row: any): ImportProduct | null {
       sku: row.sku || row.SKU || '',
       title: row.title || row.TITLE || row.name || row.NAME || '',
       brand: row.brand || row.BRAND || row.marca || row.MARCA || '',
+      categorySlug:
+        row.categorySlug ||
+        row.CATEGORY_SLUG ||
+        row.category_slug ||
+        undefined,
       category: row.category || row.CATEGORY || row.categoria || row.CATEGORIA || '',
       short: row.short || row.SHORT || row.descripcion_corta || '',
       description: row.description || row.DESCRIPTION || row.descripcion || row.DESC || '',

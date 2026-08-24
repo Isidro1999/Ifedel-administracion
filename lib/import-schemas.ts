@@ -27,12 +27,21 @@ export const ProductFileSchema = z.object({
   url: z.string().url(),
 })
 
+/**
+ * Categoría:
+ * - Preferido: categoryId (admin UI) o categorySlug (import CSV)
+ * - Compat: category (texto) solo si resuelve a una hoja existente (slug o name exacto).
+ *   Nunca crea categorías.
+ */
 export const ImportProductSchema = z
   .object({
     sku: z.string().min(1),
     title: z.string().min(1),
     brand: z.string().min(1),
-    category: z.string().min(1),
+    categoryId: z.number().int().positive().optional(),
+    categorySlug: z.string().min(1).optional(),
+    /** @deprecated Preferí categorySlug / categoryId. Solo resolución a hoja existente. */
+    category: z.string().optional(),
     short: z.string().optional(),
     description: z.string().optional(),
     cost: z.number().optional(),
@@ -44,7 +53,6 @@ export const ImportProductSchema = z
     isActive: z.boolean().optional().default(true),
     isFeatured: z.boolean().optional().default(false),
 
-    // --- Catálogo online (opcionales; import/CSV no los exige) ---
     slug: z.string().optional(),
     catalogVisible: z.boolean().optional().default(false),
     publicTitle: z.string().optional().nullable(),
@@ -55,6 +63,18 @@ export const ImportProductSchema = z
     catalogPriceList: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
+    const hasId = data.categoryId != null
+    const hasSlug = Boolean((data.categorySlug || '').trim())
+    const hasText = Boolean((data.category || '').trim())
+    if (!hasId && !hasSlug && !hasText) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['categorySlug'],
+        message:
+          'Indicá categorySlug (preferido), categoryId, o category con slug/nombre exacto de una hoja existente',
+      })
+    }
+
     const rawSlug = (data.slug || '').trim()
     if (rawSlug) {
       const normalized = normalizeProductSlug(rawSlug)

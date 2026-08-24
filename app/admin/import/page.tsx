@@ -198,13 +198,26 @@ export default function ImportPage() {
         </p>
         <div className="text-sm text-gray-600">
           <p className="mb-2">
-            <strong>Campos requeridos:</strong> sku, title, brand, category
+            <strong>Categoría (P3):</strong> preferí{' '}
+            <code className="rounded bg-gray-100 px-1 text-xs">categorySlug</code>{' '}
+            apuntando a una <em>subcategoría hoja</em> existente (ej.{' '}
+            <code className="rounded bg-gray-100 px-1 text-xs">aisladores</code>
+            ). También se acepta{' '}
+            <code className="rounded bg-gray-100 px-1 text-xs">category</code>{' '}
+            solo si coincide exactamente con slug o nombre de una hoja. Ya no se
+            crean categorías por typo.
           </p>
           <p className="mb-2">
-            <strong>Campos opcionales:</strong> short, description, images, specs, prices, files, isActive, isFeatured
+            <strong>Campos requeridos:</strong> sku, title, brand, categorySlug
+            (o category resoluble)
+          </p>
+          <p className="mb-2">
+            <strong>Campos opcionales:</strong> short, description, images, specs,
+            prices, files, isActive, isFeatured
           </p>
           <p>
-            Los productos se identifican por SKU. Si un producto con el mismo SKU ya existe, se actualiza; de lo contrario, se crea uno nuevo.
+            Los productos se identifican por SKU. Si un producto con el mismo SKU
+            ya existe, se actualiza; de lo contrario, se crea uno nuevo.
           </p>
         </div>
       </SectionCard>
