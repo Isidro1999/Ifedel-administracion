@@ -390,3 +390,75 @@ export function countPlannedByParent(
   }
   return counts
 }
+
+/** Timeout de la interactive transaction del apply P2 (solo este script). */
+export const P2_APPLY_TRANSACTION_TIMEOUT_MS = 60_000
+
+export type CategoryUpdateGroup = {
+  toCategoryId: number
+  toCategorySlug: string
+  skus: string[]
+  expectedCount: number
+}
+
+/**
+ * Agrupa cambios pendientes por categoryId destino (para updateMany).
+ * Ignora alreadyAtTarget. Rechaza SKUs duplicados en el plan de apply.
+ */
+export function groupPlannedChangesByCategoryId(
+  planned: PlannedChange[]
+): CategoryUpdateGroup[] {
+  const seenSku = new Set<string>()
+  const byId = new Map<
+    number,
+    { toCategorySlug: string; skus: string[] }
+  >()
+
+  for (const p of planned) {
+    if (p.alreadyAtTarget) continue
+    if (seenSku.has(p.sku)) {
+      throw new Error(
+        `ABORT: SKU duplicado en plan de apply: "${p.sku}"`
+      )
+    }
+    seenSku.add(p.sku)
+
+    const existing = byId.get(p.toCategoryId)
+    if (existing) {
+      if (existing.toCategorySlug !== p.toCategorySlug) {
+        throw new Error(
+          `ABORT: categoryId ${p.toCategoryId} tiene slugs inconsistentes ` +
+            `(${existing.toCategorySlug} vs ${p.toCategorySlug})`
+        )
+      }
+      existing.skus.push(p.sku)
+    } else {
+      byId.set(p.toCategoryId, {
+        toCategorySlug: p.toCategorySlug,
+        skus: [p.sku],
+      })
+    }
+  }
+
+  return [...byId.entries()]
+    .map(([toCategoryId, g]) => ({
+      toCategoryId,
+      toCategorySlug: g.toCategorySlug,
+      skus: g.skus,
+      expectedCount: g.skus.length,
+    }))
+    .sort((a, b) => a.toCategoryId - b.toCategoryId)
+}
+
+/** Verifica que updateMany afectó exactamente expectedCount filas. */
+export function assertUpdateManyCount(
+  group: CategoryUpdateGroup,
+  actualCount: number
+): void {
+  if (actualCount !== group.expectedCount) {
+    throw new Error(
+      `ABORT: updateMany count mismatch categoryId=${group.toCategoryId} ` +
+        `slug=${group.toCategorySlug}: expected=${group.expectedCount} actual=${actualCount}`
+    )
+  }
+}

@@ -4,7 +4,10 @@ import {
   parseProductTaxonomyMappingCsv,
   validateMappingRowsStructure,
   validateProductTaxonomyMigration,
+  groupPlannedChangesByCategoryId,
+  assertUpdateManyCount,
   type CategoryLeafCandidate,
+  type PlannedChange,
   type ProductSnapshotRow,
 } from './product-taxonomy-v1-migration'
 import { assertLocalP1Database, sanitizeDatabaseUrl } from './db-local-safety'
@@ -257,6 +260,116 @@ describe('validateProductTaxonomyMigration', () => {
     assert.equal(result.ok, true)
     assert.equal(result.alreadyAtTarget, 1)
     assert.equal(result.changesNeeded, 0)
+  })
+})
+
+describe('groupPlannedChangesByCategoryId', () => {
+  it('agrupa 475 mappings en grupos por categoryId con conteos correctos', () => {
+    const planned: PlannedChange[] = []
+    let skuN = 0
+    // 37 grupos de 12 = 444 + 1 grupo de 31 = 475 → 38 hojas
+    const groupDefs = [
+      { id: 100, slug: 'leaf-0', n: 31 },
+      ...Array.from({ length: 37 }, (_, i) => ({
+        id: 101 + i,
+        slug: `leaf-${i + 1}`,
+        n: 12,
+      })),
+    ]
+    assert.equal(
+      groupDefs.reduce((s, g) => s + g.n, 0),
+      475
+    )
+
+    for (const g of groupDefs) {
+      for (let i = 0; i < g.n; i++) {
+        skuN += 1
+        planned.push({
+          sku: `SKU-${skuN}`,
+          productId: skuN,
+          fromCategoryId: 1,
+          fromCategorySlug: 'legacy',
+          toCategoryId: g.id,
+          toCategorySlug: g.slug,
+          alreadyAtTarget: false,
+        })
+      }
+    }
+
+    const groups = groupPlannedChangesByCategoryId(planned)
+    assert.equal(groups.length, 38)
+    assert.equal(
+      groups.reduce((s, g) => s + g.expectedCount, 0),
+      475
+    )
+    assert.equal(groups.find((g) => g.toCategoryId === 100)?.expectedCount, 31)
+    assert.equal(groups.find((g) => g.toCategoryId === 101)?.expectedCount, 12)
+  })
+
+  it('ignora alreadyAtTarget', () => {
+    const groups = groupPlannedChangesByCategoryId([
+      {
+        sku: 'A',
+        productId: 1,
+        fromCategoryId: 1,
+        fromCategorySlug: 'x',
+        toCategoryId: 10,
+        toCategorySlug: 'leaf-a',
+        alreadyAtTarget: true,
+      },
+      {
+        sku: 'B',
+        productId: 2,
+        fromCategoryId: 1,
+        fromCategorySlug: 'x',
+        toCategoryId: 10,
+        toCategorySlug: 'leaf-a',
+        alreadyAtTarget: false,
+      },
+    ])
+    assert.equal(groups.length, 1)
+    assert.deepEqual(groups[0].skus, ['B'])
+    assert.equal(groups[0].expectedCount, 1)
+  })
+
+  it('SKU duplicado en plan de apply → throw', () => {
+    assert.throws(
+      () =>
+        groupPlannedChangesByCategoryId([
+          {
+            sku: 'DUP',
+            productId: 1,
+            fromCategoryId: 1,
+            fromCategorySlug: 'x',
+            toCategoryId: 10,
+            toCategorySlug: 'leaf-a',
+            alreadyAtTarget: false,
+          },
+          {
+            sku: 'DUP',
+            productId: 2,
+            fromCategoryId: 1,
+            fromCategorySlug: 'x',
+            toCategoryId: 11,
+            toCategorySlug: 'leaf-b',
+            alreadyAtTarget: false,
+          },
+        ]),
+      /duplicado/
+    )
+  })
+})
+
+describe('assertUpdateManyCount', () => {
+  it('count distinto del esperado causa throw', () => {
+    const group = {
+      toCategoryId: 10,
+      toCategorySlug: 'leaf-a',
+      skus: ['A', 'B'],
+      expectedCount: 2,
+    }
+    assert.throws(() => assertUpdateManyCount(group, 1), /mismatch/)
+    assert.doesNotThrow(() => assertUpdateManyCount(group, 2))
   })
 })
 

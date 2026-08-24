@@ -9,7 +9,15 @@ import { withPerf } from '@/lib/perf'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const brandCategorySelect = {
+const brandSelect = {
+  select: {
+    id: true,
+    name: true,
+    slug: true,
+  },
+} as const
+
+const categoryWithParentSelect = {
   select: {
     id: true,
     name: true,
@@ -104,8 +112,8 @@ export async function GET(
             description: true,
             isActive: true,
             isFeatured: true,
-            brand: brandCategorySelect,
-            category: brandCategorySelect,
+            brand: brandSelect,
+            category: categoryWithParentSelect,
             images: {
               orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
               select: imageSelect,
@@ -155,8 +163,8 @@ export async function GET(
           categoryId: true,
           createdAt: true,
           updatedAt: true,
-          brand: brandCategorySelect,
-          category: brandCategorySelect,
+          brand: brandSelect,
+          category: categoryWithParentSelect,
           images: {
             orderBy: [{ isPrimary: 'desc' }, { sortOrder: 'asc' }],
             select: imageSelectEdit,

@@ -9,6 +9,12 @@
  *   npx tsx scripts/migrate-products-to-taxonomy-v1.ts --dry-run --production
  *   npx tsx scripts/migrate-products-to-taxonomy-v1.ts --apply --production --confirm-production
  *
+ * Apply producción usa DIRECT_URL (session/direct :5432), NUNCA el transaction
+ * pooler :6543. Dry-run/validación leen vía DATABASE_URL (pooler OK).
+ *
+ * Apply escribe solo Product.categoryId vía updateMany agrupados por destino.
+ * Prisma también actualiza Product.updatedAt (@updatedAt) en cada fila tocada.
+ *
  * Opciones:
  *   --csv <path>     Mapping CSV (default: tmp/ifedel_p2_mapping_475_minimo.csv)
  *   --verbose        Muestra más filas de ejemplo
@@ -20,15 +26,20 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { PrismaClient } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import {
   assertScriptDatabaseAccess,
   formatDbTargetLog,
   parseProductionFlags,
+  resolveApplyWriteDatasourceUrl,
 } from '../lib/db-local-safety'
 import { resolveTaxonomyV1EffectiveNodes } from '../lib/category-taxonomy-v1'
 import {
+  P2_APPLY_TRANSACTION_TIMEOUT_MS,
+  assertUpdateManyCount,
   countPlannedByParent,
+  groupPlannedChangesByCategoryId,
   parseProductTaxonomyMappingCsv,
   validateProductTaxonomyMigration,
   type CategoryLeafCandidate,
@@ -95,6 +106,15 @@ function writeCsv(filePath: string, header: string[], rows: string[][]) {
   ]
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8')
+}
+
+function isPrismaP2028(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: string }).code === 'P2028'
+  )
 }
 
 async function loadDbContext() {
@@ -237,253 +257,303 @@ async function main() {
     process.argv.slice(2)
   )
 
+  let writeClient: PrismaClient | null = null
+
   console.log('=== P2 migrate products → taxonomy V1 ===')
 
-  if (!mode) {
-    console.error(
-      '\nDebés indicar --dry-run o --apply. Por seguridad no se aplica nada por defecto.\n' +
-        'Local: npx tsx scripts/migrate-products-to-taxonomy-v1.ts --dry-run\n' +
-        'Prod dry-run: … --dry-run --production\n' +
-        'Prod apply: … --apply --production --confirm-production'
-    )
-    process.exitCode = 1
-    return
-  }
-
-  const accessMode =
-    mode === 'apply'
-      ? production
-        ? 'production-write'
-        : 'local-only'
-      : production
-        ? 'production-readonly'
-        : 'local-only'
-
-  const target = assertScriptDatabaseAccess(process.env.DATABASE_URL, {
-    mode: accessMode,
-    allowProduction: production,
-    confirmProduction,
-  })
-  console.log(`DB target: ${formatDbTargetLog(target)}`)
-
-  if (!fs.existsSync(csvPath)) {
-    console.error(`ABORT: no existe el CSV de mapping: ${csvPath}`)
-    process.exitCode = 1
-    return
-  }
-
-  const raw = fs.readFileSync(csvPath, 'utf8')
-  const parsed = parseProductTaxonomyMappingCsv(raw)
-  if (parsed.errors.length) {
-    console.error('ABORT: errores de parseo CSV:')
-    for (const e of parsed.errors) console.error(`- ${e}`)
-    process.exitCode = 1
-    return
-  }
-
-  const ctx = await loadDbContext()
-
-  if (
-    target.kind === 'production-supabase' &&
-    ctx.productRows.length >= MAX_PROD_PRODUCTS_EXCLUSIVE
-  ) {
-    console.error(
-      `ABORT: producción tiene ${ctx.productRows.length} productos (≥ ${MAX_PROD_PRODUCTS_EXCLUSIVE}). ` +
-        'No se adapta el mapping automáticamente.'
-    )
-    process.exitCode = 1
-    return
-  }
-
-  const validation = validateProductTaxonomyMigration({
-    mappingRows: parsed.rows,
-    products: ctx.productRows,
-    categoriesBySlug: ctx.categoriesBySlug,
-    v1CategoryIds: ctx.v1Ids,
-    expectedProductCount: EXPECTED_V1_PRODUCTS,
-  })
-
-  const extraIssues: { code: string; message: string }[] = []
-
-  // Estado limpio del primer apply: si hay productos en V1 que no están
-  // alreadyAtTarget, es inconsistente.
-  const dirtyV1 = validation.planned.filter(
-    (p) => ctx.v1Ids.has(p.fromCategoryId) && !p.alreadyAtTarget
-  )
-  if (dirtyV1.length > 0) {
-    extraIssues.push({
-      code: 'DIRTY_V1_STATE',
-      message: `${dirtyV1.length} producto(s) ya están en V1 pero no en el destino del mapping`,
-    })
-  }
-
-  // Distribución por principal vs esperado
-  const byParent = countPlannedByParent(
-    validation.planned,
-    ctx.leafSlugToParentSlug
-  )
-  for (const [slug, expected] of Object.entries(EXPECTED_BY_ROOT_SLUG)) {
-    const actual = byParent.get(slug) ?? 0
-    if (actual !== expected) {
-      extraIssues.push({
-        code: 'ROOT_DISTRIBUTION',
-        message: `Principal ${slug}: mapping implica ${actual}, esperado ${expected}`,
-      })
-    }
-  }
-
-  const allIssues = [...validation.issues, ...extraIssues]
-  const ready = validation.ok && extraIssues.length === 0
-
-  console.log('\n--- Resumen ---')
-  console.log(`Modo: ${mode}`)
-  console.log(`Flags: production=${production} confirmProduction=${confirmProduction}`)
-  console.log(`CSV: ${csvPath}`)
-  console.log(`Productos DB: ${validation.dbProductCount}`)
-  console.log(`Filas mapping: ${validation.mappingRowCount}`)
-  console.log(`SKUs únicos mapping: ${validation.uniqueSkus}`)
-  console.log(`Destinos únicos: ${validation.uniqueDestinations}`)
-  console.log(`SKUs encontrados (planned): ${validation.planned.length}`)
-  console.log(`Cambios necesarios: ${validation.changesNeeded}`)
-  console.log(`Ya en destino: ${validation.alreadyAtTarget}`)
-  console.log(`Productos ya en V1 (antes): ${validation.productsOnV1Before}`)
-
-  const missingInDb = allIssues.filter((i) => i.code === 'SKU_MISSING_IN_DB')
-  const extraInDb = allIssues.filter((i) => i.code === 'SKU_EXTRA_IN_DB')
-  const destInvalid = allIssues.filter((i) =>
-    [
-      'DEST_NOT_FOUND',
-      'DEST_INACTIVE',
-      'DEST_NOT_V1',
-      'DEST_IS_ROOT',
-      'DEST_NOT_LEAF',
-    ].includes(i.code)
-  )
-  console.log(`SKUs faltantes en DB: ${missingInDb.length}`)
-  console.log(`SKUs extra en DB: ${extraInDb.length}`)
-  console.log(`Destinos inválidos (issues): ${destInvalid.length}`)
-
-  printDistribution(
-    validation.planned,
-    ctx.leafSlugToParentSlug,
-    validation.byDestinationSlug
-  )
-  printSample(validation.planned, verbose)
-
-  if (allIssues.length) {
-    console.log('\n--- Issues ---')
-    for (const i of allIssues.slice(0, 40)) {
-      console.log(`[${i.code}] ${i.message}`)
-    }
-    if (allIssues.length > 40) {
-      console.log(`… (+${allIssues.length - 40} más)`)
-    }
-  }
-
-  console.log(`\nREADY TO APPLY: ${ready ? 'YES' : 'NO'}`)
-
-  if (!ready) {
-    process.exitCode = 1
-    return
-  }
-
-  if (mode === 'dry-run') {
-    console.log('\nDry-run OK: no se modificó la DB.')
-    return
-  }
-
-  // --- APPLY (solo si ready; re-chequeo de flags de escritura) ---
-  if (target.kind === 'production-supabase') {
-    if (!production || !confirmProduction) {
+  try {
+    if (!mode) {
       console.error(
-        'ABORT: apply en producción requiere --production --confirm-production'
+        '\nDebés indicar --dry-run o --apply. Por seguridad no se aplica nada por defecto.\n' +
+          'Local: npx tsx scripts/migrate-products-to-taxonomy-v1.ts --dry-run\n' +
+          'Prod dry-run: … --dry-run --production\n' +
+          'Prod apply: … --apply --production --confirm-production'
       )
       process.exitCode = 1
       return
     }
-  } else if (target.kind !== 'local') {
-    console.error(`ABORT: target no autorizado para apply (${formatDbTargetLog(target)})`)
-    process.exitCode = 1
-    return
-  }
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const prePath = path.join('tmp', `p2-pre-snapshot-${stamp}.csv`)
-  const postPath = path.join('tmp', `p2-post-snapshot-${stamp}.csv`)
-  const reportPath = path.join('tmp', `p2-migration-report-${stamp}.csv`)
+    const accessMode =
+      mode === 'apply'
+        ? production
+          ? 'production-write'
+          : 'local-only'
+        : production
+          ? 'production-readonly'
+          : 'local-only'
 
-  try {
-    writeCsv(
-      prePath,
-      ['sku', 'currentCategoryId'],
-      validation.planned.map((p) => [p.sku, String(p.fromCategoryId)])
-    )
-    if (!fs.existsSync(prePath)) {
-      throw new Error('archivo PRE no existe tras escritura')
+    const target = assertScriptDatabaseAccess(process.env.DATABASE_URL, {
+      mode: accessMode,
+      allowProduction: production,
+      confirmProduction,
+    })
+    console.log(`DB target (read/validate): ${formatDbTargetLog(target)}`)
+
+    if (!fs.existsSync(csvPath)) {
+      console.error(`ABORT: no existe el CSV de mapping: ${csvPath}`)
+      process.exitCode = 1
+      return
     }
-    const preBody = fs.readFileSync(prePath, 'utf8').trimEnd()
-    const preLines = preBody.split('\n')
-    const expectedLines = validation.planned.length + 1
-    if (preLines.length !== expectedLines) {
-      throw new Error(
-        `PRE tiene ${preLines.length} líneas, esperadas ${expectedLines}`
+
+    const raw = fs.readFileSync(csvPath, 'utf8')
+    const parsed = parseProductTaxonomyMappingCsv(raw)
+    if (parsed.errors.length) {
+      console.error('ABORT: errores de parseo CSV:')
+      for (const e of parsed.errors) console.error(`- ${e}`)
+      process.exitCode = 1
+      return
+    }
+
+    const ctx = await loadDbContext()
+
+    if (
+      target.kind === 'production-supabase' &&
+      ctx.productRows.length >= MAX_PROD_PRODUCTS_EXCLUSIVE
+    ) {
+      console.error(
+        `ABORT: producción tiene ${ctx.productRows.length} productos (≥ ${MAX_PROD_PRODUCTS_EXCLUSIVE}). ` +
+          'No se adapta el mapping automáticamente.'
       )
+      process.exitCode = 1
+      return
     }
-    if (!preLines[0].startsWith('sku,')) {
-      throw new Error('PRE header inválido')
-    }
-  } catch (err) {
-    console.error(
-      `ABORT: no se pudo generar snapshot PRE antes del UPDATE: ${
-        err instanceof Error ? err.message : String(err)
-      }`
+
+    const validation = validateProductTaxonomyMigration({
+      mappingRows: parsed.rows,
+      products: ctx.productRows,
+      categoriesBySlug: ctx.categoriesBySlug,
+      v1CategoryIds: ctx.v1Ids,
+      expectedProductCount: EXPECTED_V1_PRODUCTS,
+    })
+
+    const extraIssues: { code: string; message: string }[] = []
+
+    const dirtyV1 = validation.planned.filter(
+      (p) => ctx.v1Ids.has(p.fromCategoryId) && !p.alreadyAtTarget
     )
-    process.exitCode = 1
-    return
-  }
-  console.log(`Snapshot PRE: ${prePath}`)
-
-  const toUpdate = validation.planned.filter((p) => !p.alreadyAtTarget)
-  console.log(`Aplicando ${toUpdate.length} updates en una transacción…`)
-
-  await prisma.$transaction(async (tx) => {
-    for (const p of toUpdate) {
-      await tx.product.update({
-        where: { id: p.productId },
-        data: { categoryId: p.toCategoryId },
+    if (dirtyV1.length > 0) {
+      extraIssues.push({
+        code: 'DIRTY_V1_STATE',
+        message: `${dirtyV1.length} producto(s) ya están en V1 pero no en el destino del mapping`,
       })
     }
-  })
 
-  writeCsv(
-    postPath,
-    ['sku', 'newCategoryId'],
-    validation.planned.map((p) => [
-      p.sku,
-      String(p.alreadyAtTarget ? p.fromCategoryId : p.toCategoryId),
-    ])
-  )
-  writeCsv(
-    reportPath,
-    [
-      'sku',
-      'categoryIdAnterior',
-      'categoryIdNuevo',
-      'slugAnterior',
-      'slugNuevo',
-    ],
-    validation.planned.map((p) => [
-      p.sku,
-      String(p.fromCategoryId),
-      String(p.toCategoryId),
-      p.fromCategorySlug,
-      p.toCategorySlug,
-    ])
-  )
+    const byParent = countPlannedByParent(
+      validation.planned,
+      ctx.leafSlugToParentSlug
+    )
+    for (const [slug, expected] of Object.entries(EXPECTED_BY_ROOT_SLUG)) {
+      const actual = byParent.get(slug) ?? 0
+      if (actual !== expected) {
+        extraIssues.push({
+          code: 'ROOT_DISTRIBUTION',
+          message: `Principal ${slug}: mapping implica ${actual}, esperado ${expected}`,
+        })
+      }
+    }
 
-  console.log(`Snapshot POST: ${postPath}`)
-  console.log(`Reporte: ${reportPath}`)
-  console.log('APPLY OK: migración transaccional completada.')
+    const allIssues = [...validation.issues, ...extraIssues]
+    const ready = validation.ok && extraIssues.length === 0
+
+    console.log('\n--- Resumen ---')
+    console.log(`Modo: ${mode}`)
+    console.log(
+      `Flags: production=${production} confirmProduction=${confirmProduction}`
+    )
+    console.log(`CSV: ${csvPath}`)
+    console.log(`Productos DB: ${validation.dbProductCount}`)
+    console.log(`Filas mapping: ${validation.mappingRowCount}`)
+    console.log(`SKUs únicos mapping: ${validation.uniqueSkus}`)
+    console.log(`Destinos únicos: ${validation.uniqueDestinations}`)
+    console.log(`SKUs encontrados (planned): ${validation.planned.length}`)
+    console.log(`Cambios necesarios: ${validation.changesNeeded}`)
+    console.log(`Ya en destino: ${validation.alreadyAtTarget}`)
+    console.log(`Productos ya en V1 (antes): ${validation.productsOnV1Before}`)
+
+    const missingInDb = allIssues.filter((i) => i.code === 'SKU_MISSING_IN_DB')
+    const extraInDb = allIssues.filter((i) => i.code === 'SKU_EXTRA_IN_DB')
+    const destInvalid = allIssues.filter((i) =>
+      [
+        'DEST_NOT_FOUND',
+        'DEST_INACTIVE',
+        'DEST_NOT_V1',
+        'DEST_IS_ROOT',
+        'DEST_NOT_LEAF',
+      ].includes(i.code)
+    )
+    console.log(`SKUs faltantes en DB: ${missingInDb.length}`)
+    console.log(`SKUs extra en DB: ${extraInDb.length}`)
+    console.log(`Destinos inválidos (issues): ${destInvalid.length}`)
+
+    printDistribution(
+      validation.planned,
+      ctx.leafSlugToParentSlug,
+      validation.byDestinationSlug
+    )
+    printSample(validation.planned, verbose)
+
+    if (allIssues.length) {
+      console.log('\n--- Issues ---')
+      for (const i of allIssues.slice(0, 40)) {
+        console.log(`[${i.code}] ${i.message}`)
+      }
+      if (allIssues.length > 40) {
+        console.log(`… (+${allIssues.length - 40} más)`)
+      }
+    }
+
+    console.log(`\nREADY TO APPLY: ${ready ? 'YES' : 'NO'}`)
+
+    if (!ready) {
+      process.exitCode = 1
+      return
+    }
+
+    if (mode === 'dry-run') {
+      console.log('\nDry-run OK: no se modificó la DB.')
+      return
+    }
+
+    // --- APPLY ---
+    if (target.kind === 'production-supabase') {
+      if (!production || !confirmProduction) {
+        console.error(
+          'ABORT: apply en producción requiere --production --confirm-production'
+        )
+        process.exitCode = 1
+        return
+      }
+    } else if (target.kind !== 'local') {
+      console.error(
+        `ABORT: target no autorizado para apply (${formatDbTargetLog(target)})`
+      )
+      process.exitCode = 1
+      return
+    }
+
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const prePath = path.join('tmp', `p2-pre-snapshot-${stamp}.csv`)
+    const postPath = path.join('tmp', `p2-post-snapshot-${stamp}.csv`)
+    const reportPath = path.join('tmp', `p2-migration-report-${stamp}.csv`)
+
+    try {
+      writeCsv(
+        prePath,
+        ['sku', 'currentCategoryId'],
+        validation.planned.map((p) => [p.sku, String(p.fromCategoryId)])
+      )
+      if (!fs.existsSync(prePath)) {
+        throw new Error('archivo PRE no existe tras escritura')
+      }
+      const preBody = fs.readFileSync(prePath, 'utf8').trimEnd()
+      const preLines = preBody.split('\n')
+      const expectedLines = validation.planned.length + 1
+      if (preLines.length !== expectedLines) {
+        throw new Error(
+          `PRE tiene ${preLines.length} líneas, esperadas ${expectedLines}`
+        )
+      }
+      if (!preLines[0].startsWith('sku,')) {
+        throw new Error('PRE header inválido')
+      }
+    } catch (err) {
+      console.error(
+        `ABORT: no se pudo generar snapshot PRE antes del UPDATE: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      )
+      process.exitCode = 1
+      return
+    }
+    console.log(`Snapshot PRE: ${prePath}`)
+
+    const writeDs = resolveApplyWriteDatasourceUrl({
+      isProduction: production && target.kind === 'production-supabase',
+      databaseUrl: process.env.DATABASE_URL,
+      directUrl: process.env.DIRECT_URL,
+    })
+    console.log(
+      `Write client (${writeDs.envKey}): ${formatDbTargetLog(writeDs.target)}`
+    )
+    console.log(
+      `Nota: solo se escribe Product.categoryId; Prisma también toca updatedAt (@updatedAt).`
+    )
+
+    writeClient = new PrismaClient({
+      datasources: { db: { url: writeDs.url } },
+      log: ['error'],
+    })
+
+    const groups = groupPlannedChangesByCategoryId(validation.planned)
+    const totalSkus = groups.reduce((n, g) => n + g.expectedCount, 0)
+    console.log(
+      `Aplicando ${totalSkus} SKUs en ${groups.length} updateMany ` +
+        `(timeout ${P2_APPLY_TRANSACTION_TIMEOUT_MS}ms)…`
+    )
+
+    try {
+      await writeClient.$transaction(
+        async (tx) => {
+          for (const group of groups) {
+            const result = await tx.product.updateMany({
+              where: { sku: { in: group.skus } },
+              data: { categoryId: group.toCategoryId },
+            })
+            assertUpdateManyCount(group, result.count)
+          }
+        },
+        {
+          maxWait: 10_000,
+          timeout: P2_APPLY_TRANSACTION_TIMEOUT_MS,
+        }
+      )
+    } catch (err) {
+      console.error('\nAPPLY FAILED / ROLLED BACK')
+      if (isPrismaP2028(err)) {
+        console.error(
+          'P2028 Transaction not found. No se reintenta automáticamente. ' +
+            'Verificá que el write client use DIRECT_URL (:5432), no transaction pooler (:6543).'
+        )
+      }
+      console.error(err)
+      process.exitCode = 1
+      return
+    }
+
+    writeCsv(
+      postPath,
+      ['sku', 'newCategoryId'],
+      validation.planned.map((p) => [
+        p.sku,
+        String(p.alreadyAtTarget ? p.fromCategoryId : p.toCategoryId),
+      ])
+    )
+    writeCsv(
+      reportPath,
+      [
+        'sku',
+        'categoryIdAnterior',
+        'categoryIdNuevo',
+        'slugAnterior',
+        'slugNuevo',
+      ],
+      validation.planned.map((p) => [
+        p.sku,
+        String(p.fromCategoryId),
+        String(p.toCategoryId),
+        p.fromCategorySlug,
+        p.toCategorySlug,
+      ])
+    )
+
+    console.log(`Snapshot POST: ${postPath}`)
+    console.log(`Reporte: ${reportPath}`)
+    console.log('APPLY OK: migración transaccional completada.')
+  } finally {
+    if (writeClient) {
+      await writeClient.$disconnect()
+    }
+  }
 }
 
 main()
