@@ -27,6 +27,7 @@ export const PRODUCTOS_UTILITY_PARAM_KEYS = [
   'q',
   'brand',
   'category',
+  'categoryRoot',
   'page',
   'sort',
 ] as const

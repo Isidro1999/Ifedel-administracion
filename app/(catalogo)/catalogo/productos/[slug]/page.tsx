@@ -7,7 +7,9 @@ import { catalogPath } from '@/lib/catalog-paths'
 import {
   catalogCanonicalPath,
   catalogIndexFollowRobots,
+  firstSearchParam,
 } from '@/lib/catalog-seo'
+import { resolveCatalogProductosBackHref } from '@/lib/catalog-productos-url'
 import { catalogSocialMetadata } from '@/lib/catalog-social-metadata'
 import { ProductGallery } from '@/components/catalog/ProductGallery'
 import { ProductDetailActions } from '@/components/catalog/ProductDetailActions'
@@ -24,6 +26,7 @@ export const revalidate = 60
 
 type PageProps = {
   params: { slug: string }
+  searchParams: Record<string, string | string[] | undefined>
 }
 
 export async function generateMetadata({
@@ -68,9 +71,14 @@ export async function generateMetadata({
 
 export default async function CatalogoProductoDetallePage({
   params,
+  searchParams,
 }: PageProps) {
   const onCatalogHost = headers().get('x-ifedel-catalog') === '1'
   const p = (segment = '') => catalogPath(segment, onCatalogHost)
+  const productosBackHref = resolveCatalogProductosBackHref(
+    firstSearchParam(searchParams.from),
+    p('productos'),
+  )
 
   let product: Awaited<ReturnType<typeof fetchCatalogProduct>> = null
   try {
@@ -80,7 +88,7 @@ export default async function CatalogoProductoDetallePage({
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
         <h1 className="text-2xl font-bold">No pudimos cargar el producto</h1>
         <Link
-          href={p('productos')}
+          href={productosBackHref}
           className="mt-6 inline-flex text-ifedel-brown hover:underline"
         >
           Volver al listado
@@ -105,7 +113,10 @@ export default async function CatalogoProductoDetallePage({
           Inicio
         </Link>
         <span className="mx-2">/</span>
-        <Link href={p('productos')} className="hover:text-ifedel-brown">
+        <Link
+          href={productosBackHref}
+          className="hover:text-ifedel-brown"
+        >
           Productos
         </Link>
         <span className="mx-2">/</span>

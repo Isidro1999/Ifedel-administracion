@@ -1,8 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import { useMemo } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 import type { CatalogProductListItem } from '@/lib/catalog-client'
 import { getOptimizedImageUrl } from '@/lib/cloudinary-url'
+import {
+  buildCatalogProductDetailHref,
+  buildCatalogProductosReturnUrl,
+  isCatalogProductosListPath,
+} from '@/lib/catalog-productos-url'
 import { AddToInquiryButton } from '@/components/catalog/AddToInquiryButton'
 import { CatalogCloudinaryImage } from '@/components/catalog/CatalogCloudinaryImage'
 import { CatalogPriceDisplay } from '@/components/catalog/CatalogPriceDisplay'
@@ -16,10 +23,18 @@ type ProductCardProps = {
 
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const { path } = useCatalogPath()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const img = product.primaryImage?.url
   // Cards ~320–400px CSS; 480 cubre retina 1.5–2x sin pedir original.
   const src = img ? getOptimizedImageUrl(img, 480) : null
-  const detailHref = path(`productos/${product.slug}`)
+
+  const detailHref = useMemo(() => {
+    const base = path(`productos/${product.slug}`)
+    if (!isCatalogProductosListPath(pathname)) return base
+    const returnUrl = buildCatalogProductosReturnUrl(searchParams, pathname)
+    return buildCatalogProductDetailHref(base, returnUrl, path('productos'))
+  }, [path, pathname, product.slug, searchParams])
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:border-ifedel-primary/40 hover:shadow-md">
@@ -33,7 +48,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             alt={product.title}
             fill
             className="object-cover transition duration-500 group-hover:scale-[1.03]"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
             priority={priority}
             loading={priority ? undefined : 'lazy'}
           />
@@ -73,10 +88,10 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
           />
         </div>
 
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Link
             href={detailHref}
-            className="inline-flex flex-1 items-center justify-center rounded-full bg-ifedel-primary px-4 py-2.5 text-sm font-semibold text-black transition hover:brightness-105"
+            className="inline-flex items-center justify-center rounded-full bg-ifedel-primary px-3 py-2.5 text-sm font-semibold text-black transition hover:brightness-105"
           >
             Ver detalle
           </Link>
