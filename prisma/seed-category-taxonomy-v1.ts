@@ -5,11 +5,19 @@
  * - No borra ni altera categorías legacy (fuera de los slugs gestionados)
  * - Upsert por slug (canónico o fallback por conflicto)
  *
- * Uso (después de aplicar la migración en un entorno seguro):
+ * Local (default seguro):
  *   npx tsx prisma/seed-category-taxonomy-v1.ts
+ *
+ * Producción Supabase (escritura explícita):
+ *   npx tsx prisma/seed-category-taxonomy-v1.ts --production --confirm-production
  */
 
 import { prisma } from '../lib/prisma'
+import {
+  assertScriptDatabaseAccess,
+  formatDbTargetLog,
+  parseProductionFlags,
+} from '../lib/db-local-safety'
 import {
   TAXONOMY_V1_ROOTS,
   countTaxonomyV1Expected,
@@ -257,6 +265,9 @@ async function seedChild(
 }
 
 async function main() {
+  const { production, confirmProduction } = parseProductionFlags(
+    process.argv.slice(2)
+  )
   const expected = countTaxonomyV1Expected()
   const conflicts: Conflict[] = []
   const stats: SeedStats = {
@@ -268,13 +279,23 @@ async function main() {
     failed: 0,
   }
 
+  console.log('=== Seed taxonomía V1 (idempotente) ===')
+  const target = assertScriptDatabaseAccess(process.env.DATABASE_URL, {
+    mode: production ? 'production-write' : 'local-only',
+    allowProduction: production,
+    confirmProduction,
+  })
+  console.log(`DB target: ${formatDbTargetLog(target)}`)
+  console.log(
+    `Flags: production=${production} confirmProduction=${confirmProduction}`
+  )
+
   const productCountBefore = await prisma.product.count()
   const categoryIdsBefore = await prisma.product.findMany({
     select: { id: true, categoryId: true },
     orderBy: { id: 'asc' },
   })
 
-  console.log('=== Seed taxonomía V1 (idempotente) ===')
   console.log(
     `Esperado: ${expected.roots} principales + ${expected.children} subcategorías = ${expected.total}`
   )

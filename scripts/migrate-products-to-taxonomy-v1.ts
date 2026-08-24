@@ -1,13 +1,19 @@
 /**
  * P2 — Migración de productos a taxonomía V1 (sku → new_category_slug).
  *
- * Uso (solo localhost:5433/ifedel_p1):
+ * Local (default seguro, localhost:5433/ifedel_p1):
  *   npx tsx scripts/migrate-products-to-taxonomy-v1.ts --dry-run
  *   npx tsx scripts/migrate-products-to-taxonomy-v1.ts --apply
+ *
+ * Producción Supabase (explícito):
+ *   npx tsx scripts/migrate-products-to-taxonomy-v1.ts --dry-run --production
+ *   npx tsx scripts/migrate-products-to-taxonomy-v1.ts --apply --production --confirm-production
  *
  * Opciones:
  *   --csv <path>     Mapping CSV (default: tmp/ifedel_p2_mapping_475_minimo.csv)
  *   --verbose        Muestra más filas de ejemplo
+ *   --production     Autoriza target production-supabase (read-only o write con confirm)
+ *   --confirm-production  Obligatorio junto a --apply --production
  *
  * Sin --dry-run ni --apply → aborta (no aplica automáticamente).
  */
@@ -15,7 +21,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { prisma } from '../lib/prisma'
-import { assertLocalP1Database } from '../lib/db-local-safety'
+import {
+  assertScriptDatabaseAccess,
+  formatDbTargetLog,
+  parseProductionFlags,
+} from '../lib/db-local-safety'
 import { resolveTaxonomyV1EffectiveNodes } from '../lib/category-taxonomy-v1'
 import {
   countPlannedByParent,
@@ -27,6 +37,8 @@ import {
 
 const DEFAULT_CSV = path.join('tmp', 'ifedel_p2_mapping_475_minimo.csv')
 const EXPECTED_V1_PRODUCTS = 475
+/** Si producción supera este umbral, no adaptar mapping: abortar. */
+const MAX_PROD_PRODUCTS_EXCLUSIVE = 476
 
 const EXPECTED_BY_ROOT_SLUG: Record<string, number> = {
   'electrificacion-y-alambrados': 266,
@@ -43,24 +55,29 @@ function parseArgs(argv: string[]): {
   mode: Mode | null
   csvPath: string
   verbose: boolean
+  production: boolean
+  confirmProduction: boolean
 } {
   let mode: Mode | null = null
   let csvPath = DEFAULT_CSV
   let verbose = false
+  const { production, confirmProduction } = parseProductionFlags(argv)
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--dry-run') mode = 'dry-run'
     else if (a === '--apply') mode = 'apply'
     else if (a === '--verbose') verbose = true
-    else if (a === '--csv') {
+    else if (a === '--production' || a === '--confirm-production') {
+      // parseados arriba
+    } else if (a === '--csv') {
       csvPath = argv[++i] ?? csvPath
     } else if (a.startsWith('--csv=')) {
       csvPath = a.slice('--csv='.length)
     }
   }
 
-  return { mode, csvPath, verbose }
+  return { mode, csvPath, verbose, production, confirmProduction }
 }
 
 function writeCsv(filePath: string, header: string[], rows: string[][]) {
@@ -216,26 +233,41 @@ function printDistribution(
 }
 
 async function main() {
-  const { mode, csvPath, verbose } = parseArgs(process.argv.slice(2))
+  const { mode, csvPath, verbose, production, confirmProduction } = parseArgs(
+    process.argv.slice(2)
+  )
 
   console.log('=== P2 migrate products → taxonomy V1 ===')
-
-  const target = assertLocalP1Database(process.env.DATABASE_URL)
-  console.log(
-    `DB target: host=${target.host} port=${target.port} database=${target.database}`
-  )
 
   if (!mode) {
     console.error(
       '\nDebés indicar --dry-run o --apply. Por seguridad no se aplica nada por defecto.\n' +
-        'Ejemplo: npx tsx scripts/migrate-products-to-taxonomy-v1.ts --dry-run'
+        'Local: npx tsx scripts/migrate-products-to-taxonomy-v1.ts --dry-run\n' +
+        'Prod dry-run: … --dry-run --production\n' +
+        'Prod apply: … --apply --production --confirm-production'
     )
     process.exitCode = 1
     return
   }
 
+  const accessMode =
+    mode === 'apply'
+      ? production
+        ? 'production-write'
+        : 'local-only'
+      : production
+        ? 'production-readonly'
+        : 'local-only'
+
+  const target = assertScriptDatabaseAccess(process.env.DATABASE_URL, {
+    mode: accessMode,
+    allowProduction: production,
+    confirmProduction,
+  })
+  console.log(`DB target: ${formatDbTargetLog(target)}`)
+
   if (!fs.existsSync(csvPath)) {
-    console.error(`No existe el CSV de mapping: ${csvPath}`)
+    console.error(`ABORT: no existe el CSV de mapping: ${csvPath}`)
     process.exitCode = 1
     return
   }
@@ -243,13 +275,26 @@ async function main() {
   const raw = fs.readFileSync(csvPath, 'utf8')
   const parsed = parseProductTaxonomyMappingCsv(raw)
   if (parsed.errors.length) {
-    console.error('Errores de parseo CSV:')
+    console.error('ABORT: errores de parseo CSV:')
     for (const e of parsed.errors) console.error(`- ${e}`)
     process.exitCode = 1
     return
   }
 
   const ctx = await loadDbContext()
+
+  if (
+    target.kind === 'production-supabase' &&
+    ctx.productRows.length >= MAX_PROD_PRODUCTS_EXCLUSIVE
+  ) {
+    console.error(
+      `ABORT: producción tiene ${ctx.productRows.length} productos (≥ ${MAX_PROD_PRODUCTS_EXCLUSIVE}). ` +
+        'No se adapta el mapping automáticamente.'
+    )
+    process.exitCode = 1
+    return
+  }
+
   const validation = validateProductTaxonomyMigration({
     mappingRows: parsed.rows,
     products: ctx.productRows,
@@ -292,6 +337,7 @@ async function main() {
 
   console.log('\n--- Resumen ---')
   console.log(`Modo: ${mode}`)
+  console.log(`Flags: production=${production} confirmProduction=${confirmProduction}`)
   console.log(`CSV: ${csvPath}`)
   console.log(`Productos DB: ${validation.dbProductCount}`)
   console.log(`Filas mapping: ${validation.mappingRowCount}`)
@@ -346,17 +392,55 @@ async function main() {
     return
   }
 
-  // --- APPLY ---
+  // --- APPLY (solo si ready; re-chequeo de flags de escritura) ---
+  if (target.kind === 'production-supabase') {
+    if (!production || !confirmProduction) {
+      console.error(
+        'ABORT: apply en producción requiere --production --confirm-production'
+      )
+      process.exitCode = 1
+      return
+    }
+  } else if (target.kind !== 'local') {
+    console.error(`ABORT: target no autorizado para apply (${formatDbTargetLog(target)})`)
+    process.exitCode = 1
+    return
+  }
+
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const prePath = path.join('tmp', `p2-pre-snapshot-${stamp}.csv`)
   const postPath = path.join('tmp', `p2-post-snapshot-${stamp}.csv`)
   const reportPath = path.join('tmp', `p2-migration-report-${stamp}.csv`)
 
-  writeCsv(
-    prePath,
-    ['sku', 'currentCategoryId'],
-    validation.planned.map((p) => [p.sku, String(p.fromCategoryId)])
-  )
+  try {
+    writeCsv(
+      prePath,
+      ['sku', 'currentCategoryId'],
+      validation.planned.map((p) => [p.sku, String(p.fromCategoryId)])
+    )
+    if (!fs.existsSync(prePath)) {
+      throw new Error('archivo PRE no existe tras escritura')
+    }
+    const preBody = fs.readFileSync(prePath, 'utf8').trimEnd()
+    const preLines = preBody.split('\n')
+    const expectedLines = validation.planned.length + 1
+    if (preLines.length !== expectedLines) {
+      throw new Error(
+        `PRE tiene ${preLines.length} líneas, esperadas ${expectedLines}`
+      )
+    }
+    if (!preLines[0].startsWith('sku,')) {
+      throw new Error('PRE header inválido')
+    }
+  } catch (err) {
+    console.error(
+      `ABORT: no se pudo generar snapshot PRE antes del UPDATE: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    )
+    process.exitCode = 1
+    return
+  }
   console.log(`Snapshot PRE: ${prePath}`)
 
   const toUpdate = validation.planned.filter((p) => !p.alreadyAtTarget)

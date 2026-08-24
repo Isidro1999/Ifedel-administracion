@@ -1,15 +1,22 @@
 /**
- * Check POST-P2: productos asignados exactamente según mapping V1.
+ * Check POST-P2: productos asignados exactamente según mapping V1 (read-only).
  *
- * Uso (localhost:5433/ifedel_p1):
+ * Local:
  *   npx tsx scripts/check-product-taxonomy-v1.ts
  *   npx tsx scripts/check-product-taxonomy-v1.ts --csv tmp/ifedel_p2_mapping_475_minimo.csv
+ *
+ * Producción Supabase:
+ *   npx tsx scripts/check-product-taxonomy-v1.ts --production
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { prisma } from '../lib/prisma'
-import { assertLocalP1Database } from '../lib/db-local-safety'
+import {
+  assertScriptDatabaseAccess,
+  formatDbTargetLog,
+  parseProductionFlags,
+} from '../lib/db-local-safety'
 import { resolveTaxonomyV1EffectiveNodes } from '../lib/category-taxonomy-v1'
 import { parseProductTaxonomyMappingCsv } from '../lib/product-taxonomy-v1-migration'
 
@@ -28,22 +35,24 @@ type Issue = { level: 'error' | 'warn'; message: string }
 
 function parseArgs(argv: string[]) {
   let csvPath = DEFAULT_CSV
+  const { production } = parseProductionFlags(argv)
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--csv') csvPath = argv[++i] ?? csvPath
     else if (argv[i]?.startsWith('--csv=')) csvPath = argv[i].slice(6)
   }
-  return { csvPath }
+  return { csvPath, production }
 }
 
 async function main() {
-  const { csvPath } = parseArgs(process.argv.slice(2))
+  const { csvPath, production } = parseArgs(process.argv.slice(2))
   const issues: Issue[] = []
 
   console.log('=== Check POST-P2 product taxonomy V1 ===')
-  const target = assertLocalP1Database(process.env.DATABASE_URL)
-  console.log(
-    `DB target: host=${target.host} port=${target.port} database=${target.database}`
-  )
+  const target = assertScriptDatabaseAccess(process.env.DATABASE_URL, {
+    mode: production ? 'production-readonly' : 'local-only',
+    allowProduction: production,
+  })
+  console.log(`DB target: ${formatDbTargetLog(target)}`)
 
   const raw = fs.readFileSync(csvPath, 'utf8')
   const parsed = parseProductTaxonomyMappingCsv(raw)
