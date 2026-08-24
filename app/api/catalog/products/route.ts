@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       q: sp.get('q') || undefined,
       brand: sp.get('brand') || undefined,
       category: sp.get('category') || undefined,
+      categoryRoot: sp.get('categoryRoot') || undefined,
       featured: sp.get('featured') || undefined,
       page: sp.get('page') || undefined,
       pageSize: sp.get('pageSize') || undefined,

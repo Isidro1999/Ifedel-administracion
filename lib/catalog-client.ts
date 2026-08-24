@@ -10,6 +10,12 @@
 export type CatalogBrand = { id: number; name: string; slug: string; count?: number }
 export type CatalogCategory = { id: number; name: string; slug: string; count?: number }
 
+export type {
+  CatalogCategoryKind,
+  CatalogCategoryNode,
+  CatalogCategoryResolved,
+} from '@/lib/catalog-category-public'
+
 /**
  * Precio público final en ARS (IVA incluido, sin centavos).
  * `netPrice` es alias de `amount` (compat); no es el neto original de ProductPrice.
@@ -181,8 +187,42 @@ export async function fetchCatalogCategories(): Promise<CatalogCategory[]> {
   return Array.isArray(data?.items) ? data.items : []
 }
 
+export async function fetchCatalogCategoryTree(): Promise<
+  import('@/lib/catalog-category-public').CatalogCategoryNode[]
+> {
+  if (isServer()) {
+    const { getCatalogCategoryTree } = await import('@/lib/catalog-queries')
+    return getCatalogCategoryTree()
+  }
+
+  const res = await catalogFetch('/api/catalog/categories?view=tree')
+  if (!res.ok) {
+    throw new Error(`No se pudo cargar el árbol de categorías (${res.status})`)
+  }
+  const data = await res.json()
+  return Array.isArray(data?.items) ? data.items : []
+}
+
+export async function fetchCatalogCategoryBySlug(
+  slug: string,
+): Promise<import('@/lib/catalog-category-public').CatalogCategoryResolved | null> {
+  if (isServer()) {
+    const { getCatalogCategoryBySlug } = await import('@/lib/catalog-queries')
+    return getCatalogCategoryBySlug(slug)
+  }
+
+  const res = await catalogFetch(
+    `/api/catalog/categories/${encodeURIComponent(slug)}`,
+  )
+  if (res.status === 404) return null
+  if (!res.ok) {
+    throw new Error(`No se pudo cargar la categoría (${res.status})`)
+  }
+  return res.json()
+}
+
 export async function fetchCatalogBrands(
-  params: { category?: string } = {},
+  params: { category?: string; categoryRoot?: string } = {},
 ): Promise<CatalogBrand[]> {
   if (isServer()) {
     const { getCatalogBrands } = await import('@/lib/catalog-queries')
@@ -191,6 +231,7 @@ export async function fetchCatalogBrands(
 
   const sp = new URLSearchParams()
   if (params.category) sp.set('category', params.category)
+  if (params.categoryRoot) sp.set('categoryRoot', params.categoryRoot)
   const qs = sp.toString()
   const res = await catalogFetch(`/api/catalog/brands${qs ? `?${qs}` : ''}`)
   if (!res.ok) throw new Error(`No se pudieron cargar las marcas (${res.status})`)
