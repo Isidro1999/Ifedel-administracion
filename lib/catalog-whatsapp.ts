@@ -143,3 +143,9 @@ export function buildWhatsAppUrl(
   if (!phone) return null
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
+
+/** WhatsApp comercial genérico (asesoramiento / contacto). */
+export function buildCatalogContactWhatsAppUrl(): string | null {
+  const message = `Hola ${IFEDelBrand.companyName}, quiero asesoramiento sobre productos del catálogo.`
+  return buildWhatsAppUrl(message)
+}

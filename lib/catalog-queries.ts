@@ -132,6 +132,14 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
   return n
 }
 
+export const CATALOG_PRODUCT_SORTS = [
+  'featured',
+  'name_asc',
+  'name_desc',
+] as const
+
+export type CatalogProductSort = (typeof CATALOG_PRODUCT_SORTS)[number]
+
 export type CatalogProductListParams = {
   q?: string
   brand?: string
@@ -140,6 +148,7 @@ export type CatalogProductListParams = {
   /** Slug de categoría principal V1 (productos en cualquier hoja hija). */
   categoryRoot?: string
   featured?: string
+  sort?: string
   page?: string
   pageSize?: string
 }
@@ -178,13 +187,43 @@ function normalizeListParams(params: CatalogProductListParams = {}) {
   const featuredOnly =
     featuredRaw === '1' || featuredRaw === 'true' || featuredRaw === 'yes'
 
+  const sortRaw = (params.sort || '').trim().toLowerCase()
+  let sort: CatalogProductSort = 'featured'
+  if (sortRaw) {
+    if (!(CATALOG_PRODUCT_SORTS as readonly string[]).includes(sortRaw)) {
+      throw new CatalogQueryError(
+        'Parámetro sort inválido (usar featured|name_asc|name_desc)',
+        400,
+      )
+    }
+    sort = sortRaw as CatalogProductSort
+  }
+
   const page = parsePositiveInt(params.page, 1)
   const pageSize = Math.min(
     parsePositiveInt(params.pageSize, DEFAULT_PAGE_SIZE),
     MAX_PAGE_SIZE,
   )
 
-  return { q, brand, category, categoryRoot, featuredOnly, page, pageSize }
+  return { q, brand, category, categoryRoot, featuredOnly, sort, page, pageSize }
+}
+
+function catalogProductOrderBy(
+  sort: CatalogProductSort,
+): Array<Record<string, 'asc' | 'desc'>> {
+  switch (sort) {
+    case 'name_asc':
+      return [{ title: 'asc' }]
+    case 'name_desc':
+      return [{ title: 'desc' }]
+    case 'featured':
+    default:
+      return [
+        { isFeatured: 'desc' },
+        { catalogSort: 'asc' },
+        { title: 'asc' },
+      ]
+  }
 }
 
 type PriceRow = {
@@ -282,7 +321,7 @@ async function getCatalogProductsUncached(
   usdArsRate: number | null = null,
 ): Promise<CatalogProductsResponse> {
   const { prisma } = await import('@/lib/prisma')
-  const { q, brand, category, categoryRoot, featuredOnly, page, pageSize } =
+  const { q, brand, category, categoryRoot, featuredOnly, sort, page, pageSize } =
     normalizeListParams(params)
   const skip = (page - 1) * pageSize
 
@@ -322,11 +361,7 @@ async function getCatalogProductsUncached(
   const total = await prisma.product.count({ where })
   const products = await prisma.product.findMany({
     where,
-    orderBy: [
-      { isFeatured: 'desc' },
-      { catalogSort: 'asc' },
-      { title: 'asc' },
-    ],
+    orderBy: catalogProductOrderBy(sort),
     skip,
     take: pageSize,
     select: listItemSelect,
