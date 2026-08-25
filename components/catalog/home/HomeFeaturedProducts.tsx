@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import type { CatalogProductListItem } from '@/lib/catalog-client'
-import { ProductGrid } from '@/components/catalog/ProductGrid'
 import { EmptyCatalogState } from '@/components/catalog/EmptyCatalogState'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 import { HomeSectionHeading } from '@/components/catalog/home/HomeSectionHeading'
+import { HomeFeaturedProductCard } from '@/components/catalog/home/HomeFeaturedProductCard'
 import { CatalogPriceDisclaimer } from '@/components/catalog/CatalogPriceDisclaimer'
 
 type HomeFeaturedProductsProps = {
@@ -24,7 +24,7 @@ export function HomeFeaturedProducts({
         title="Productos destacados"
         description={`Selección comercial de ${IFEDelBrand.companyName}.`}
       />
-      <div className="mb-6 -mt-2">
+      <div className="mb-5 -mt-2">
         <CatalogPriceDisclaimer />
       </div>
 
@@ -40,7 +40,15 @@ export function HomeFeaturedProducts({
           description="Cuando publiquemos productos destacados van a aparecer acá. Mientras tanto podés explorar el catálogo completo."
         />
       ) : (
-        <ProductGrid products={products} priorityCount={1} />
+        <div className="grid grid-cols-1 gap-4 min-[400px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-5">
+          {products.map((product, index) => (
+            <HomeFeaturedProductCard
+              key={product.id}
+              product={product}
+              priority={index === 0}
+            />
+          ))}
+        </div>
       )}
 
       <div className="mt-8 text-center">

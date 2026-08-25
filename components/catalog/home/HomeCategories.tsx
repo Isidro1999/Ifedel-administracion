@@ -29,6 +29,14 @@ export function HomeCategories({
     </Link>
   )
 
+  const count = categories.length
+  const gridClass =
+    count >= 5
+      ? 'grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 lg:gap-5'
+      : count === 4
+        ? 'grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 lg:grid-cols-4 lg:gap-5'
+        : 'grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 sm:grid-cols-3 sm:gap-5'
+
   return (
     <section id={sectionId} aria-labelledby={headingId}>
       <HomeSectionHeading
@@ -46,7 +54,7 @@ export function HomeCategories({
           <div className="mt-4">{productsCta}</div>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:grid-cols-3 sm:gap-4">
+        <ul className={gridClass}>
           {categories.map((cat) => (
             <li key={cat.id} className="min-w-0">
               <HomeCategoryCard category={cat} />

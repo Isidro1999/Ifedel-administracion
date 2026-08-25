@@ -27,13 +27,13 @@ const TOUCH_RESUME_MS = 2200
 function BrandCard({ brand }: { brand: HomeBrand }) {
   const scale = brand.scale ?? 'md'
   const card = (
-    <span className="flex h-[108px] w-[168px] shrink-0 items-center justify-center rounded-3xl border border-slate-200/90 bg-white px-1.5 sm:h-[120px] sm:w-[200px] sm:px-2">
+    <span className="flex h-[108px] w-[176px] shrink-0 items-center justify-center rounded-3xl border border-slate-200/90 bg-white px-2 sm:h-[124px] sm:w-[212px] sm:px-2.5">
       <Image
         src={brand.logo}
         alt={`Logo de ${brand.name}`}
         width={220}
         height={110}
-        sizes="(max-width: 640px) 160px, 196px"
+        sizes="(max-width: 640px) 168px, 208px"
         loading="lazy"
         className={`h-auto w-auto max-w-full object-contain ${SCALE_CLASS[scale]}`}
       />
@@ -131,7 +131,7 @@ export function HomeBrands({
 
     return (
       <div className="border-b border-slate-200/70 bg-white/50">
-        <p className="mx-auto max-w-6xl px-4 py-2 text-[11px] text-slate-400 sm:px-6">
+        <p className="mx-auto max-w-[1400px] px-4 py-2 text-[11px] text-slate-400 sm:px-6 lg:px-8">
           Sección de marcas pendiente de configuración
         </p>
       </div>
@@ -163,7 +163,7 @@ export function HomeBrands({
       aria-labelledby={headingId}
       className="border-b border-slate-200/80 bg-white/80"
     >
-      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
         <HomeSectionHeading
           id={headingId}
           title={title}
