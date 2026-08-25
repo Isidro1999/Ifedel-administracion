@@ -297,6 +297,7 @@ async function loadPublicCategoryIndexUncached(): Promise<PublicCategoryIndex> {
         imageUrl: true,
         sortOrder: true,
         isActive: true,
+        showInHome: true,
       },
     }),
     loadPublicProductCountsByCategoryId(),

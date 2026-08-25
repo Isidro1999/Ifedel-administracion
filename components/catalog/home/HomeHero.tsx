@@ -28,18 +28,18 @@ export function HomeHero({ productsHref, inquiryHref }: HomeHeroProps) {
         aria-hidden
       />
 
-      <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:py-16">
+      <div className="relative mx-auto grid max-w-[1400px] gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-12 lg:px-8 lg:py-16">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ifedel-primary sm:text-sm">
             {IFEDelBrand.companyName} · {IFEDelBrand.tagline}
           </p>
           <h1
             id="home-hero-heading"
-            className="mt-3 max-w-xl text-[1.85rem] font-bold leading-[1.15] tracking-tight sm:mt-4 sm:text-4xl sm:leading-[1.12] lg:text-[2.75rem] lg:leading-[1.1]"
+            className="mt-3 max-w-2xl text-[1.85rem] font-bold leading-[1.15] tracking-tight sm:mt-4 sm:text-4xl sm:leading-[1.12] lg:text-[2.75rem] lg:leading-[1.1]"
           >
             Soluciones para el campo, en un solo lugar
           </h1>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/75 sm:mt-5 sm:text-base">
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/75 sm:mt-5 sm:text-base">
             Explorá productos para electrificación rural, alambrados, pesaje,
             ganadería y más. Armá tu consulta y recibí asesoramiento por
             WhatsApp.
@@ -61,8 +61,8 @@ export function HomeHero({ productsHref, inquiryHref }: HomeHeroProps) {
         </div>
 
         {/* Panel gráfico temporal: solo assets locales (logo IFEDEL). */}
-        <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent px-6 py-8 sm:px-8 sm:py-10">
+        <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
+          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent px-6 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-11">
             <div
               className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-ifedel-primary/50 to-transparent"
               aria-hidden
@@ -85,7 +85,7 @@ export function HomeHero({ productsHref, inquiryHref }: HomeHeroProps) {
                 className="h-9 w-auto sm:h-10"
                 priority
               />
-              <p className="max-w-[16rem] text-sm leading-snug text-white/70">
+              <p className="max-w-[18rem] text-sm leading-snug text-white/70">
                 Catálogo online para consultas y cotizaciones del sector
                 agropecuario.
               </p>

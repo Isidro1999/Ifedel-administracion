@@ -1,13 +1,13 @@
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
 import {
-  fetchCatalogCategories,
+  fetchCatalogCategoryTree,
   fetchCatalogProducts,
 } from '@/lib/catalog-client'
 import { CATALOG_PUBLIC_ORIGIN, catalogPath } from '@/lib/catalog-paths'
 import { catalogSocialMetadata } from '@/lib/catalog-social-metadata'
 import { HOME_BRANDS } from '@/components/catalog/home/home-brands'
-import { toHomeCategoryItems } from '@/components/catalog/home/home-categories'
+import { toHomeCategoryItemsFromTree } from '@/components/catalog/home/home-categories'
 import { HomeHero } from '@/components/catalog/home/HomeHero'
 import { HomeBrands } from '@/components/catalog/home/HomeBrands'
 import { HomeCategories } from '@/components/catalog/home/HomeCategories'
@@ -56,7 +56,7 @@ export default async function CatalogoHomePage() {
   const [featuredSettled, categoriesSettled] = await Promise.all([
     fetchCatalogProducts({
       featured: 'true',
-      pageSize: '6',
+      pageSize: '4',
     })
       .then((data) => ({ ok: true as const, data }))
       .catch((err) => {
@@ -65,24 +65,24 @@ export default async function CatalogoHomePage() {
         }
         return { ok: false as const, data: null }
       }),
-    fetchCatalogCategories()
+    fetchCatalogCategoryTree()
       .then((data) => ({ ok: true as const, data }))
       .catch((err) => {
         if (process.env.NODE_ENV === 'development') {
-          console.error('[catalogo/home] categories error', err)
+          console.error('[catalogo/home] category tree error', err)
         }
         return {
           ok: false as const,
-          data: [] as Awaited<ReturnType<typeof fetchCatalogCategories>>,
+          data: [] as Awaited<ReturnType<typeof fetchCatalogCategoryTree>>,
         }
       }),
   ])
 
   const featured = featuredSettled.ok
-    ? featuredSettled.data.items.slice(0, 6)
+    ? featuredSettled.data.items.slice(0, 4)
     : []
   const featuredError = !featuredSettled.ok
-  const homeCategories = toHomeCategoryItems(
+  const homeCategories = toHomeCategoryItemsFromTree(
     categoriesSettled.data,
     (slug) => p(`categorias/${slug}`),
   )
@@ -94,7 +94,7 @@ export default async function CatalogoHomePage() {
       <HomeHero productsHref={productsHref} inquiryHref={inquiryHref} />
       <HomeBrands brands={HOME_BRANDS} />
 
-      <div className="mx-auto max-w-6xl space-y-12 px-4 py-10 sm:space-y-14 sm:px-6 sm:py-12">
+      <div className="mx-auto max-w-[1400px] space-y-12 px-4 py-10 sm:space-y-14 sm:px-6 sm:py-12 lg:px-8">
         <HomeCategories
           categories={homeCategories}
           productsHref={productsHref}

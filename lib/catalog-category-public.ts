@@ -16,6 +16,8 @@ export type CatalogCategoryNode = {
   shortDescription: string | null
   imageUrl: string | null
   sortOrder: number
+  /** Solo roots: si aparece en la Home pública. Hojas suelen ser false. */
+  showInHome: boolean
   count: number
   children?: CatalogCategoryNode[]
 }
@@ -29,6 +31,7 @@ export type CatalogCategoryResolved = {
   shortDescription: string | null
   imageUrl: string | null
   sortOrder: number
+  showInHome: boolean
   /** Hoja: productos directos. Principal: suma de hojas activas V1. */
   count: number
   parent?: { id: number; name: string; slug: string } | null
@@ -45,6 +48,7 @@ export type PublicCategoryRow = {
   imageUrl: string | null
   sortOrder: number
   isActive: boolean
+  showInHome: boolean
 }
 
 export type PublicCategoryIndex = {
@@ -136,6 +140,7 @@ export function buildCatalogCategoryTree(
         shortDescription: child.shortDescription,
         imageUrl: child.imageUrl,
         sortOrder: child.sortOrder,
+        showInHome: child.showInHome,
         count,
       })
     }
@@ -150,6 +155,7 @@ export function buildCatalogCategoryTree(
       shortDescription: root.shortDescription,
       imageUrl: root.imageUrl,
       sortOrder: root.sortOrder,
+      showInHome: root.showInHome,
       count: rootCount,
       children,
     })
@@ -207,6 +213,7 @@ export function resolveCatalogCategoryBySlug(
       shortDescription: row.shortDescription,
       imageUrl: row.imageUrl,
       sortOrder: row.sortOrder,
+      showInHome: row.showInHome,
       count,
       parent: parentRow
         ? { id: parentRow.id, name: parentRow.name, slug: parentRow.slug }
@@ -227,6 +234,7 @@ export function resolveCatalogCategoryBySlug(
     shortDescription: child.shortDescription,
     imageUrl: child.imageUrl,
     sortOrder: child.sortOrder,
+    showInHome: child.showInHome,
     count: leafPublicCount(index, child.id),
   }))
 
@@ -241,6 +249,7 @@ export function resolveCatalogCategoryBySlug(
     shortDescription: row.shortDescription,
     imageUrl: row.imageUrl,
     sortOrder: row.sortOrder,
+    showInHome: row.showInHome,
     count,
     parent: null,
     children,
@@ -269,6 +278,7 @@ export function resolveCatalogCategoryFromTree(
         shortDescription: root.shortDescription,
         imageUrl: root.imageUrl,
         sortOrder: root.sortOrder,
+        showInHome: root.showInHome,
         count: root.count,
         parent: null,
         children: root.children ?? [],
@@ -286,6 +296,7 @@ export function resolveCatalogCategoryFromTree(
           shortDescription: leaf.shortDescription,
           imageUrl: leaf.imageUrl,
           sortOrder: leaf.sortOrder,
+          showInHome: leaf.showInHome,
           count: leaf.count,
           parent: { id: root.id, name: root.name, slug: root.slug },
         }

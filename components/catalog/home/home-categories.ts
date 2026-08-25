@@ -1,30 +1,7 @@
-import type { CatalogCategory } from '@/lib/catalog-client'
+import type { CatalogCategoryNode } from '@/lib/catalog-category-public'
 
-/** Máximo de categorías en la home. No rellenar con placeholders. */
+/** Máximo de categorías principales en la home. */
 export const MAX_HOME_CATEGORIES = 6
-
-/**
- * Orden comercial preferido (slugs reales del catálogo público).
- * Solo se muestran si existen en los datos públicos y tienen productos.
- * Si faltan, se completa con el resto en el orden que trae la API.
- */
-export const HOME_CATEGORY_PRIORITY_SLUGS: readonly string[] = [
-  'electrificacin-energizadores',
-  'electrificacin-accesorios',
-  'pesaje-e-ide',
-  'lectores',
-  'identificacion',
-  'gripple',
-  'postes-y-varillas',
-  'peines-y-cortantes',
-  'peladoras-y-esquiladoras',
-  'agua',
-  'granja',
-  'electrificacin-accesorios-serie-i',
-  'pasturometro',
-  'repuestos-gallagher',
-  'repuestos-heiniger',
-] as const
 
 export type HomeCategoryIconKey =
   | 'energizer'
@@ -40,8 +17,19 @@ export type HomeCategoryIconKey =
   | 'farm'
   | 'default'
 
-/** Icono por slug; sin match → default. */
+/**
+ * Iconos por slug (V1 + legacy residuales para About / social).
+ * Sin match → default.
+ */
 export const HOME_CATEGORY_ICONS: Record<string, HomeCategoryIconKey> = {
+  // Principales V1
+  'electrificacion-y-alambrados': 'fence',
+  'identificacion-y-pesaje-animal': 'scale',
+  'esquila-y-peladoras': 'shear',
+  'manejo-ganadero': 'farm',
+  'agua-y-manejo-hidrico': 'water',
+  pasturas: 'farm',
+  // Legacy (About / social metadata)
   'electrificacin-energizadores': 'energizer',
   'electrificacin-accesorios': 'fence',
   'electrificacin-accesorios-serie-i': 'fence',
@@ -61,7 +49,7 @@ export const HOME_CATEGORY_ICONS: Record<string, HomeCategoryIconKey> = {
 
 /**
  * Imágenes locales opcionales por slug (`public/catalog/categories/`).
- * Solo rutas a archivos existentes. Sin imagen → card clásica.
+ * Usadas por social metadata / fallbacks; Home V1 prioriza `imageUrl` de DB.
  */
 export const HOME_CATEGORY_IMAGES: Record<string, string> = {
   'electrificacin-energizadores':
@@ -76,19 +64,6 @@ export const HOME_CATEGORY_IMAGES: Record<string, string> = {
   gripple: '/catalog/categories/pexels-andyclipit-13143653.jpg',
 }
 
-/**
- * Labels comerciales solo para presentación en home.
- * No cambia slugs, URLs ni nombres en base/admin/listado.
- */
-export const HOME_CATEGORY_LABELS: Record<string, string> = {
-  'electrificacin-energizadores': 'Energizadores',
-  'electrificacin-accesorios': 'Accesorios de electrificación',
-  'pesaje-e-ide': 'Pesaje e identificación',
-  lectores: 'Lectores',
-  identificacion: 'Identificación animal',
-  gripple: 'Gripple',
-}
-
 export type HomeCategoryItem = {
   id: number
   name: string
@@ -96,57 +71,40 @@ export type HomeCategoryItem = {
   count: number
   href: string
   icon: HomeCategoryIconKey
-  /** Ruta pública opcional; si falta, la card no muestra imagen. */
-  image?: string
+  shortDescription: string | null
+  /** URL de catálogo (Cloudinary) o ruta local; si falta → fallback visual. */
+  imageUrl: string | null
 }
 
 /**
- * Selecciona hasta MAX_HOME_CATEGORIES según prioridad estática,
- * y completa con el resto en el orden original de la API.
+ * Roots del árbol público aptos para Home:
+ * showInHome + count > 0, orden sortOrder/name, tope MAX_HOME_CATEGORIES.
+ * No incluye hojas ni legacy (el árbol P4A ya los excluye).
  */
-export function selectHomeCategories(
-  categories: CatalogCategory[],
-): CatalogCategory[] {
-  if (categories.length === 0) return []
-
-  const bySlug = new Map(categories.map((c) => [c.slug, c]))
-  const selected: CatalogCategory[] = []
-  const used = new Set<string>()
-
-  for (const slug of HOME_CATEGORY_PRIORITY_SLUGS) {
-    if (selected.length >= MAX_HOME_CATEGORIES) break
-    const cat = bySlug.get(slug)
-    if (!cat) continue
-    selected.push(cat)
-    used.add(slug)
-  }
-
-  if (selected.length < MAX_HOME_CATEGORIES) {
-    for (const cat of categories) {
-      if (selected.length >= MAX_HOME_CATEGORIES) break
-      if (used.has(cat.slug)) continue
-      selected.push(cat)
-      used.add(cat.slug)
-    }
-  }
-
-  return selected
+export function selectHomeRootCategories(
+  tree: CatalogCategoryNode[],
+): CatalogCategoryNode[] {
+  return tree
+    .filter((root) => root.showInHome && root.count > 0)
+    .sort(
+      (a, b) =>
+        a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'es'),
+    )
+    .slice(0, MAX_HOME_CATEGORIES)
 }
 
-export function toHomeCategoryItems(
-  categories: CatalogCategory[],
+export function toHomeCategoryItemsFromTree(
+  tree: CatalogCategoryNode[],
   hrefForSlug: (slug: string) => string,
 ): HomeCategoryItem[] {
-  return selectHomeCategories(categories).map((cat) => {
-    const image = HOME_CATEGORY_IMAGES[cat.slug]
-    return {
-      id: cat.id,
-      name: HOME_CATEGORY_LABELS[cat.slug] ?? cat.name,
-      slug: cat.slug,
-      count: cat.count ?? 0,
-      href: hrefForSlug(cat.slug),
-      icon: HOME_CATEGORY_ICONS[cat.slug] ?? 'default',
-      ...(image ? { image } : {}),
-    }
-  })
+  return selectHomeRootCategories(tree).map((root) => ({
+    id: root.id,
+    name: root.name,
+    slug: root.slug,
+    count: root.count,
+    href: hrefForSlug(root.slug),
+    icon: HOME_CATEGORY_ICONS[root.slug] ?? 'default',
+    shortDescription: root.shortDescription,
+    imageUrl: root.imageUrl?.trim() || null,
+  }))
 }

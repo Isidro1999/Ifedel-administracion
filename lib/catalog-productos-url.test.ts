@@ -30,6 +30,7 @@ function row(
     imageUrl: null,
     sortOrder: 0,
     isActive: true,
+    showInHome: partial.parentId == null,
     ...partial,
   }
 }
