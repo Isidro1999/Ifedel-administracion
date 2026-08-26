@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { ArrowRight } from 'lucide-react'
 import { IFEDelBrand } from '@/lib/ifedel-brand'
 
 type HomeHeroProps = {
@@ -7,99 +8,129 @@ type HomeHeroProps = {
   inquiryHref: string
 }
 
-const RUBROS = [
-  'Agro',
-  'Ganadería',
-  'Electrificación rural',
+const HERO_BG = '/catalog/home/ifedel-hero-bg.jpg'
+const HERO_LOGO = '/brand/ifedel-hero-wordmark.png'
+
+const BENEFITS = [
+  {
+    title: 'Marcas líderes',
+    description: 'Trabajamos con las mejores marcas.',
+  },
+  {
+    title: 'Asesoramiento',
+    description: 'Te ayudamos a elegir la mejor solución.',
+  },
+  {
+    title: 'Envíos a todo el país',
+    description: 'Llevamos nuestros productos a donde los necesites.',
+  },
 ] as const
 
 export function HomeHero({ productsHref, inquiryHref }: HomeHeroProps) {
   return (
     <section
       aria-labelledby="home-hero-heading"
-      className="relative overflow-hidden bg-[#0a0a0a] text-white"
+      className="relative overflow-hidden text-white"
     >
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 55% at 85% 15%, rgba(141,198,64,0.22), transparent 55%), radial-gradient(ellipse 45% 40% at 5% 90%, rgba(131,80,41,0.18), transparent 50%)',
-        }}
-        aria-hidden
-      />
+      <div className="relative isolate min-h-[24rem] sm:min-h-[25.5rem] lg:min-h-[27rem] xl:min-h-[28.5rem]">
+        <Image
+          src={HERO_BG}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-[68%_center]"
+          aria-hidden
+        />
 
-      <div className="relative mx-auto grid max-w-[1400px] gap-8 px-4 py-10 sm:gap-10 sm:px-6 sm:py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-12 lg:px-8 lg:py-16">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ifedel-primary sm:text-sm">
-            {IFEDelBrand.companyName} · {IFEDelBrand.tagline}
-          </p>
-          <h1
-            id="home-hero-heading"
-            className="mt-3 max-w-2xl text-[1.85rem] font-bold leading-[1.15] tracking-tight sm:mt-4 sm:text-4xl sm:leading-[1.12] lg:text-[2.75rem] lg:leading-[1.1]"
-          >
-            Soluciones para el campo, en un solo lugar
-          </h1>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/75 sm:mt-5 sm:text-base">
-            Explorá productos para electrificación rural, alambrados, pesaje,
-            ganadería y más. Armá tu consulta y recibí asesoramiento por
-            WhatsApp.
-          </p>
-          <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center">
-              <Link
-              href={productsHref}
-              className="inline-flex items-center justify-center rounded-full bg-ifedel-primary px-6 py-3 text-sm font-semibold text-black transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ifedel-primary"
-            >
-              Explorar productos
-            </Link>
-            <Link
-              href={inquiryHref}
-              className="inline-flex items-center justify-center rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-ifedel-primary hover:text-ifedel-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ifedel-primary"
-            >
-              Armar consulta
-            </Link>
-          </div>
-        </div>
+        {/* Scrim: más fuerte a la izquierda para legibilidad */}
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/25"
+          aria-hidden
+        />
 
-        {/* Panel gráfico temporal: solo assets locales (logo IFEDEL). */}
-        <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.06] to-transparent px-6 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-11">
-            <div
-              className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-ifedel-primary/50 to-transparent"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-ifedel-primary/10 blur-2xl"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-ifedel-brown/20 blur-2xl"
-              aria-hidden
-            />
-
-            <div className="relative flex flex-col items-start gap-6">
+        <div className="relative mx-auto flex h-full min-h-[24rem] max-w-[1400px] flex-col px-4 py-4 sm:min-h-[25.5rem] sm:px-6 sm:py-5 lg:min-h-[27rem] lg:px-8 lg:py-6 xl:min-h-[28.5rem]">
+          {/* Top bar: logo + chip */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
               <Image
-                src={IFEDelBrand.logo.src}
+                src={HERO_LOGO}
                 alt={IFEDelBrand.companyName}
-                width={160}
-                height={42}
-                className="h-9 w-auto sm:h-10"
+                width={972}
+                height={128}
                 priority
+                className="h-8 w-auto max-w-[min(100%,14rem)] object-contain object-left sm:h-9 sm:max-w-[16rem]"
               />
-              <p className="max-w-[18rem] text-sm leading-snug text-white/70">
-                Catálogo online para consultas y cotizaciones del sector
-                agropecuario.
+              <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/70 sm:text-[11px]">
+                {IFEDelBrand.tagline}
               </p>
-              <ul className="flex flex-wrap gap-2">
-                {RUBROS.map((rubro) => (
-                  <li
-                    key={rubro}
-                    className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium tracking-wide text-white/80"
-                  >
-                    {rubro}
-                  </li>
-                ))}
-              </ul>
             </div>
+
+            <p className="hidden shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/25 px-2.5 py-1 text-[10px] text-white/65 backdrop-blur-sm md:inline-flex">
+              <span
+                className="h-1 w-1 rounded-full bg-ifedel-primary/90"
+                aria-hidden
+              />
+              Catálogo público · ifedel.com
+            </p>
+          </div>
+
+          {/* Copy */}
+          <div className="mt-5 max-w-xl sm:mt-6 lg:mt-7 lg:max-w-2xl">
+            <h1
+              id="home-hero-heading"
+              className="text-[1.85rem] font-bold leading-[1.12] tracking-tight text-white sm:text-4xl sm:leading-[1.1] lg:text-[2.65rem] lg:leading-[1.08] xl:text-[2.85rem]"
+            >
+              Soluciones para el campo, en un solo lugar
+            </h1>
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/80 sm:mt-3.5 sm:text-base">
+              Explorá productos para electrificación rural, identificación
+              animal, esquila, manejo ganadero y agua. Armá tu consulta y
+              recibí asesoramiento comercial.
+            </p>
+          </div>
+
+          {/* CTAs + trust bar: misma franja horizontal en desktop */}
+          <div className="mt-5 flex w-full flex-col gap-4 sm:mt-5 lg:mt-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6 xl:gap-8">
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href={productsHref}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-ifedel-primary px-6 py-3 text-sm font-semibold text-black transition hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ifedel-primary"
+              >
+                Explorar productos
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <Link
+                href={inquiryHref}
+                className="inline-flex items-center justify-center rounded-full border border-white/35 bg-black/20 px-6 py-3 text-sm font-semibold text-white backdrop-blur-[2px] transition hover:border-white/55 hover:bg-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                Armar consulta
+              </Link>
+            </div>
+
+            <ul className="grid w-full min-w-0 grid-cols-1 gap-px overflow-hidden rounded-xl border border-white/15 bg-white/10 backdrop-blur-md sm:grid-cols-3 lg:ml-auto lg:w-auto lg:max-w-[32rem] xl:max-w-[34rem]">
+              {BENEFITS.map((item) => (
+                <li
+                  key={item.title}
+                  className="bg-black/45 px-3.5 py-2.5 sm:px-3 sm:py-2.5 lg:px-3"
+                >
+                  <p className="flex items-center gap-2 text-[13px] font-semibold leading-tight text-white">
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-ifedel-primary"
+                      aria-hidden
+                    />
+                    {item.title}
+                  </p>
+                  <p className="mt-0.5 pl-3.5 text-[11px] leading-snug text-white/60">
+                    {item.description}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>
