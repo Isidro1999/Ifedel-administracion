@@ -39,30 +39,33 @@ export function HomeHero({ productsHref, inquiryHref }: HomeHeroProps) {
           fill
           priority
           sizes="100vw"
-          className="object-cover object-[68%_center]"
+          unoptimized
+          className="z-0 object-cover object-[68%_center]"
           aria-hidden
         />
 
         {/* Scrim: más fuerte a la izquierda para legibilidad */}
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/25"
+          className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-black/85 via-black/55 to-black/25"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/25"
+          className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/50 via-transparent to-black/25"
           aria-hidden
         />
 
-        <div className="relative mx-auto flex h-full min-h-[24rem] max-w-[1400px] flex-col px-4 py-4 sm:min-h-[25.5rem] sm:px-6 sm:py-5 lg:min-h-[27rem] lg:px-8 lg:py-6 xl:min-h-[28.5rem]">
+        <div className="relative z-[2] mx-auto flex h-full min-h-[24rem] max-w-[1400px] flex-col px-4 py-4 sm:min-h-[25.5rem] sm:px-6 sm:py-5 lg:min-h-[27rem] lg:px-8 lg:py-6 xl:min-h-[28.5rem]">
           {/* Top bar: logo + chip */}
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
+            <div className="min-w-0 shrink">
               <Image
                 src={HERO_LOGO}
                 alt={IFEDelBrand.companyName}
                 width={972}
                 height={128}
                 priority
+                unoptimized
+                sizes="(max-width: 640px) 14rem, 16rem"
                 className="h-8 w-auto max-w-[min(100%,14rem)] object-contain object-left sm:h-9 sm:max-w-[16rem]"
               />
               <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/70 sm:text-[11px]">
