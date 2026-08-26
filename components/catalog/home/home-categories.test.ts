@@ -196,6 +196,77 @@ describe('selectHomeRootCategories', () => {
     assert.ok(items.every((i) => !i.href.includes('productos?')))
   })
 
+  it('electrificacion-y-alambrados usa imagen local de Home', () => {
+    const { tree } = homeTreeFixture()
+    const items = toHomeCategoryItemsFromTree(tree, (slug) => `/${slug}`)
+    const elec = items.find((i) => i.slug === 'electrificacion-y-alambrados')
+    assert.equal(
+      elec?.imageUrl,
+      '/catalog/categories/pexels-cesar-16021483.jpg',
+    )
+  })
+
+  it('roots V1 con imagen local usan HOME_CATEGORY_IMAGES', () => {
+    const { tree } = homeTreeFixture()
+    const withImages: CatalogCategoryNode[] = [
+      ...tree,
+      {
+        id: 10,
+        name: 'Esquila y Peladoras',
+        slug: 'esquila-y-peladoras',
+        parentId: null,
+        shortDescription: null,
+        imageUrl: null,
+        sortOrder: 3,
+        showInHome: true,
+        count: 2,
+        children: [],
+      },
+      {
+        id: 11,
+        name: 'Manejo Ganadero',
+        slug: 'manejo-ganadero',
+        parentId: null,
+        shortDescription: null,
+        imageUrl: null,
+        sortOrder: 4,
+        showInHome: true,
+        count: 2,
+        children: [],
+      },
+      {
+        id: 12,
+        name: 'Agua y Manejo Hídrico',
+        slug: 'agua-y-manejo-hidrico',
+        parentId: null,
+        shortDescription: null,
+        imageUrl: null,
+        sortOrder: 5,
+        showInHome: true,
+        count: 2,
+        children: [],
+      },
+    ]
+    const items = toHomeCategoryItemsFromTree(withImages, (slug) => `/${slug}`)
+    const bySlug = Object.fromEntries(items.map((i) => [i.slug, i.imageUrl]))
+    assert.equal(
+      bySlug['identificacion-y-pesaje-animal'],
+      '/catalog/categories/identificacion-y-pesaje-animal.jpg',
+    )
+    assert.equal(
+      bySlug['esquila-y-peladoras'],
+      '/catalog/categories/esquila-y-peladoras.jpg',
+    )
+    assert.equal(
+      bySlug['manejo-ganadero'],
+      '/catalog/categories/manejo-ganadero.jpg',
+    )
+    assert.equal(
+      bySlug['agua-y-manejo-hidrico'],
+      '/catalog/categories/agua-y-manejo-hidrico.jpg',
+    )
+  })
+
   it('árbol expone showInHome en roots', () => {
     const { tree } = homeTreeFixture()
     const elec = tree.find((r) => r.slug === 'electrificacion-y-alambrados')

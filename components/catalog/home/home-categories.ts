@@ -49,9 +49,18 @@ export const HOME_CATEGORY_ICONS: Record<string, HomeCategoryIconKey> = {
 
 /**
  * Imágenes locales opcionales por slug (`public/catalog/categories/`).
- * Usadas por social metadata / fallbacks; Home V1 prioriza `imageUrl` de DB.
+ * En Home, si hay entrada acá se usa como visual de la card (sin depender de DB).
  */
 export const HOME_CATEGORY_IMAGES: Record<string, string> = {
+  // Principales V1
+  'electrificacion-y-alambrados':
+    '/catalog/categories/pexels-cesar-16021483.jpg',
+  'identificacion-y-pesaje-animal':
+    '/catalog/categories/identificacion-y-pesaje-animal.jpg',
+  'esquila-y-peladoras': '/catalog/categories/esquila-y-peladoras.jpg',
+  'manejo-ganadero': '/catalog/categories/manejo-ganadero.jpg',
+  'agua-y-manejo-hidrico': '/catalog/categories/agua-y-manejo-hidrico.jpg',
+  // Legacy (About / social metadata)
   'electrificacin-energizadores':
     '/catalog/categories/pexels-seba-763269.jpg',
   'electrificacin-accesorios':
@@ -105,6 +114,7 @@ export function toHomeCategoryItemsFromTree(
     href: hrefForSlug(root.slug),
     icon: HOME_CATEGORY_ICONS[root.slug] ?? 'default',
     shortDescription: root.shortDescription,
-    imageUrl: root.imageUrl?.trim() || null,
+    imageUrl:
+      HOME_CATEGORY_IMAGES[root.slug] || root.imageUrl?.trim() || null,
   }))
 }
