@@ -98,6 +98,12 @@ export async function PUT(
       )
     }
 
+    const nextCatalogVisible = data.catalogVisible ?? false
+    const affectsPublicCatalog =
+      existingProduct.categoryId !== category.id ||
+      existingProduct.catalogVisible !== nextCatalogVisible ||
+      existingProduct.isActive !== data.isActive
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -110,7 +116,7 @@ export async function PUT(
         costCurrency: data.cost != null ? (data.costCurrency ?? 'USD') : undefined,
         isActive: data.isActive,
         isFeatured: data.isFeatured,
-        catalogVisible: data.catalogVisible ?? false,
+        catalogVisible: nextCatalogVisible,
         publicTitle: data.publicTitle?.trim() || null,
         publicShortDescription: data.publicShortDescription?.trim() || null,
         publicDescription: data.publicDescription?.trim() || null,
@@ -154,6 +160,15 @@ export async function PUT(
         files: true,
       },
     })
+
+    if (affectsPublicCatalog) {
+      const { revalidateCatalogPublicCache } = await import(
+        '@/lib/catalog-revalidate'
+      )
+      revalidateCatalogPublicCache({
+        slugs: [product.slug, existingProduct.slug].filter(Boolean),
+      })
+    }
 
     return NextResponse.json(serializeProductForApi(product, { includeCost: true }))
   } catch (error: any) {

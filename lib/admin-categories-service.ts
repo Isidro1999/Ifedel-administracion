@@ -161,7 +161,7 @@ export async function createAdminCategory(raw: unknown) {
   const showInHome =
     parentId == null ? Boolean(data.showInHome) : Boolean(data.showInHome)
 
-  return prisma.category.create({
+  const created = await prisma.category.create({
     data: {
       name: data.name.trim(),
       slug: data.slug,
@@ -174,6 +174,11 @@ export async function createAdminCategory(raw: unknown) {
     },
     select: categorySelect,
   })
+
+  const { revalidateCatalogPublicCache } = await import('@/lib/catalog-revalidate')
+  revalidateCatalogPublicCache()
+
+  return created
 }
 
 export async function updateAdminCategory(id: number, raw: unknown) {
@@ -220,7 +225,7 @@ export async function updateAdminCategory(id: number, raw: unknown) {
     await assertSlugAvailable(data.slug, id)
   }
 
-  return prisma.category.update({
+  const updated = await prisma.category.update({
     where: { id },
     data: {
       name: data.name.trim(),
@@ -240,6 +245,11 @@ export async function updateAdminCategory(id: number, raw: unknown) {
     },
     select: categorySelect,
   })
+
+  const { revalidateCatalogPublicCache } = await import('@/lib/catalog-revalidate')
+  revalidateCatalogPublicCache()
+
+  return updated
 }
 
 export async function deleteAdminCategory(id: number) {
@@ -262,6 +272,10 @@ export async function deleteAdminCategory(id: number) {
     childCount: current._count.children,
   })
   await prisma.category.delete({ where: { id } })
+
+  const { revalidateCatalogPublicCache } = await import('@/lib/catalog-revalidate')
+  revalidateCatalogPublicCache()
+
   return { ok: true as const, id }
 }
 
