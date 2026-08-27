@@ -62,12 +62,44 @@ export type PublicCategoryIndex = {
 const categoryOrder = (a: PublicCategoryRow, b: PublicCategoryRow) =>
   a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'es')
 
+/** Roots V1 canónicos (whitelist de principales). */
+export function isPublicV1RootSlug(
+  slug: string,
+  v1RootSlugSet: Set<string>,
+): boolean {
+  if (isLegacyCategorySlug(slug)) return false
+  return v1RootSlugSet.has(slug)
+}
+
+/**
+ * Slug en taxonomía V1 (root o hoja seed). Mantenido por compat; el índice
+ * público ya no exige whitelist de slugs para hojas administrables.
+ */
 export function isPublicV1CategorySlug(
   slug: string,
-  v1SlugSet: Set<string>
+  v1SlugSet: Set<string>,
 ): boolean {
   if (isLegacyCategorySlug(slug)) return false
   return v1SlugSet.has(slug)
+}
+
+function activeNonLegacyCategories(
+  categories: PublicCategoryRow[],
+): PublicCategoryRow[] {
+  return categories.filter(
+    (c) => c.isActive && !isLegacyCategorySlug(c.slug),
+  )
+}
+
+/** IDs de categorías que tienen al menos una hija activa no-legacy. */
+function parentIdsWithActiveChildren(
+  categories: PublicCategoryRow[],
+): Set<number> {
+  const ids = new Set<number>()
+  for (const c of categories) {
+    if (c.parentId != null) ids.add(c.parentId)
+  }
+  return ids
 }
 
 export function buildPublicCategoryIndex(input: {
@@ -75,14 +107,29 @@ export function buildPublicCategoryIndex(input: {
   countsByCategoryId: Map<number, number>
 }): PublicCategoryIndex {
   const { nodes } = resolveTaxonomyV1EffectiveNodes(
-    input.categories.map((c) => ({ slug: c.slug, name: c.name }))
+    input.categories.map((c) => ({ slug: c.slug, name: c.name })),
   )
   const v1SlugSet = new Set(nodes.map((n) => n.effectiveSlug))
-
-  const rows = input.categories.filter(
-    (c) => c.isActive && isPublicV1CategorySlug(c.slug, v1SlugSet)
+  const v1RootSlugSet = new Set(
+    nodes.filter((n) => n.kind === 'root').map((n) => n.effectiveSlug),
   )
 
+  const eligible = activeNonLegacyCategories(input.categories)
+  const idsWithChildren = parentIdsWithActiveChildren(eligible)
+
+  const rootRows = eligible.filter(
+    (c) => c.parentId === null && isPublicV1RootSlug(c.slug, v1RootSlugSet),
+  )
+  const v1RootIds = new Set(rootRows.map((r) => r.id))
+
+  const leafRows = eligible.filter(
+    (c) =>
+      c.parentId != null &&
+      v1RootIds.has(c.parentId) &&
+      !idsWithChildren.has(c.id),
+  )
+
+  const rows = [...rootRows, ...leafRows]
   const bySlug = new Map(rows.map((r) => [r.slug, r]))
   const byId = new Map(rows.map((r) => [r.id, r]))
 

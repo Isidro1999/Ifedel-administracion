@@ -92,6 +92,152 @@ function miniV1Fixture() {
   return { categories, countsByCategoryId, index }
 }
 
+describe('buildPublicCategoryIndex — hojas administrables', () => {
+  const identRoot = row({
+    id: 2,
+    name: 'Identificación y Pesaje Animal',
+    slug: 'identificacion-y-pesaje-animal',
+    parentId: null,
+    sortOrder: 2,
+  })
+
+  it('caso 1: hoja V1 seed con productos públicos → en índice y árbol', () => {
+    const { index } = miniV1Fixture()
+    assert.ok(index.bySlug.has('aisladores'))
+    const tree = buildCatalogCategoryTree(index)
+    const slugs =
+      tree
+        .find((r) => r.slug === 'electrificacion-y-alambrados')
+        ?.children?.map((c) => c.slug) ?? []
+    assert.ok(slugs.includes('aisladores'))
+  })
+
+  it('caso 2: hoja nueva admin bajo root V1 con productos → en índice y árbol', () => {
+    const categories: PublicCategoryRow[] = [
+      identRoot,
+      row({
+        id: 36,
+        name: 'Identificación electrónica Oficial Senasa',
+        slug: 'identificacion-electronica-oficial-senasa',
+        parentId: 2,
+        sortOrder: 1,
+      }),
+    ]
+    const counts = new Map<number, number>([[36, 9]])
+    const index = buildPublicCategoryIndex({ categories, countsByCategoryId: counts })
+    assert.ok(index.bySlug.has('identificacion-electronica-oficial-senasa'))
+    const tree = buildCatalogCategoryTree(index)
+    const idRoot = tree.find((r) => r.slug === 'identificacion-y-pesaje-animal')
+    assert.ok(idRoot)
+    assert.equal(idRoot?.count, 9)
+    assert.deepEqual(
+      idRoot?.children?.map((c) => c.slug),
+      ['identificacion-electronica-oficial-senasa'],
+    )
+  })
+
+  it('caso 3: hoja admin activa con 0 públicos → en índice pero oculta en árbol', () => {
+    const categories: PublicCategoryRow[] = [
+      identRoot,
+      row({
+        id: 39,
+        name: 'Sistemas de Pesaje',
+        slug: 'sistemas-de-pesaje',
+        parentId: 2,
+      }),
+    ]
+    const index = buildPublicCategoryIndex({
+      categories,
+      countsByCategoryId: new Map(),
+    })
+    assert.ok(index.bySlug.has('sistemas-de-pesaje'))
+    const tree = buildCatalogCategoryTree(index)
+    assert.equal(tree.length, 0)
+  })
+
+  it('caso 4: hoja inactiva con productos → fuera del índice', () => {
+    const categories: PublicCategoryRow[] = [
+      identRoot,
+      row({
+        id: 50,
+        name: 'Inactiva admin',
+        slug: 'hoja-inactiva-admin',
+        parentId: 2,
+        isActive: false,
+      }),
+    ]
+    const index = buildPublicCategoryIndex({
+      categories,
+      countsByCategoryId: new Map([[50, 5]]),
+    })
+    assert.ok(!index.bySlug.has('hoja-inactiva-admin'))
+  })
+
+  it('caso 5: legacy → fuera del índice aunque tenga parent V1', () => {
+    const categories: PublicCategoryRow[] = [
+      identRoot,
+      row({
+        id: 99,
+        name: 'Legacy lectores',
+        slug: 'lectores',
+        parentId: 2,
+      }),
+    ]
+    const index = buildPublicCategoryIndex({
+      categories,
+      countsByCategoryId: new Map([[99, 10]]),
+    })
+    assert.ok(!index.bySlug.has('lectores'))
+  })
+
+  it('hoja bajo root no V1 → excluida', () => {
+    const categories: PublicCategoryRow[] = [
+      row({
+        id: 500,
+        name: 'Root custom no V1',
+        slug: 'root-custom-no-v1',
+        parentId: null,
+      }),
+      row({
+        id: 501,
+        name: 'Hoja bajo root inválido',
+        slug: 'hoja-root-invalido',
+        parentId: 500,
+      }),
+    ]
+    const index = buildPublicCategoryIndex({
+      categories,
+      countsByCategoryId: new Map([[501, 3]]),
+    })
+    assert.ok(!index.bySlug.has('hoja-root-invalido'))
+    assert.ok(!index.bySlug.has('root-custom-no-v1'))
+  })
+
+  it('categoría intermedia con hijas → no entra como hoja', () => {
+    const categories: PublicCategoryRow[] = [
+      identRoot,
+      row({
+        id: 60,
+        name: 'Intermedia',
+        slug: 'intermedia-id',
+        parentId: 2,
+      }),
+      row({
+        id: 61,
+        name: 'Hoja real',
+        slug: 'hoja-real',
+        parentId: 60,
+      }),
+    ]
+    const index = buildPublicCategoryIndex({
+      categories,
+      countsByCategoryId: new Map([[61, 4]]),
+    })
+    assert.ok(!index.bySlug.has('intermedia-id'))
+    assert.ok(!index.bySlug.has('hoja-real'))
+  })
+})
+
 describe('buildCatalogCategoryTree', () => {
   it('devuelve roots V1 ordenados por sortOrder', () => {
     const { index } = miniV1Fixture()
